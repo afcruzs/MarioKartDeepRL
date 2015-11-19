@@ -19,9 +19,7 @@ function GameBoyAdvanceEmulator() {
         "dynamicSpeed":false                //Whether to actively change the target speed for best user experience.
     };
     this.audioFound = 0;                      //Do we have audio output sink found yet?
-    this.loaded = false;                      //Did we initialize IodineGBA?
-    this.faultFound = false;                  //Did we run into a fatal error?
-    this.paused = true;                       //Are we paused?
+    this.emulatorStatus = 0x10;               //{paused, saves loaded, fault found, loaded}
     this.offscreenWidth = 240;                //Width of the GBA screen.
     this.offscreenHeight = 160;               //Height of the GBA screen.
     this.BIOS = [];                           //Initialize BIOS as not existing.
@@ -56,11 +54,11 @@ GameBoyAdvanceEmulator.prototype.generateCoreExposed = function () {
     }
 }
 GameBoyAdvanceEmulator.prototype.play = function () {
-    if (this.paused) {
-        this.paused = false;
-        if (!this.loaded && this.BIOS && this.ROM) {
+    if ((this.emulatorStatus | 0) >= 0x10) {
+        this.emulatorStatus = this.emulatorStatus & 0xF;
+        if ((this.emulatorStatus & 0x1) == 0 && this.BIOS && this.ROM) {
             this.initializeCore();
-            this.loaded = true;
+            this.emulatorStatus = this.emulatorStatus | 0x1;
             this.importSave();
         }
         this.invalidateMetrics();
@@ -68,20 +66,19 @@ GameBoyAdvanceEmulator.prototype.play = function () {
     }
 }
 GameBoyAdvanceEmulator.prototype.pause = function () {
-    if (!this.paused) {
+    if ((this.emulatorStatus | 0) < 0x10) {
         this.exportSave();
-        this.paused = true;
+        this.emulatorStatus = this.emulatorStatus | 0x10;
     }
 }
 GameBoyAdvanceEmulator.prototype.stop = function () {
-    this.faultFound = false;
-    this.loaded = false;
+    this.emulatorStatus = this.emulatorStatus & 0x1C;
     this.audioUpdateState = 1;
     this.pause();
 }
 GameBoyAdvanceEmulator.prototype.restart = function () {
-    if (this.loaded) {
-        this.faultFound = false;
+    if ((this.emulatorStatus & 0x1) == 0x1) {
+        this.emulatorStatus = this.emulatorStatus & 0x1D;
         this.exportSave();
         this.initializeCore();
         this.importSave();
@@ -93,25 +90,23 @@ GameBoyAdvanceEmulator.prototype.restart = function () {
 GameBoyAdvanceEmulator.prototype.timerCallback = function (lastTimestamp) {
     //Callback passes us a reference timestamp:
     this.lastTimestamp = +lastTimestamp;
-    if (!this.paused) {
-        if (!this.faultFound && this.loaded) {                          //Any error pending or no ROM loaded is a show-stopper!
-            this.iterationStartSequence();                              //Run start of iteration stuff.
-            this.IOCore.enter(this.CPUCyclesTotal | 0);                 //Step through the emulation core loop.
-            this.iterationEndSequence();                                //Run end of iteration stuff.
-        }
-        else {
-            this.pause();                                                //Some pending error is preventing execution, so pause.
-        }
+    if ((this.emulatorStatus | 0) == 0x5) {                         //Any error pending or no ROM loaded is a show-stopper!
+        this.iterationStartSequence();                              //Run start of iteration stuff.
+        this.IOCore.enter(this.CPUCyclesTotal | 0);                 //Step through the emulation core loop.
+        this.iterationEndSequence();                                //Run end of iteration stuff.
+    }
+    else {
+        this.pause();                                                //Some pending error is preventing execution, so pause.
     }
 }
 GameBoyAdvanceEmulator.prototype.iterationStartSequence = function () {
     this.calculateSpeedPercentage();                                    //Calculate the emulator realtime run speed heuristics.
-    this.faultFound = true;                                             //If the end routine doesn't unset this, then we are marked as having crashed.
+    this.emulatorStatus = this.emulatorStatus | 0x2;                    //If the end routine doesn't unset this, then we are marked as having crashed.
     this.audioUnderrunAdjustment();                                     //If audio is enabled, look to see how much we should overclock by to maintain the audio buffer.
     this.audioPushNewState();                                           //Check to see if we need to update the audio core for any output changes.
 }
 GameBoyAdvanceEmulator.prototype.iterationEndSequence = function () {
-    this.faultFound = false;                                            //If core did not throw while running, unset the fatal error flag.
+    this.emulatorStatus = this.emulatorStatus & 0x1D;                   //If core did not throw while running, unset the fatal error flag.
     this.clockCyclesSinceStart = ((this.clockCyclesSinceStart | 0) + (this.CPUCyclesTotal | 0)) | 0;    //Accumulate tracking.
 }
 GameBoyAdvanceEmulator.prototype.attachROM = function (ROM) {
@@ -123,7 +118,7 @@ GameBoyAdvanceEmulator.prototype.attachBIOS = function (BIOS) {
     this.BIOS = BIOS;
 }
 GameBoyAdvanceEmulator.prototype.getGameName = function () {
-    if (!this.faultFound && this.loaded) {
+    if ((this.emulatorStatus & 0x3) == 0x1) {
         return this.IOCore.cartridge.name;
     }
     else {
@@ -149,23 +144,31 @@ GameBoyAdvanceEmulator.prototype.importSave = function () {
     if (this.saveImportHandler) {
         var name = this.getGameName();
         if (name != "") {
-            var save = this.saveImportHandler(name);
-            var saveType = this.saveImportHandler("TYPE_" + name);
-            if (save && saveType && !this.faultFound && this.loaded) {
-                var length = save.length | 0;
-                var convertedSave = getUint8Array(length | 0);
-                if ((length | 0) > 0) {
-                    for (var index = 0; (index | 0) < (length | 0); index = ((index | 0) + 1) | 0) {
-                        convertedSave[index | 0] = save[index | 0] & 0xFF;
+            var parentObj = this;
+            this.emulatorStatus = this.emulatorStatus & 0x1B;
+            this.saveImportHandler(name, function (save) {
+                parentObj.emulatorStatus = parentObj.emulatorStatus & 0x1B;
+                parentObj.saveImportHandler("TYPE_" + name, function (saveType) {
+                    if (save && saveType && (parentObj.emulatorStatus & 0x3) == 0x1) {
+                        var length = save.length | 0;
+                        var convertedSave = getUint8Array(length | 0);
+                        if ((length | 0) > 0) {
+                            for (var index = 0; (index | 0) < (length | 0); index = ((index | 0) + 1) | 0) {
+                                convertedSave[index | 0] = save[index | 0] & 0xFF;
+                            }
+                            parentObj.IOCore.saves.importSave(convertedSave, saveType | 0);
+                            parentObj.emulatorStatus = parentObj.emulatorStatus | 0x4;
+                        }
                     }
-                    this.IOCore.saves.importSave(convertedSave, saveType | 0);
-                }
-            }
+                }, function (){parentObj.emulatorStatus = parentObj.emulatorStatus | 0x4;});
+            }, function (){parentObj.emulatorStatus = parentObj.emulatorStatus | 0x4;});
+            return;
         }
     }
+    this.emulatorStatus = this.emulatorStatus | 0x4;
 }
 GameBoyAdvanceEmulator.prototype.exportSave = function () {
-    if (this.saveExportHandler && !this.faultFound && this.loaded) {
+    if (this.saveExportHandler && (this.emulatorStatus & 0x3) == 0x1) {
         var save = this.IOCore.saves.exportSave();
         var saveType = this.IOCore.saves.exportSaveType();
         if (save != null && saveType != null) {
@@ -254,13 +257,13 @@ GameBoyAdvanceEmulator.prototype.initializeCore = function () {
 }
 GameBoyAdvanceEmulator.prototype.keyDown = function (keyPressed) {
     keyPressed = keyPressed | 0;
-    if (!this.paused && (keyPressed | 0) >= 0 && (keyPressed | 0) <= 9) {
+    if ((this.emulatorStatus | 0) < 0x10 && (keyPressed | 0) >= 0 && (keyPressed | 0) <= 9) {
         this.IOCore.joypad.keyPress(keyPressed | 0);
     }
 }
 GameBoyAdvanceEmulator.prototype.keyUp = function (keyReleased) {
     keyReleased = keyReleased | 0;
-    if (!this.paused && (keyReleased | 0) >= 0 && (keyReleased | 0) <= 9) {
+    if ((this.emulatorStatus | 0) < 0x10 && (keyReleased | 0) >= 0 && (keyReleased | 0) <= 9) {
         this.IOCore.joypad.keyRelease(keyReleased | 0);
     }
 }

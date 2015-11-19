@@ -46,7 +46,7 @@ var IodineGUI = {
 };
 window.onload = function () {
     //Initialize Iodine:
-    IodineGUI.Iodine = new GameBoyAdvanceEmulator();
+    registerIodineHandler();
     //Initialize the timer:
     registerTimerHandler();
     //Initialize the graphics:
@@ -59,6 +59,27 @@ window.onload = function () {
     registerGUIEvents();
     //Register GUI settings.
     registerGUISettings();
+}
+function registerIodineHandler() {
+    try {
+        //Try starting Iodine in a webworker:
+        IodineGUI.Iodine = new IodineGBAWorkerShim();
+        addEvent("onbeforeunload", window, registerBeforeUnloadHandler);
+    }
+    catch (e) {
+        //Otherwise just run on-thread:
+        IodineGUI.Iodine = new GameBoyAdvanceEmulator();
+    }
+}
+function registerBeforeUnloadHandler(e) {
+    IodineGUI.Iodine.pause();
+    this.style.display = "none";
+    document.getElementById("play").style.display = "inline";
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    removeEvent("onbeforeunload", window, registerBeforeUnloadHandler);
+    return "IodineGBA needs to process your save data, leaving now may result in not saving current data.";
 }
 function registerTimerHandler() {
     var rate = 4;
@@ -77,7 +98,7 @@ function registerTimerHandler() {
     }, rate | 0);
 }
 function registerBlitterHandler() {
-    IodineGUI.Blitter = new GlueCodeGfx();
+    IodineGUI.Blitter = new GlueCodeGfx(240, 160);
     IodineGUI.Blitter.attachCanvas(document.getElementById("emulator_target"));
     IodineGUI.Iodine.attachGraphicsFrameHandler(function (buffer) {IodineGUI.Blitter.copyBuffer(buffer);});
 }
