@@ -8,11 +8,11 @@
  
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-function GlueCodeGfx() {
+function GlueCodeGfx(width, height) {
     this.didRAF = false;                      //Set when rAF has been used.
     this.graphicsFound = 0;                   //Do we have graphics output sink found yet?
-    this.offscreenWidth = 240;                //Width of the GBA screen.
-    this.offscreenHeight = 160;               //Height of the GBA screen.
+    this.offscreenWidth = width;              //Width of the GBA screen.
+    this.offscreenHeight = height;            //Height of the GBA screen.
     this.doSmoothing = true;
     //Cache some frame buffer lengths:
     var offscreenRGBCount = this.offscreenWidth * this.offscreenHeight * 3;
