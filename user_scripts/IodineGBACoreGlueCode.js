@@ -62,8 +62,8 @@ window.onload = function () {
 }
 function registerIodineHandler() {
     try {
-        if (!window.SharedInt32Array) {
-            //Audio synchronization is much better with shared array memory:
+        //Will run like shit if missing some of this for the webworker copy:
+        if (!Math.imul || !window.Int32Array /*|| !window.SharedInt32Array*/) {
             throw null;
         }
         //Try starting Iodine in a webworker:
