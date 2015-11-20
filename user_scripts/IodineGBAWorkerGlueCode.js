@@ -11,10 +11,12 @@
 function IodineGBAWorkerShim() {
     this.gfx = null;
     this.audio = null;
+    this.audioInitialized = false;
     this.speed = null;
     this.saveExport = null;
     this.saveImport = null;
     this.worker = null;
+    this.shared = null;
     this.initialize();
 }
 var tempvar = document.getElementsByTagName("script");
@@ -24,6 +26,10 @@ IodineGBAWorkerShim.prototype.initialize = function () {
     this.worker = new Worker(this.filepath.substring(0, (this.filepath.length | 0) - 3) + "Worker.js");
     this.worker.onmessage = function (event) {
         parentObj.decodeMessage(event.data);
+    }
+    if (window.SharedInt32Array) {
+        this.shared = new SharedInt32Array(1);
+        this.sendBufferBack(25, this.shared);
     }
 }
 IodineGBAWorkerShim.prototype.sendMessageSingle = function (eventCode) {
@@ -53,7 +59,14 @@ IodineGBAWorkerShim.prototype.setIntervalRate = function (rate) {
 }
 IodineGBAWorkerShim.prototype.timerCallback = function (timestamp) {
     timestamp = +timestamp;
-    this.sendMessageDouble(23, this.audio.remainingBuffer());
+    if (this.audio && this.audioInitialized) {
+        if (this.shared) {
+            this.shared[0] = this.audio.remainingBuffer() | 0;
+        }
+        else {
+            this.sendMessageDouble(23, this.audio.remainingBuffer() | 0);
+        }
+    }
     this.sendMessageDouble(4, +timestamp);
 }
 IodineGBAWorkerShim.prototype.attachGraphicsFrameHandler = function (gfx) {
@@ -154,6 +167,7 @@ IodineGBAWorkerShim.prototype.audioInitialize = function (channels, sampleRate, 
             //Disable audio in the callback here:
             parentObj.disableAudio();
         });
+        this.audioInitialized = true;
     }
 }
 IodineGBAWorkerShim.prototype.audioRegister = function () {

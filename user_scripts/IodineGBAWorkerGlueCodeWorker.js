@@ -54,8 +54,10 @@ importScripts("../IodineGBA/core/cartridge/EEPROM.js");
 var Iodine = new GameBoyAdvanceEmulator();
 //Spare audio buffers:
 var audioBufferPool = [];
+var audioBufferPassCount = 0;
 //Spare graphics buffers:
 var graphicsBufferPool = [];
+var graphicsBufferPassCount = 0;
 //Save callbacks waiting to be satisfied:
 var saveImportPool = [];
 //Cached timestamp:
@@ -139,19 +141,29 @@ self.onmessage = function (event) {
             break;
         case 24:
             processSaveImportFail();
+            break;
+        case 25:
+            attachAudioMetricHook(data.payload);
     }
 }
 function graphicsFrameHandler(swizzledFrame) {
-    var buffer = getFreeGraphicsBuffer(swizzledFrame.length);
-    buffer.set(swizzledFrame);
-    postMessage({messageID:4, graphicsBuffer:buffer}, [buffer.buffer]);
+    if ((graphicsBufferPassCount | 0) < 2) {
+        var buffer = getFreeGraphicsBuffer(swizzledFrame.length);
+        buffer.set(swizzledFrame);
+        graphicsBufferPassCount = ((graphicsBufferPassCount | 0) + 1) | 0;
+        postMessage({messageID:4, graphicsBuffer:buffer}, [buffer.buffer]);
+    }
 }
 //Shim for our audio api:
 var audioHandler = {
+    shared:null,
     push:function (audioBuffer, amountToSend) {
-        var buffer = getFreeAudioBuffer(amountToSend | 0);
-        buffer.set(audioBuffer);
-        postMessage({messageID:3, audioBuffer:buffer, audioNumSamplesTotal:amountToSend | 0}, [buffer.buffer]);
+        if ((audioBufferPassCount | 0) < 10) {
+            var buffer = getFreeAudioBuffer(amountToSend | 0);
+            buffer.set(audioBuffer);
+            audioBufferPassCount = ((audioBufferPassCount | 0) + 1) | 0;
+            postMessage({messageID:3, audioBuffer:buffer, audioNumSamplesTotal:amountToSend | 0}, [buffer.buffer]);
+        }
     },
     register:function () {
         postMessage({messageID:1});
@@ -166,10 +178,16 @@ var audioHandler = {
         postMessage({messageID:0, channels:channels, sampleRate:sampleRate, bufferLimit:bufferLimit});
     },
     remainingBuffer:function () {
+        if (this.shared) {
+            return this.shared[0];
+        }
         return this.remainingBufferCache;
     },
     remainingBufferCache:0
 };
+function attachAudioMetricHook(buffer) {
+    audioHandler.shared = new SharedInt32Array(buffer.buffer);
+}
 function speedHandler(speed) {
      postMessage({messageID:5, speed:speed});
 }
@@ -187,9 +205,11 @@ function processSaveImportFail() {
     saveImportPool.shift()[1]();
 }
 function repoolAudioBuffer(buffer) {
+    audioBufferPassCount = ((audioBufferPassCount | 0) - 1) | 0;
     audioBufferPool.push(buffer);
 }
 function repoolGraphicsBuffer(buffer) {
+    graphicsBufferPassCount = ((graphicsBufferPassCount | 0) - 1) | 0;
     graphicsBufferPool.push(buffer);
 }
 function getFreeGraphicsBuffer(amountToSend) {

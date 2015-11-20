@@ -62,9 +62,13 @@ window.onload = function () {
 }
 function registerIodineHandler() {
     try {
+        if (!window.SharedInt32Array) {
+            //Audio synchronization is much better with shared array memory:
+            throw null;
+        }
         //Try starting Iodine in a webworker:
         IodineGUI.Iodine = new IodineGBAWorkerShim();
-        addEvent("onbeforeunload", window, registerBeforeUnloadHandler);
+        addEvent("beforeunload", window, registerBeforeUnloadHandler);
     }
     catch (e) {
         //Otherwise just run on-thread:
@@ -73,12 +77,12 @@ function registerIodineHandler() {
 }
 function registerBeforeUnloadHandler(e) {
     IodineGUI.Iodine.pause();
-    this.style.display = "none";
+    document.getElementById("play").style.display = "none";
     document.getElementById("play").style.display = "inline";
     if (e.preventDefault) {
         e.preventDefault();
     }
-    removeEvent("onbeforeunload", window, registerBeforeUnloadHandler);
+    removeEvent("beforeunload", window, registerBeforeUnloadHandler);
     return "IodineGBA needs to process your save data, leaving now may result in not saving current data.";
 }
 function registerTimerHandler() {
