@@ -20,6 +20,8 @@ function IodineGBAWorkerShim() {
     this.audioBuffer = null;
     this.audioLock = null;
     this.audioMetrics = null;
+    this.audioInitialized = false;
+    this.timestamp = null;
     this.initialize();
 }
 var tempvar = document.getElementsByTagName("script");
@@ -58,9 +60,14 @@ IodineGBAWorkerShim.prototype.setIntervalRate = function (rate) {
 }
 IodineGBAWorkerShim.prototype.timerCallback = function (timestamp) {
     timestamp = +timestamp;
+    //If memory location provided for timestamp buffering:
+    if (this.timestamp) {
+        //Forward latest timestamp to worker:
+        this.timestamp[0] = +timestamp;
+    }
     //Using main thread timer as heartbeat for shared array buffer checking:
     //If audio API handle provided and we got a buffer reference:
-    if (this.audio && this.audioLock) {
+    if (this.audioInitialized) {
         //Waits while 1:
         //If buffer is ready to be consumed, it'll be turned from 2 to 1:
         this.waitForAccess(this.audioLock);
@@ -86,8 +93,6 @@ IodineGBAWorkerShim.prototype.timerCallback = function (timestamp) {
             Atomics.store(this.graphicsLock, 0, 0);
         }
     }
-    //Send timestamp to compute stats to forward back to this thread:
-    this.sendMessageDouble(4, +timestamp);
 }
 IodineGBAWorkerShim.prototype.consumeAudioBuffer = function () {
     this.audio.push(this.audioBuffer, Atomics.load(this.audioMetrics, 1) | 0);
@@ -95,67 +100,67 @@ IodineGBAWorkerShim.prototype.consumeAudioBuffer = function () {
 }
 IodineGBAWorkerShim.prototype.attachGraphicsFrameHandler = function (gfx) {
     this.gfx = gfx;
-    this.sendMessageSingle(5);
+    this.sendMessageSingle(4);
 }
 IodineGBAWorkerShim.prototype.attachAudioHandler = function (audio) {
     this.audio = audio;
-    this.sendMessageSingle(6);
+    this.sendMessageSingle(5);
 }
 IodineGBAWorkerShim.prototype.enableAudio = function () {
     if (this.audio) {
-        this.sendMessageSingle(7);
+        this.sendMessageSingle(6);
     }
 }
 IodineGBAWorkerShim.prototype.disableAudio = function () {
     if (this.audio) {
-        this.sendMessageSingle(8);
+        this.sendMessageSingle(7);
     }
 }
 IodineGBAWorkerShim.prototype.toggleSkipBootROM = function (doEnable) {
     doEnable = doEnable | 0;
-    this.sendMessageDouble(9, doEnable | 0);
+    this.sendMessageDouble(8, doEnable | 0);
 }
 IodineGBAWorkerShim.prototype.toggleDynamicSpeed = function (doEnable) {
     doEnable = doEnable | 0;
-    this.sendMessageDouble(10, doEnable | 0);
+    this.sendMessageDouble(9, doEnable | 0);
 }
 IodineGBAWorkerShim.prototype.attachSpeedHandler = function (speed) {
     this.speed = speed;
-    this.sendMessageSingle(11);
+    this.sendMessageSingle(10);
 }
 IodineGBAWorkerShim.prototype.keyDown = function (keyCode) {
     keyCode = keyCode | 0;
-    this.sendMessageDouble(12, keyCode | 0);
+    this.sendMessageDouble(11, keyCode | 0);
 }
 IodineGBAWorkerShim.prototype.keyUp = function (keyCode) {
     keyCode = keyCode | 0;
-    this.sendMessageDouble(13, keyCode | 0);
+    this.sendMessageDouble(12, keyCode | 0);
 }
 IodineGBAWorkerShim.prototype.incrementSpeed = function (newSpeed) {
     newSpeed = +newSpeed;
-    this.sendMessageDouble(14, +newSpeed);
+    this.sendMessageDouble(13, +newSpeed);
 }
 IodineGBAWorkerShim.prototype.attachBIOS = function (BIOS) {
-    this.sendMessageDouble(15, BIOS);
+    this.sendMessageDouble(14, BIOS);
 }
 IodineGBAWorkerShim.prototype.attachROM = function (ROM) {
-    this.sendMessageDouble(16, ROM);
+    this.sendMessageDouble(15, ROM);
 }
 IodineGBAWorkerShim.prototype.exportSave = function () {
-    this.sendMessageSingle(17);
+    this.sendMessageSingle(16);
 }
 IodineGBAWorkerShim.prototype.attachSaveExportHandler = function (saveExport) {
     this.saveExport = saveExport;
-    this.sendMessageSingle(18);
+    this.sendMessageSingle(17);
 }
 IodineGBAWorkerShim.prototype.attachSaveImportHandler = function (saveImport) {
     this.saveImport = saveImport;
-    this.sendMessageSingle(19);
+    this.sendMessageSingle(18);
 }
 IodineGBAWorkerShim.prototype.decodeMessage = function (data) {
     switch (data.messageID) {
         case 0:
-            this.buffersInitialize(data.graphicsBuffer, data.gfxLock, data.audioBuffer, data.audioLock, data.audioMetrics);
+            this.buffersInitialize(data.graphicsBuffer, data.gfxLock, data.audioBuffer, data.audioLock, data.audioMetrics, data.timestamp);
             break;
         case 1:
             this.audioInitialize(data.channels | 0, +data.sampleRate, data.bufferLimit | 0);
@@ -188,6 +193,7 @@ IodineGBAWorkerShim.prototype.audioInitialize = function (channels, sampleRate, 
             //Disable audio in the callback here:
             parentObj.disableAudio();
         });
+        this.audioInitialized = true;
     }
 }
 IodineGBAWorkerShim.prototype.audioRegister = function () {
@@ -206,12 +212,13 @@ IodineGBAWorkerShim.prototype.audioSetBufferSpace = function (bufferSpace) {
         this.audio.setBufferSpace(bufferSpace | 0);
     }
 }
-IodineGBAWorkerShim.prototype.buffersInitialize = function (graphicsBuffer, gfxLock, audioBuffer, audioLock, audioMetrics) {
+IodineGBAWorkerShim.prototype.buffersInitialize = function (graphicsBuffer, gfxLock, audioBuffer, audioLock, audioMetrics, timestamp) {
     this.graphicsBuffer = graphicsBuffer;
     this.graphicsLock = gfxLock;
     this.audioBuffer = audioBuffer;
     this.audioLock = audioLock;
     this.audioMetrics = audioMetrics;
+    this.timestamp = timestamp;
 }
 IodineGBAWorkerShim.prototype.speedPush = function (speed) {
     speed = +speed;
@@ -223,10 +230,10 @@ IodineGBAWorkerShim.prototype.saveImportRequest = function (saveID) {
     if (this.saveImport) {
         var parentObj = this;
         this.saveImport(saveID, function (saveData) {
-            parentObj.sendMessageDouble(20, saveData);
+            parentObj.sendMessageDouble(19, saveData);
         },
         function () {
-            parentObj.sendMessageSingle(21);
+            parentObj.sendMessageSingle(20);
         });
     }
 }

@@ -61,10 +61,10 @@ var gfxLock = new SharedInt8Array(1);
 var audioBuffer = new SharedFloat32Array(0x10000);
 var audioLock = new SharedInt8Array(1);
 var audioMetrics = new SharedInt32Array(2);
+//Time Stamp tracking:
+var timestamp = new SharedFloat64Array(1);
 //Pass the shared array buffers:
-postMessage({messageID:0, graphicsBuffer:gfxBuffer, gfxLock:gfxLock, audioBuffer:audioBuffer, audioLock:audioLock, audioMetrics:audioMetrics}, [gfxBuffer.buffer, gfxLock.buffer, audioBuffer.buffer, audioLock.buffer, audioMetrics.buffer]);
-//Cached timestamp:
-var timestamp = 0;
+postMessage({messageID:0, graphicsBuffer:gfxBuffer, gfxLock:gfxLock, audioBuffer:audioBuffer, audioLock:audioLock, audioMetrics:audioMetrics, timestamp:timestamp}, [gfxBuffer.buffer, gfxLock.buffer, audioBuffer.buffer, audioLock.buffer, audioMetrics.buffer, timestamp.buffer]);
 //Event decoding:
 self.onmessage = function (event) {
     var data = event.data;
@@ -80,60 +80,57 @@ self.onmessage = function (event) {
             break;
         case 3:
             Iodine.setIntervalRate(data.payload | 0);
-            setInterval(function() {Iodine.timerCallback(+timestamp);}, data.payload | 0);
+            setInterval(function() {Iodine.timerCallback(+timestamp[0]);}, data.payload | 0);
             break;
         case 4:
-            timestamp = +data.payload;
-            break;
-        case 5:
             Iodine.attachGraphicsFrameHandler(graphicsFrameHandler);
             break;
-        case 6:
+        case 5:
             Iodine.attachAudioHandler(audioHandler);
             break;
-        case 7:
+        case 6:
             Iodine.enableAudio();
             break;
-        case 8:
+        case 7:
             Iodine.disableAudio();
             break;
-        case 9:
+        case 8:
             Iodine.toggleSkipBootROM(!!data.payload);
             break;
-        case 10:
+        case 9:
             Iodine.toggleDynamicSpeed(!!data.payload);
             break;
-        case 11:
+        case 10:
             Iodine.attachSpeedHandler(speedHandler);
             break;
-        case 12:
+        case 11:
             Iodine.keyDown(data.payload | 0);
             break;
-        case 13:
+        case 12:
             Iodine.keyUp(data.payload | 0);
             break;
-        case 14:
+        case 13:
             Iodine.incrementSpeed(+data.payload);
             break;
-        case 15:
+        case 14:
             Iodine.attachBIOS(data.payload);
             break;
-        case 16:
+        case 15:
             Iodine.attachROM(data.payload);
             break;
-        case 17:
+        case 16:
             Iodine.exportSave();
             break;
-        case 18:
+        case 17:
             Iodine.attachSaveExportHandler(saveExportHandler);
             break;
-        case 19:
+        case 18:
             Iodine.attachSaveImportHandler(saveImportHandler);
             break;
-        case 20:
+        case 19:
             processSaveImportSuccess(data.payload);
             break;
-        case 21:
+        case 20:
             processSaveImportFail();
     }
 }
