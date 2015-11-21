@@ -52,14 +52,17 @@ importScripts("../IodineGBA/core/cartridge/SRAM.js");
 importScripts("../IodineGBA/core/cartridge/FLASH.js");
 importScripts("../IodineGBA/core/cartridge/EEPROM.js");
 var Iodine = new GameBoyAdvanceEmulator();
-//Spare audio buffers:
-var audioBufferPool = [];
-var audioBufferPassCount = 0;
-//Spare graphics buffers:
-var graphicsBufferPool = [];
-var graphicsBufferPassCount = 0;
 //Save callbacks waiting to be satisfied:
 var saveImportPool = [];
+//Graphics Buffer:
+var gfxBuffer = new SharedUint8Array(160 * 240 * 3);
+var gfxLock = new SharedInt8Array(1);
+//Audio Buffers:
+var audioBuffer = new SharedFloat32Array(0x10000);
+var audioLock = new SharedInt8Array(1);
+var audioMetrics = new SharedInt32Array(2);
+//Pass the shared array buffers:
+postMessage({messageID:0, graphicsBuffer:gfxBuffer, gfxLock:gfxLock, audioBuffer:audioBuffer, audioLock:audioLock, audioMetrics:audioMetrics}, [gfxBuffer.buffer, gfxLock.buffer, audioBuffer.buffer, audioLock.buffer, audioMetrics.buffer]);
 //Cached timestamp:
 var timestamp = 0;
 //Event decoding:
@@ -131,72 +134,60 @@ self.onmessage = function (event) {
             processSaveImportSuccess(data.payload);
             break;
         case 21:
-            repoolAudioBuffer(data.payload);
-            break;
-        case 22:
-            repoolGraphicsBuffer(data.payload);
-            break;
-        case 23:
-            audioHandler.remainingBufferCache = data.payload;
-            break;
-        case 24:
             processSaveImportFail();
-            break;
-        case 25:
-            attachAudioMetricHook(data.payload);
     }
 }
 function graphicsFrameHandler(swizzledFrame) {
-    if ((graphicsBufferPassCount | 0) < 2) {
-        var buffer = getFreeGraphicsBuffer(swizzledFrame.length);
-        buffer.set(swizzledFrame);
-        graphicsBufferPassCount = ((graphicsBufferPassCount | 0) + 1) | 0;
-        postMessage({messageID:4, graphicsBuffer:buffer}, [buffer.buffer]);
-    }
+    waitForAccess(gfxLock);
+    gfxBuffer.set(swizzledFrame);
+    Atomics.store(gfxLock, 0, 2);
 }
 //Shim for our audio api:
 var audioHandler = {
-    shared:null,
-    push:function (audioBuffer, amountToSend) {
-        if ((audioBufferPassCount | 0) < 10) {
-            var buffer = getFreeAudioBuffer(amountToSend | 0);
-            buffer.set(audioBuffer);
-            audioBufferPassCount = ((audioBufferPassCount | 0) + 1) | 0;
-            postMessage({messageID:3, audioBuffer:buffer, audioNumSamplesTotal:amountToSend | 0}, [buffer.buffer]);
+    initialize:function (channels, sampleRate, bufferLimit) {
+        channels = channels | 0;
+        sampleRate = sampleRate | 0;
+        bufferLimit = bufferLimit | 0;
+        postMessage({messageID:1, channels:channels | 0, sampleRate:sampleRate | 0, bufferLimit:bufferLimit | 0});
+    },
+    push:function (buffer, amountToSend) {
+        //Obtain lock on buffer:
+        waitForAccess(audioLock);
+        //Push audio into buffer:
+        var offset = Atomics.load(audioMetrics, 1) | 0;
+        var endPosition = Math.min(((amountToSend | 0) + (offset | 0)) | 0, 0x10000) | 0;
+        for (var position = 0; (offset | 0) < (endPosition | 0); position = ((position | 0) + 1) | 0) {
+            audioBuffer[offset | 0] = buffer[position | 0];
+            offset = ((offset | 0) + 1) | 0;
         }
+        Atomics.store(audioMetrics, 1, offset | 0);
+        //Release lock:
+        Atomics.store(audioLock, 0, 2);
     },
     register:function () {
-        postMessage({messageID:1});
+        postMessage({messageID:2});
     },
     unregister:function () {
-        postMessage({messageID:8});
+        postMessage({messageID:3});
     },
     setBufferSpace:function (spaceContain) {
-        postMessage({messageID:2, audioBufferContainAmount:spaceContain});
-    },
-    initialize:function (channels, sampleRate, bufferLimit) {
-        postMessage({messageID:0, channels:channels, sampleRate:sampleRate, bufferLimit:bufferLimit});
+        postMessage({messageID:4, audioBufferContainAmount:spaceContain | 0});
     },
     remainingBuffer:function () {
-        if (this.shared) {
-            return this.shared[0];
-        }
-        return this.remainingBufferCache;
-    },
-    remainingBufferCache:0
+        var amount = Atomics.load(audioMetrics, 0) | 0;
+        amount = ((amount | 0) + (Atomics.load(audioMetrics, 0) | 0)) | 0;
+        return amount | 0;
+    }
 };
-function attachAudioMetricHook(buffer) {
-    audioHandler.shared = new SharedInt32Array(buffer.buffer);
-}
-function speedHandler(speed) {
-     postMessage({messageID:5, speed:speed});
+function saveImportHandler(saveID, saveCallback, noSaveCallback) {
+    postMessage({messageID:5, saveID:saveID});
+    saveImportPool.push([saveCallback, noSaveCallback]);
 }
 function saveExportHandler(saveID, saveData) {
-    postMessage({messageID:7, saveID:saveID, saveData:saveData});
+    postMessage({messageID:6, saveID:saveID, saveData:saveData});
 }
-function saveImportHandler(saveID, saveCallback, noSaveCallback) {
-    postMessage({messageID:6, saveID:saveID});
-    saveImportPool.push([saveCallback, noSaveCallback]);
+function speedHandler(speed) {
+    postMessage({messageID:7, speed:speed});
 }
 function processSaveImportSuccess(saveData) {
     saveImportPool.shift()[0](saveData);
@@ -204,26 +195,7 @@ function processSaveImportSuccess(saveData) {
 function processSaveImportFail() {
     saveImportPool.shift()[1]();
 }
-function repoolAudioBuffer(buffer) {
-    audioBufferPassCount = ((audioBufferPassCount | 0) - 1) | 0;
-    audioBufferPool.push(buffer);
-}
-function repoolGraphicsBuffer(buffer) {
-    graphicsBufferPassCount = ((graphicsBufferPassCount | 0) - 1) | 0;
-    graphicsBufferPool.push(buffer);
-}
-function getFreeGraphicsBuffer(amountToSend) {
-    if (graphicsBufferPool.length == 0) {
-        return new getUint8Array(amountToSend);
-    }
-    return graphicsBufferPool.shift();
-}
-function getFreeAudioBuffer(amountToSend) {
-    while (audioBufferPool.length > 0) {
-        var buffer = audioBufferPool.shift();
-        if (buffer.length >= amountToSend) {
-            return buffer;
-        }
-    }
-    return new getFloat32Array(amountToSend);
+function waitForAccess(buffer) {
+    while (Atomics.compareExchange(buffer, 0, 0, 1) == 1);
+    while (Atomics.compareExchange(buffer, 0, 2, 1) != 1);
 }
