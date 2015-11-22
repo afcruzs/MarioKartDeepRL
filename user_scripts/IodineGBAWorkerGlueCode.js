@@ -241,13 +241,16 @@ IodineGBAWorkerShim.prototype.saveExportRequest = function (saveID, saveData) {
     }
 }
 IodineGBAWorkerShim.prototype.waitForAccess = function (buffer) {
-    while (Atomics.compareExchange(buffer, 0, 0, 1) == 1);
+    Atomics.futexWait(buffer, 0, 1);
+    Atomics.store(buffer, 0, 1);
 }
 IodineGBAWorkerShim.prototype.releaseLock = function (buffer) {
     //Mark as consumed:
     Atomics.store(buffer, 1, 0);
     //Unlock:
     Atomics.store(buffer, 0, 0);
+    Atomics.futexWake(buffer, 0, 1);
+    Atomics.futexWake(buffer, 1, 1);
 }
 IodineGBAWorkerShim.prototype.isConsumable = function (buffer) {
     //If the buffer hasn't been consumed yet, it'll be 1 here:

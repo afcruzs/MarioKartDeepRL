@@ -376,7 +376,6 @@ GameBoyAdvanceEmulator.prototype.audioUnderrunAdjustment = function () {
                         this.processNewSpeed(+speed);
                     }
                 }
-                this.CPUCyclesTotal = Math.min(((this.CPUCyclesTotal | 0) + ((underrunAmount >> 1) * (this.audioResamplerFirstPassFactor | 0))) | 0, (+this.clocksPerMilliSecond) << 5) | 0;
             }
             else if (this.dynamicSpeedRefresh && this.settings.dynamicSpeed) {
                 var speed = +this.getSpeed();
@@ -385,6 +384,7 @@ GameBoyAdvanceEmulator.prototype.audioUnderrunAdjustment = function () {
                     this.processNewSpeed(+speed);
                 }
             }
+            this.CPUCyclesTotal = Math.max(Math.min(((this.CPUCyclesTotal | 0) + ((underrunAmount >> 1) * (this.audioResamplerFirstPassFactor | 0))) | 0, (+this.clocksPerMilliSecond) << 5), this.CPUCyclesTotal >> 1) | 0;
         }
     }
 }
