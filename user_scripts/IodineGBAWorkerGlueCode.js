@@ -241,8 +241,10 @@ IodineGBAWorkerShim.prototype.saveExportRequest = function (saveID, saveData) {
     }
 }
 IodineGBAWorkerShim.prototype.waitForAccess = function (buffer) {
-    Atomics.futexWait(buffer, 0, 1);
-    Atomics.store(buffer, 0, 1);
+    //If already reporting 1, then wait:
+    if (Atomics.compareExchange(buffer, 0, 0, 1) == 1) {
+        Atomics.futexWait(buffer, 0, 1);
+    }
 }
 IodineGBAWorkerShim.prototype.releaseLock = function (buffer) {
     //Mark as consumed:
