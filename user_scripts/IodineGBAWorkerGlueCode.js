@@ -68,30 +68,28 @@ IodineGBAWorkerShim.prototype.timerCallback = function (timestamp) {
     //Using main thread timer as heartbeat for shared array buffer checking:
     //If audio API handle provided and we got a buffer reference:
     if (this.audioInitialized) {
-        //Waits while 1:
-        //If buffer is ready to be consumed, it'll be turned from 2 to 1:
+        //Waits while locked:
         this.waitForAccess(this.audioLock);
-        //If we get the lock, it'll be 1 here:
-        if (Atomics.load(this.audioLock, 0) == 1) {
+        //Check to make sure we can consume the buffer:
+        if (this.isConsumable(this.audioLock)) {
             //Empty the buffer out:
             this.consumeAudioBuffer();
-            //Mark as consumed:
-            Atomics.store(this.audioLock, 0, 0);
         }
         //Push latest audio metrics with no buffering:
         Atomics.store(this.audioMetrics, 0, this.audio.remainingBuffer() | 0);
+        //Free up access to the buffer:
+        this.releaseLock(this.audioLock);
     }
     //If graphics callback handle provided and we got a buffer reference:
     if (this.gfx && this.graphicsLock) {
-        //Waits while 1:
-        //If buffer is ready to be consumed, it'll be turned from 2 to 1:
+        //Waits while locked:
         this.waitForAccess(this.graphicsLock);
-        //If we get the lock, it'll be 1 here:
-        if (Atomics.load(this.graphicsLock, 0) == 1) {
+        //Check to make sure we can consume the buffer:
+        if (this.isConsumable(this.graphicsLock)) {
             this.gfx(this.graphicsBuffer);
-            //Mark as consumed:
-            Atomics.store(this.graphicsLock, 0, 0);
         }
+        //Free up access to the buffer:
+        this.releaseLock(this.graphicsLock);
     }
 }
 IodineGBAWorkerShim.prototype.consumeAudioBuffer = function () {
@@ -243,5 +241,15 @@ IodineGBAWorkerShim.prototype.saveExportRequest = function (saveID, saveData) {
     }
 }
 IodineGBAWorkerShim.prototype.waitForAccess = function (buffer) {
-    while (Atomics.compareExchange(buffer, 0, 2, 1) == 1);
+    while (Atomics.compareExchange(buffer, 0, 0, 1) == 1);
+}
+IodineGBAWorkerShim.prototype.releaseLock = function (buffer) {
+    //Mark as consumed:
+    Atomics.store(buffer, 1, 0);
+    //Unlock:
+    Atomics.store(buffer, 0, 0);
+}
+IodineGBAWorkerShim.prototype.isConsumable = function (buffer) {
+    //If the buffer hasn't been consumed yet, it'll be 1 here:
+    return (Atomics.load(buffer, 1) == 1);
 }

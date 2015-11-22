@@ -56,10 +56,10 @@ var Iodine = new GameBoyAdvanceEmulator();
 var saveImportPool = [];
 //Graphics Buffer:
 var gfxBuffer = new SharedUint8Array(160 * 240 * 3);
-var gfxLock = new SharedInt8Array(1);
+var gfxLock = new SharedInt8Array(2);
 //Audio Buffers:
-var audioBuffer = new SharedFloat32Array(0x10000);
-var audioLock = new SharedInt8Array(1);
+var audioBuffer = new SharedFloat32Array(0x8000);
+var audioLock = new SharedInt8Array(2);
 var audioMetrics = new SharedInt32Array(2);
 //Time Stamp tracking:
 var timestamp = new SharedFloat64Array(1);
@@ -137,7 +137,7 @@ self.onmessage = function (event) {
 function graphicsFrameHandler(swizzledFrame) {
     waitForAccess(gfxLock);
     gfxBuffer.set(swizzledFrame);
-    Atomics.store(gfxLock, 0, 2);
+    releaseLock(gfxLock);
 }
 //Shim for our audio api:
 var audioHandler = {
@@ -152,14 +152,13 @@ var audioHandler = {
         waitForAccess(audioLock);
         //Push audio into buffer:
         var offset = Atomics.load(audioMetrics, 1) | 0;
-        var endPosition = Math.min(((amountToSend | 0) + (offset | 0)) | 0, 0x10000) | 0;
+        var endPosition = Math.min(((amountToSend | 0) + (offset | 0)) | 0, 0x8000) | 0;
         for (var position = 0; (offset | 0) < (endPosition | 0); position = ((position | 0) + 1) | 0) {
             audioBuffer[offset | 0] = buffer[position | 0];
             offset = ((offset | 0) + 1) | 0;
         }
         Atomics.store(audioMetrics, 1, offset | 0);
-        //Release lock:
-        Atomics.store(audioLock, 0, 2);
+        releaseLock(audioLock);
     },
     register:function () {
         postMessage({messageID:2});
@@ -172,7 +171,7 @@ var audioHandler = {
     },
     remainingBuffer:function () {
         var amount = Atomics.load(audioMetrics, 0) | 0;
-        amount = ((amount | 0) + (Atomics.load(audioMetrics, 0) | 0)) | 0;
+        //amount = ((amount | 0) + (Atomics.load(audioMetrics, 1) | 0)) | 0;
         return amount | 0;
     }
 };
@@ -193,6 +192,13 @@ function processSaveImportFail() {
     saveImportPool.shift()[1]();
 }
 function waitForAccess(buffer) {
+    //Wait for value to not be 1,
+    //then set as 1 afterwards:
     while (Atomics.compareExchange(buffer, 0, 0, 1) == 1);
-    while (Atomics.compareExchange(buffer, 0, 2, 1) != 1);
+}
+function releaseLock(buffer) {
+    //Mark as ready to be consumed:
+    Atomics.store(buffer, 1, 1);
+    //Release lock:
+    Atomics.store(buffer, 0, 0);
 }
