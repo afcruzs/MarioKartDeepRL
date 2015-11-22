@@ -16,7 +16,8 @@ function GameBoyAdvanceEmulator() {
         "audioBufferSize":300,              //Audio buffer maximum span amount over x milliseconds.
         "emulatorSpeed":1.0,                //Speed multiplier of the emulator.
         "metricCollectionMinimum":500,      //How many milliseconds of cycling to count before determining speed.
-        "dynamicSpeed":false                //Whether to actively change the target speed for best user experience.
+        "dynamicSpeed":false,               //Whether to actively change the target speed for best user experience.
+        "overclockBlockLimit":200           //Whether to throttle clocks in audio adjustment.
     };
     this.audioFound = 0;                      //Do we have audio output sink found yet?
     this.emulatorStatus = 0x10;               //{paused, saves loaded, fault found, loaded}
@@ -335,6 +336,7 @@ GameBoyAdvanceEmulator.prototype.initializeAudioLogic = function () {
 GameBoyAdvanceEmulator.prototype.initializeAudioBuffering = function () {
     this.audioDestinationPosition = 0;
     this.audioBufferContainAmount = Math.max((+this.clocksPerMilliSecond) * (this.settings.audioBufferUnderrunLimit | 0) / (this.audioResamplerFirstPassFactor | 0), 3) << 1;
+    this.audioBufferOverclockBlockAmount = Math.max((+this.clocksPerMilliSecond) * (this.settings.overclockBlockLimit | 0) / (this.audioResamplerFirstPassFactor | 0), 3) << 1;
     this.audioBufferDynamicContainAmount = Math.max((+this.clocksPerMilliSecond) * (this.settings.audioBufferDynamicLimit | 0) / (this.audioResamplerFirstPassFactor | 0), 2) << 1;
     var audioNumSamplesTotal = Math.max((this.CPUCyclesPerIteration | 0) / (this.audioResamplerFirstPassFactor | 0), 1) << 1;
     if ((audioNumSamplesTotal | 0) != (this.audioNumSamplesTotal | 0)) {
@@ -376,15 +378,21 @@ GameBoyAdvanceEmulator.prototype.audioUnderrunAdjustment = function () {
                         this.processNewSpeed(+speed);
                     }
                 }
+                this.CPUCyclesTotal = Math.min(((this.CPUCyclesTotal | 0) + ((underrunAmount >> 1) * (this.audioResamplerFirstPassFactor | 0))) | 0, (+this.clocksPerMilliSecond) << 5) | 0;
             }
-            else if (this.dynamicSpeedRefresh && this.settings.dynamicSpeed) {
-                var speed = +this.getSpeed();
-                if ((+speed) < 1) {
-                    speed = +Math.min((+speed) + 0.05, 1);
-                    this.processNewSpeed(+speed);
+            else {
+                if (this.dynamicSpeedRefresh && this.settings.dynamicSpeed) {
+                    var speed = +this.getSpeed();
+                    if ((+speed) < 1) {
+                        speed = +Math.min((+speed) + 0.05, 1);
+                        this.processNewSpeed(+speed);
+                    }
+                }
+                var overrunAmount = ((remainingAmount | 0) - (this.audioBufferOverclockBlockAmount | 0)) | 0;
+                if ((overrunAmount | 0) > 0) {
+                    this.CPUCyclesTotal = Math.max(((this.CPUCyclesTotal | 0) - ((overrunAmount >> 1) * (this.audioResamplerFirstPassFactor | 0))) | 0, 0) | 0;
                 }
             }
-            this.CPUCyclesTotal = Math.max(Math.min(((this.CPUCyclesTotal | 0) + ((underrunAmount >> 1) * (this.audioResamplerFirstPassFactor | 0))) | 0, (+this.clocksPerMilliSecond) << 5), this.CPUCyclesTotal >> 1) | 0;
         }
     }
 }
