@@ -56,10 +56,10 @@ var Iodine = new GameBoyAdvanceEmulator();
 var saveImportPool = [];
 //Graphics Buffer:
 var gfxBuffer = new SharedUint8Array(160 * 240 * 3);
-var gfxLock = new SharedInt8Array(2);
+var gfxLock = new SharedInt32Array(2);
 //Audio Buffers:
 var audioBuffer = new SharedFloat32Array(0x8000);
-var audioLock = new SharedInt8Array(2);
+var audioLock = new SharedInt32Array(2);
 var audioMetrics = new SharedInt32Array(2);
 //Time Stamp tracking:
 var timestamp = new SharedFloat64Array(1);
@@ -159,6 +159,12 @@ var audioHandler = {
         }
         Atomics.store(audioMetrics, 1, offset | 0);
         releaseLock(audioLock);
+        //If we filled the entire buffer:
+        if ((position | 0) < (amountToSend | 0)) {
+            //Wait for UI thread to process the buffer, and then queue the next batch:
+            Atomics.futexWait(this.audioLock, 1, 1);
+            this.push(buffer.subarray(position | 0), ((amountToSend | 0) - (position | 0)) | 0);
+        }
     },
     register:function () {
         postMessage({messageID:2});
@@ -194,11 +200,13 @@ function processSaveImportFail() {
 function waitForAccess(buffer) {
     //Wait for value to not be 1,
     //then set as 1 afterwards:
-    while (Atomics.compareExchange(buffer, 0, 0, 1) == 1);
+    Atomics.futexWait(buffer, 0, 1);
+    Atomics.store(buffer, 0, 1);
 }
 function releaseLock(buffer) {
     //Mark as ready to be consumed:
     Atomics.store(buffer, 1, 1);
     //Release lock:
     Atomics.store(buffer, 0, 0);
+    Atomics.futexWake(buffer, 0, 1);
 }
