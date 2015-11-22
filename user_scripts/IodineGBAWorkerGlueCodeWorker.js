@@ -171,7 +171,7 @@ var audioHandler = {
     },
     remainingBuffer:function () {
         var amount = Atomics.load(audioMetrics, 0) | 0;
-        //amount = ((amount | 0) + (Atomics.load(audioMetrics, 1) | 0)) | 0;
+        amount = ((amount | 0) + (Atomics.load(audioMetrics, 1) | 0)) | 0;
         return amount | 0;
     }
 };
