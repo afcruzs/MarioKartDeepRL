@@ -77,7 +77,7 @@ function registerIodineHandler() {
 }
 function registerBeforeUnloadHandler(e) {
     IodineGUI.Iodine.pause();
-    document.getElementById("play").style.display = "none";
+    document.getElementById("pause").style.display = "none";
     document.getElementById("play").style.display = "inline";
     if (e.preventDefault) {
         e.preventDefault();
