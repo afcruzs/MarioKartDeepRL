@@ -307,8 +307,10 @@ GameBoyAdvanceEmulator.prototype.enableAudio = function () {
         //Attempt to enable audio:
         var parentObj = this;
         this.audio.initialize(2, (this.clocksPerSecond | 0) / (this.audioResamplerFirstPassFactor | 0), Math.max((+this.clocksPerMilliSecond) * (this.settings.audioBufferSize | 0) / (this.audioResamplerFirstPassFactor | 0), 4) << 1, function () {
-                                     //Disable audio in the callback here:
-                                     parentObj.disableAudio();
+                //We manually check at the start of each timer interval, so not needed here.
+            }, function () {
+                //Disable audio in the callback here:
+                parentObj.disableAudio();
         });
         this.audio.register();
     }

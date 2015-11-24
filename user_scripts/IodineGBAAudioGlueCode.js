@@ -11,22 +11,13 @@
 function GlueCodeMixer() {
     var parentObj = this;
     this.audio = new XAudioServer(2, this.sampleRate, 0, this.bufferAmount, null, function () {
-        //Web Audio API Should fire this, moz audio api will NOT:
-        if (parentObj.heartBeat) {
-            clearInterval(parentObj.heartBeat);
-            parentObj.heartBeat = null;
-        }
-        parentObj.checkAudio();
+        parentObj.checkHeartbeats();
      }, 1, function () {
         //Disable audio in the callback here:
         parentObj.disableAudio();
     });
     this.outputUnits = [];
     this.outputUnitsValid = [];
-    this.heartBeat = setInterval(function(){
-        //Moz Audio API needs this:
-        parentObj.checkAudio();
-    }, 16);
     this.initializeBuffer();
 }
 GlueCodeMixer.prototype.sampleRate = 44100;
@@ -58,6 +49,12 @@ GlueCodeMixer.prototype.unregister = function (stackPosition) {
         if (this.outputUnits[index]) {
             this.outputUnitsValid.push(this.outputUnits);
         }
+    }
+}
+GlueCodeMixer.prototype.checkHeartbeats = function () {
+    var inputCount = this.outputUnitsValid.length;
+    for (var inputIndex = 0, output = 0; inputIndex < inputCount; ++inputIndex) {
+        this.outputUnitsValid[inputIndex].heartBeatCallback();
     }
 }
 GlueCodeMixer.prototype.checkAudio = function () {
@@ -99,10 +96,11 @@ function GlueCodeMixerInput(mixer) {
     this.mixer = mixer;
     this.volume = 1;
 }
-GlueCodeMixerInput.prototype.initialize = function (channelCount, sampleRate, bufferAmount, errorCallback) {
+GlueCodeMixerInput.prototype.initialize = function (channelCount, sampleRate, bufferAmount, heartBeatCallback, errorCallback) {
     this.channelCount = channelCount;
     this.sampleRate = sampleRate;
     this.bufferAmount = bufferAmount;
+    this.heartBeatCallback = heartBeatCallback;
     this.errorCallback = errorCallback;
     var oldBuffer = this.buffer;
     this.buffer = new AudioBufferWrapper(this.channelCount,

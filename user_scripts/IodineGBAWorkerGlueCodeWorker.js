@@ -58,13 +58,14 @@ var saveImportPool = [];
 var gfxBuffer = new SharedUint8Array(160 * 240 * 3);
 var gfxLock = new SharedInt32Array(2);
 //Audio Buffers:
-var audioBuffer = new SharedFloat32Array(0x8000);
+var audioBuffer = null;
+var audioBufferSize = 0;
 var audioLock = new SharedInt32Array(2);
 var audioMetrics = new SharedInt32Array(2);
 //Time Stamp tracking:
 var timestamp = new SharedFloat64Array(1);
 //Pass the shared array buffers:
-postMessage({messageID:0, graphicsBuffer:gfxBuffer, gfxLock:gfxLock, audioBuffer:audioBuffer, audioLock:audioLock, audioMetrics:audioMetrics, timestamp:timestamp}, [gfxBuffer.buffer, gfxLock.buffer, audioBuffer.buffer, audioLock.buffer, audioMetrics.buffer, timestamp.buffer]);
+postMessage({messageID:0, graphicsBuffer:gfxBuffer, gfxLock:gfxLock, audioLock:audioLock, audioMetrics:audioMetrics, timestamp:timestamp}, [gfxBuffer.buffer, gfxLock.buffer, audioLock.buffer, audioMetrics.buffer, timestamp.buffer]);
 //Event decoding:
 self.onmessage = function (event) {
     var data = event.data;
@@ -148,9 +149,12 @@ var audioHandler = {
     initialize:function (channels, sampleRate, bufferLimit) {
         //Initialize the audio mixer input:
         channels = channels | 0;
-        sampleRate = sampleRate | 0;
+        sampleRate = +sampleRate;
         bufferLimit = bufferLimit | 0;
-        postMessage({messageID:1, channels:channels | 0, sampleRate:sampleRate | 0, bufferLimit:bufferLimit | 0});
+        //Generate an audio buffer:
+        audioBufferSize = ((bufferLimit | 0) * (channels | 0)) | 0;
+        audioBuffer = new SharedFloat32Array(audioBufferSize | 0);
+        postMessage({messageID:1, channels:channels | 0, sampleRate:+sampleRate, bufferLimit:bufferLimit | 0, audioBuffer:audioBuffer}, [audioBuffer.buffer]);
     },
     push:function (buffer, amountToSend) {
         //Push audio to the audio mixer input handle:
@@ -158,9 +162,9 @@ var audioHandler = {
         waitForAccess(audioLock);
         //Push audio into buffer:
         var offset = audioMetrics[1] | 0;
-        var endPosition = Math.min(((amountToSend | 0) + (offset | 0)) | 0, 0x8000) | 0;
+        var endPosition = Math.min(((amountToSend | 0) + (offset | 0)) | 0, audioBufferSize | 0) | 0;
         for (var position = 0; (offset | 0) < (endPosition | 0); position = ((position | 0) + 1) | 0) {
-            audioBuffer[offset | 0] = buffer[position | 0];
+            audioBuffer[offset | 0] = +buffer[position | 0];
             offset = ((offset | 0) + 1) | 0;
         }
         //Update the cross thread buffering count:
@@ -170,7 +174,7 @@ var audioHandler = {
         //If we filled the entire buffer:
         if ((position | 0) < (amountToSend | 0)) {
             //Wait for UI thread to process the buffer, and then queue the next batch:
-            Atomics.futexWait(this.audioLock, 1, 1);
+            Atomics.futexWait(audioLock, 1, 1);
             this.push(buffer.subarray(position | 0), ((amountToSend | 0) - (position | 0)) | 0);
         }
     },
@@ -179,6 +183,8 @@ var audioHandler = {
         postMessage({messageID:2});
     },
     unregister:function () {
+        //Wait for UI thread to empty and process the OLD buffer:
+        Atomics.futexWait(audioLock, 1, 1);
         //Unregister from audio mixer:
         postMessage({messageID:3});
     },
