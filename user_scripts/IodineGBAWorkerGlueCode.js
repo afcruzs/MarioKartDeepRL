@@ -76,7 +76,7 @@ IodineGBAWorkerShim.prototype.timerCallback = function (timestamp) {
             this.consumeAudioBuffer();
         }
         //Push latest audio metrics with no buffering:
-        Atomics.store(this.audioMetrics, 0, this.audio.remainingBuffer() | 0);
+        this.audioMetrics[0] = this.audio.remainingBuffer() | 0;
         //Free up access to the buffer:
         this.releaseLock(this.audioLock);
     }
@@ -93,8 +93,8 @@ IodineGBAWorkerShim.prototype.timerCallback = function (timestamp) {
     }
 }
 IodineGBAWorkerShim.prototype.consumeAudioBuffer = function () {
-    this.audio.push(this.audioBuffer, Atomics.load(this.audioMetrics, 1) | 0);
-    Atomics.store(this.audioMetrics, 1, 0);
+    this.audio.push(this.audioBuffer, this.audioMetrics[1] | 0);
+    this.audioMetrics[1] = 0;
 }
 IodineGBAWorkerShim.prototype.attachGraphicsFrameHandler = function (gfx) {
     this.gfx = gfx;
@@ -241,14 +241,15 @@ IodineGBAWorkerShim.prototype.saveExportRequest = function (saveID, saveData) {
     }
 }
 IodineGBAWorkerShim.prototype.waitForAccess = function (buffer) {
-    //If already reporting 1, then wait:
-    if (Atomics.compareExchange(buffer, 0, 0, 1) == 1) {
+    //Check if the other thread locked access (And mark as locked):
+    if (Atomics.exchange(buffer, 0, 1) == 1) {
+        //Wait for other thread to release lock:
         Atomics.futexWait(buffer, 0, 1);
     }
 }
 IodineGBAWorkerShim.prototype.releaseLock = function (buffer) {
     //Mark as consumed:
-    Atomics.store(buffer, 1, 0);
+    buffer[1] = 0;
     //Unlock:
     Atomics.store(buffer, 0, 0);
     Atomics.futexWake(buffer, 0, 1);
@@ -256,5 +257,5 @@ IodineGBAWorkerShim.prototype.releaseLock = function (buffer) {
 }
 IodineGBAWorkerShim.prototype.isConsumable = function (buffer) {
     //If the buffer hasn't been consumed yet, it'll be 1 here:
-    return (Atomics.load(buffer, 1) == 1);
+    return (buffer[1] == 1);
 }
