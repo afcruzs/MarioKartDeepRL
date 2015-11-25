@@ -129,6 +129,12 @@ GlueCodeMixerInput.prototype.push = function (buffer, upTo) {
     this.buffer.push(buffer, upTo);
     this.mixer.checkAudio();
 }
+GlueCodeMixerInput.prototype.pushDeferred = function (buffer, upTo) {
+    this.buffer.push(buffer, upTo);
+}
+GlueCodeMixerInput.prototype.flush = function () {
+    this.mixer.checkAudio();
+}
 GlueCodeMixerInput.prototype.remainingBuffer = function () {
     return this.buffer.remainingBuffer() + (Math.floor((this.mixer.audio.remainingBuffer() * this.sampleRate / this.mixer.sampleRate) / this.mixer.channelCount) * this.mixer.channelCount);
 }
