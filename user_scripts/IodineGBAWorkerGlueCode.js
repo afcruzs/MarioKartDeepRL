@@ -76,6 +76,7 @@ IodineGBAWorkerShim.prototype.timerCallback = function (timestamp) {
         //Free up access to the buffer:
         this.releaseLock(this.graphicsLock);
     }
+    //Using main thread timer as heartbeat for shared array buffer checking:
     this.audioHeartBeat();
 }
 IodineGBAWorkerShim.prototype.attachGraphicsFrameHandler = function (gfx) {
@@ -138,43 +139,45 @@ IodineGBAWorkerShim.prototype.attachSaveImportHandler = function (saveImport) {
     this.sendMessageSingle(18);
 }
 IodineGBAWorkerShim.prototype.decodeMessage = function (data) {
-    switch (data.messageID) {
+    switch (data.messageID | 0) {
         case 0:
             this.buffersInitialize(data.graphicsBuffer, data.gfxLock, data.audioLock, data.audioMetrics, data.timestamp);
             break;
         case 1:
-            this.audioInitialize(data.channels | 0, +data.sampleRate, data.bufferLimit | 0, data.audioBuffer);
+            this.audioBufferPush(data.audioBuffer);
             break;
         case 2:
-            this.audioRegister();
+            this.audioInitialize(data.channels | 0, +data.sampleRate, data.bufferLimit | 0, data.audioBuffer);
             break;
         case 3:
-            this.audioUnregister();
+            this.audioRegister();
             break;
         case 4:
-            this.audioSetBufferSpace(data.audioBufferContainAmount | 0);
+            this.audioUnregister();
             break;
         case 5:
-            this.saveImportRequest(data.saveID);
+            this.audioSetBufferSpace(data.audioBufferContainAmount | 0);
             break;
         case 6:
-            this.saveExportRequest(data.saveID, data.saveData);
+            this.saveImportRequest(data.saveID);
             break;
         case 7:
+            this.saveExportRequest(data.saveID, data.saveData);
+            break;
+        default:
             this.speedPush(+data.speed);
     }
 }
-IodineGBAWorkerShim.prototype.audioInitialize = function (channels, sampleRate, bufferLimit, audioBuffer) {
+IodineGBAWorkerShim.prototype.audioInitialize = function (channels, sampleRate, bufferLimit) {
     channels = channels | 0;
     sampleRate = +sampleRate;
     bufferLimit = bufferLimit | 0;
     var parentObj = this;
     if (this.audio) {
-        //Grab the new buffer:
-        this.audioBuffer = audioBuffer;
         //(Re-)Initialize:
         this.audio.initialize(channels | 0, +sampleRate, bufferLimit | 0, function () {
-            parentObj.audioHeartBeat();
+            //Main thread timer already checks this and is more stable in firing time (so buffering is smoother):
+            //parentObj.audioHeartBeat();
         }, function () {
             //Disable audio in the callback here:
             parentObj.disableAudio();
@@ -182,8 +185,11 @@ IodineGBAWorkerShim.prototype.audioInitialize = function (channels, sampleRate, 
         this.audioInitialized = true;
     }
 }
+IodineGBAWorkerShim.prototype.audioBufferPush = function (audioBuffer) {
+    //Grab the new buffer:
+    this.audioBuffer = audioBuffer;
+}
 IodineGBAWorkerShim.prototype.audioHeartBeat = function () {
-    //Using main thread timer as heartbeat for shared array buffer checking:
     //If audio API handle provided and we got a buffer reference:
     if (this.audioInitialized) {
         //Waits while locked:
