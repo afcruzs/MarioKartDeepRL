@@ -154,7 +154,7 @@ var audioHandler = {
         //Generate an audio buffer:
         audioBufferSize = ((bufferLimit | 0) * (channels | 0)) | 0;
         //Only regen the buffer if we need to make it bigger:
-        if (audioBuffer != null && (audioBufferSize | 0) > (audioBuffer.length | 0)) {
+        if (!audioBuffer || (audioBufferSize | 0) > (audioBuffer.length | 0)) {
             audioBuffer = new SharedFloat32Array(audioBufferSize | 0);
             postMessage({messageID:1, audioBuffer:audioBuffer}, [audioBuffer.buffer]);
         }
