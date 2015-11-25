@@ -153,8 +153,12 @@ var audioHandler = {
         bufferLimit = bufferLimit | 0;
         //Generate an audio buffer:
         audioBufferSize = ((bufferLimit | 0) * (channels | 0)) | 0;
-        audioBuffer = new SharedFloat32Array(audioBufferSize | 0);
-        postMessage({messageID:1, channels:channels | 0, sampleRate:+sampleRate, bufferLimit:bufferLimit | 0, audioBuffer:audioBuffer}, [audioBuffer.buffer]);
+        //Only regen the buffer if we need to make it bigger:
+        if (audioBuffer != null && (audioBufferSize | 0) > (audioBuffer.length | 0)) {
+            audioBuffer = new SharedFloat32Array(audioBufferSize | 0);
+            postMessage({messageID:1, audioBuffer:audioBuffer}, [audioBuffer.buffer]);
+        }
+        postMessage({messageID:2, channels:channels | 0, sampleRate:+sampleRate, bufferLimit:bufferLimit | 0});
     },
     push:function (buffer, amountToSend) {
         //Push audio to the audio mixer input handle:
@@ -180,17 +184,17 @@ var audioHandler = {
     },
     register:function () {
         //Register into the audio mixer:
-        postMessage({messageID:2});
+        postMessage({messageID:3});
     },
     unregister:function () {
         //Wait for UI thread to empty and process the OLD buffer:
         Atomics.futexWait(audioLock, 1, 1);
         //Unregister from audio mixer:
-        postMessage({messageID:3});
+        postMessage({messageID:4});
     },
     setBufferSpace:function (spaceContain) {
         //Ensure buffering minimum levels for the audio:
-        postMessage({messageID:4, audioBufferContainAmount:spaceContain | 0});
+        postMessage({messageID:5, audioBufferContainAmount:spaceContain | 0});
     },
     remainingBuffer:function () {
         //Report the amount of audio samples in-flight:
@@ -198,14 +202,14 @@ var audioHandler = {
     }
 };
 function saveImportHandler(saveID, saveCallback, noSaveCallback) {
-    postMessage({messageID:5, saveID:saveID});
+    postMessage({messageID:6, saveID:saveID});
     saveImportPool.push([saveCallback, noSaveCallback]);
 }
 function saveExportHandler(saveID, saveData) {
-    postMessage({messageID:6, saveID:saveID, saveData:saveData});
+    postMessage({messageID:7, saveID:saveID, saveData:saveData});
 }
 function speedHandler(speed) {
-    postMessage({messageID:7, speed:speed});
+    postMessage({messageID:8, speed:speed});
 }
 function processSaveImportSuccess(saveData) {
     saveImportPool.shift()[0](saveData);
