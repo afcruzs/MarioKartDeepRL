@@ -203,10 +203,14 @@ IodineGBAWorkerShim.prototype.audioHeartBeat = function () {
         this.audioMetrics[0] = this.audio.remainingBuffer() | 0;
         //Free up access to the buffer:
         this.releaseLock(this.audioLock);
+        //Tell audio mixer input to flush to audio mixer:
+        this.audio.flush();
     }
 }
 IodineGBAWorkerShim.prototype.consumeAudioBuffer = function () {
-    this.audio.push(this.audioBuffer, this.audioMetrics[1] | 0);
+    //Copy samples out to audio mixer input (but don't process them yet):
+    this.audio.pushDeferred(this.audioBuffer, this.audioMetrics[1] | 0);
+    //Set in flight sample count across thread boundary to zero:
     this.audioMetrics[1] = 0;
 }
 IodineGBAWorkerShim.prototype.audioRegister = function () {
