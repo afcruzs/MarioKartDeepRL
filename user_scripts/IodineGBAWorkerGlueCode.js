@@ -15,7 +15,8 @@ function IodineGBAWorkerShim() {
     this.saveExport = null;
     this.saveImport = null;
     this.worker = null;
-    this.graphicsBuffer = null;
+    this.graphicsBuffer = getUint8Array(240 * 160 * 3);
+    this.graphicsBufferShared = null;
     this.graphicsLock = null;
     this.audioBuffer = null;
     this.audioLock = null;
@@ -66,16 +67,7 @@ IodineGBAWorkerShim.prototype.timerCallback = function (timestamp) {
         this.timestamp[0] = +timestamp;
     }
     //If graphics callback handle provided and we got a buffer reference:
-    if (this.gfx && this.graphicsLock) {
-        //Waits while locked:
-        this.waitForAccess(this.graphicsLock);
-        //Check to make sure we can consume the buffer:
-        if (this.isConsumable(this.graphicsLock)) {
-            this.gfx(this.graphicsBuffer);
-        }
-        //Free up access to the buffer:
-        this.releaseLock(this.graphicsLock);
-    }
+    this.graphicsHeartBeat();
     //Using main thread timer as heartbeat for shared array buffer checking:
     this.audioHeartBeat();
 }
@@ -207,6 +199,25 @@ IodineGBAWorkerShim.prototype.audioHeartBeat = function () {
         this.audio.flush();
     }
 }
+IodineGBAWorkerShim.prototype.graphicsHeartBeat = function () {
+    if (this.gfx && this.graphicsLock) {
+        //Waits while locked:
+        this.waitForAccess(this.graphicsLock);
+        //Check to make sure we can consume the buffer:
+        if (this.isConsumable(this.graphicsLock)) {
+            //Copy the buffer out to local:
+            this.graphicsBuffer.set(this.graphicsBufferShared);
+            //Free up access to the buffer:
+            this.releaseLock(this.graphicsLock);
+            //Now blit the local copy:
+            this.gfx(this.graphicsBuffer);
+        }
+        else {
+            //Free up access to the buffer:
+            this.releaseLock(this.graphicsLock);
+        }
+    }
+}
 IodineGBAWorkerShim.prototype.consumeAudioBuffer = function () {
     //Copy samples out to audio mixer input (but don't process them yet):
     this.audio.pushDeferred(this.audioBuffer, this.audioMetrics[1] | 0);
@@ -233,7 +244,7 @@ IodineGBAWorkerShim.prototype.audioSetBufferSpace = function (bufferSpace) {
     }
 }
 IodineGBAWorkerShim.prototype.buffersInitialize = function (graphicsBuffer, gfxLock, audioLock, audioMetrics, timestamp) {
-    this.graphicsBuffer = graphicsBuffer;
+    this.graphicsBufferShared = graphicsBuffer;
     this.graphicsLock = gfxLock;
     this.audioLock = audioLock;
     this.audioMetrics = audioMetrics;
