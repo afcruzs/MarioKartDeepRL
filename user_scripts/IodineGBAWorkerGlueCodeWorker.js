@@ -114,24 +114,27 @@ self.onmessage = function (event) {
             Iodine.incrementSpeed(+data.payload);
             break;
         case 14:
-            Iodine.attachBIOS(data.payload);
+            Iodine.setSpeed(+data.payload);
             break;
         case 15:
-            Iodine.attachROM(data.payload);
+            Iodine.attachBIOS(data.payload);
             break;
         case 16:
-            Iodine.exportSave();
+            Iodine.attachROM(data.payload);
             break;
         case 17:
-            Iodine.attachSaveExportHandler(saveExportHandler);
+            Iodine.exportSave();
             break;
         case 18:
-            Iodine.attachSaveImportHandler(saveImportHandler);
+            Iodine.attachSaveExportHandler(saveExportHandler);
             break;
         case 19:
-            processSaveImportSuccess(data.payload);
+            Iodine.attachSaveImportHandler(saveImportHandler);
             break;
         case 20:
+            processSaveImportSuccess(data.payload);
+            break;
+        case 21:
             processSaveImportFail();
     }
 }

@@ -113,22 +113,26 @@ IodineGBAWorkerShim.prototype.incrementSpeed = function (newSpeed) {
     newSpeed = +newSpeed;
     this.sendMessageDouble(13, +newSpeed);
 }
+IodineGBAWorkerShim.prototype.setSpeed = function (newSpeed) {
+    newSpeed = +newSpeed;
+    this.sendMessageDouble(14, +newSpeed);
+}
 IodineGBAWorkerShim.prototype.attachBIOS = function (BIOS) {
-    this.sendMessageDouble(14, BIOS);
+    this.sendMessageDouble(15, BIOS);
 }
 IodineGBAWorkerShim.prototype.attachROM = function (ROM) {
-    this.sendMessageDouble(15, ROM);
+    this.sendMessageDouble(16, ROM);
 }
 IodineGBAWorkerShim.prototype.exportSave = function () {
-    this.sendMessageSingle(16);
+    this.sendMessageSingle(17);
 }
 IodineGBAWorkerShim.prototype.attachSaveExportHandler = function (saveExport) {
     this.saveExport = saveExport;
-    this.sendMessageSingle(17);
+    this.sendMessageSingle(18);
 }
 IodineGBAWorkerShim.prototype.attachSaveImportHandler = function (saveImport) {
     this.saveImport = saveImport;
-    this.sendMessageSingle(18);
+    this.sendMessageSingle(19);
 }
 IodineGBAWorkerShim.prototype.decodeMessage = function (data) {
     switch (data.messageID | 0) {
@@ -260,10 +264,10 @@ IodineGBAWorkerShim.prototype.saveImportRequest = function (saveID) {
     if (this.saveImport) {
         var parentObj = this;
         this.saveImport(saveID, function (saveData) {
-            parentObj.sendMessageDouble(19, saveData);
+            parentObj.sendMessageDouble(20, saveData);
         },
         function () {
-            parentObj.sendMessageSingle(20);
+            parentObj.sendMessageSingle(21);
         });
     }
 }
