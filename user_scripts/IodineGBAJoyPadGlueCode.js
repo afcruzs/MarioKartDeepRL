@@ -45,10 +45,13 @@ function keyUpPreprocess(e) {
             stepVolume(0.04);
             break;
         case 51:
-            IodineGUI.Iodine.incrementSpeed(0.10);
+            IodineGUI.Iodine.incrementSpeed(0.05);
             break;
         case 52:
-            IodineGUI.Iodine.incrementSpeed(-0.10);
+            IodineGUI.Iodine.incrementSpeed(-0.05);
+            break;
+        case 53:
+            IodineGUI.Iodine.setSpeed(1);
             break;
         default:
             //Control keys / other
