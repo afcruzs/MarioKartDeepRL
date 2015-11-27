@@ -162,9 +162,9 @@ function AudioBufferWrapper(channelCount,
 AudioBufferWrapper.prototype.initialize = function () {
     this.inBufferSize = this.bufferAmount * this.mixerChannelCount;
     this.inBuffer = getFloat32Array(this.inBufferSize);
-    this.outBufferSize = (Math.ceil(this.inBufferSize * this.mixerSampleRate / this.sampleRate / this.mixerChannelCount) * this.mixerChannelCount) + this.mixerChannelCount;
+    this.resampler = new Resampler(this.sampleRate, this.mixerSampleRate, this.mixerChannelCount, this.inBuffer);
+    this.outBufferSize = this.resampler.outputBuffer.length;
     this.outBuffer = getFloat32Array(this.outBufferSize);
-    this.resampler = new Resampler(this.sampleRate, this.mixerSampleRate, this.mixerChannelCount, this.outBufferSize, true);
     this.inputOffset = 0;
     this.resampleBufferStart = 0;
     this.resampleBufferEnd = 0;
@@ -226,7 +226,7 @@ AudioBufferWrapper.prototype.shift = function () {
 AudioBufferWrapper.prototype.resampleRefill = function () {
     if (this.inputOffset > 0) {
         //Resample a chunk of audio:
-        var resampleLength = this.resampler.resampler(this.inBuffer, this.inputOffset);
+        var resampleLength = this.resampler.resampler(this.inputOffset);
         var resampledResult = this.resampler.outputBuffer;
         for (var index2 = 0; index2 < resampleLength;) {
             this.outBuffer[this.resampleBufferEnd++] = resampledResult[index2++];
