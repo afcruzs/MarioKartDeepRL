@@ -376,7 +376,7 @@ GameBoyAdvanceEmulator.prototype.audioUnderrunAdjustment = function () {
                 if (this.dynamicSpeedRefresh && this.settings.dynamicSpeed) {
                     if (((this.audioBufferDynamicContainAmount | 0) - (remainingAmount | 0)) > 0) {
                         var speed = +this.getSpeed();
-                        speed = Math.max((+speed) - 0.1, 0.1);
+                        speed = Math.max((+speed) - 0.1, 0.003);
                         this.processNewSpeed(+speed);
                     }
                 }
@@ -386,7 +386,7 @@ GameBoyAdvanceEmulator.prototype.audioUnderrunAdjustment = function () {
                 if (this.dynamicSpeedRefresh && this.settings.dynamicSpeed) {
                     var speed = +this.getSpeed();
                     if ((+speed) < 1) {
-                        speed = +Math.min((+speed) + 0.05, 1);
+                        speed = +Math.min((+speed) + 0.01, 1);
                         this.processNewSpeed(+speed);
                     }
                 }
