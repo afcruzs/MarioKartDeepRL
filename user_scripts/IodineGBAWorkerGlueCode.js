@@ -173,6 +173,9 @@ IodineGBAWorkerShim.prototype.audioInitialize = function (channels, sampleRate, 
             //Empty buffers inside the provided audio event callback:
             parentObj.audioHeartBeat();
         }, function () {
+            //Get the remaining sample count:
+            parentObj.audioPostHeartBeat();
+        },function () {
             //Disable audio in the callback here:
             parentObj.disableAudio();
         });
@@ -193,13 +196,15 @@ IodineGBAWorkerShim.prototype.audioHeartBeat = function () {
             //Empty the buffer out:
             this.consumeAudioBuffer();
         }
-        //Push latest audio metrics with no buffering:
-        this.audioMetrics[0] = this.audio.remainingBuffer() | 0;
         //Free up access to the buffer:
         this.releaseLock(this.audioLock);
         //Tell audio mixer input to flush to audio mixer:
         this.audio.flush();
     }
+}
+IodineGBAWorkerShim.prototype.audioPostHeartBeat = function () {
+    //Push latest audio metrics with no buffering:
+    Atomics.store(this.audioMetrics, 0, this.audio.remainingBuffer() | 0);
 }
 IodineGBAWorkerShim.prototype.graphicsHeartBeat = function () {
     //If graphics callback handle provided and we got a buffer reference:

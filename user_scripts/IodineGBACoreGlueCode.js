@@ -86,7 +86,7 @@ function registerBeforeUnloadHandler(e) {
     return "IodineGBA needs to process your save data, leaving now may result in not saving current data.";
 }
 function registerTimerHandler() {
-    var rate = 7;
+    var rate = 4;
     IodineGUI.Iodine.setIntervalRate(rate | 0);
     setInterval(function () {
         //Check to see if web view is not hidden, if hidden don't run due to JS timers being inaccurate on page hide:

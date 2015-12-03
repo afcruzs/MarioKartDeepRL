@@ -12,7 +12,9 @@ function GlueCodeMixer() {
     var parentObj = this;
     this.audio = new XAudioServer(2, this.sampleRate, 0, this.bufferAmount, null, function () {
         parentObj.checkHeartbeats();
-     }, 1, function () {
+    }, function () {
+        parentObj.checkPostHeartbeats();
+    }, 1, function () {
         //Disable audio in the callback here:
         parentObj.disableAudio();
     });
@@ -57,6 +59,12 @@ GlueCodeMixer.prototype.checkHeartbeats = function () {
         this.outputUnitsValid[inputIndex].heartBeatCallback();
     }
 }
+GlueCodeMixer.prototype.checkPostHeartbeats = function () {
+    var inputCount = this.outputUnitsValid.length;
+    for (var inputIndex = 0, output = 0; inputIndex < inputCount; ++inputIndex) {
+        this.outputUnitsValid[inputIndex].postHeartBeatCallback();
+    }
+}
 GlueCodeMixer.prototype.checkAudio = function () {
     if (this.audio) {
         var inputCount = this.outputUnitsValid.length;
@@ -96,11 +104,12 @@ function GlueCodeMixerInput(mixer) {
     this.mixer = mixer;
     this.volume = 1;
 }
-GlueCodeMixerInput.prototype.initialize = function (channelCount, sampleRate, bufferAmount, heartBeatCallback, errorCallback) {
+GlueCodeMixerInput.prototype.initialize = function (channelCount, sampleRate, bufferAmount, heartBeatCallback, postHeartBeatCallback, errorCallback) {
     this.channelCount = channelCount;
     this.sampleRate = sampleRate;
     this.bufferAmount = bufferAmount;
     this.heartBeatCallback = heartBeatCallback;
+    this.postHeartBeatCallback = postHeartBeatCallback;
     this.errorCallback = errorCallback;
     var oldBuffer = this.buffer;
     this.buffer = new AudioBufferWrapper(this.channelCount,
