@@ -277,7 +277,7 @@ IodineGBAWorkerShim.prototype.saveExportRequest = function (saveID, saveData) {
 }
 IodineGBAWorkerShim.prototype.waitForAccess = function (buffer) {
     //Check if the other thread locked access (And mark as locked):
-    if (Atomics.exchange(buffer, 0, 1) == 1) {
+    while (Atomics.exchange(buffer, 0, 1) == 1) {
         //Wait for other thread to release lock:
         Atomics.futexWait(buffer, 0, 1);
     }
