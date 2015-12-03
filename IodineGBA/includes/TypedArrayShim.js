@@ -32,6 +32,15 @@ function getUint8View(typed_array) {
         return null;
     }
 }
+function getSharedUint8Array(size_t) {
+    try {
+        return new Uint8Array(new SharedArrayBuffer(size_t));
+    }
+    catch (error) {
+        //Compatibility for older Firefox Nightlies:
+        return new SharedUint8Array(size_t);
+    }
+}
 function getInt16Array(size_t) {
     try {
         return new Int16Array(size_t);
@@ -87,6 +96,15 @@ function getInt32ViewCustom(typed_array, start, end) {
         }
     }
 }
+function getSharedInt32Array(size_t) {
+    try {
+        return new Int32Array(new SharedArrayBuffer(size_t << 2));
+    }
+    catch (error) {
+        //Compatibility for older Firefox Nightlies:
+        return new SharedInt32Array(size_t);
+    }
+}
 function getUint8ViewCustom(typed_array, start, end) {
     try {
         typed_array = getUint8View(typed_array);
@@ -116,6 +134,24 @@ function getFloat32Array(size_t) {
     }
     catch (error) {
         return getArray(size_t);
+    }
+}
+function getSharedFloat32Array(size_t) {
+    try {
+        return new Float32Array(new SharedArrayBuffer(size_t << 2));
+    }
+    catch (error) {
+        //Compatibility for older Firefox Nightlies:
+        return new SharedFloat32Array(size_t);
+    }
+}
+function getSharedFloat64Array(size_t) {
+    try {
+        return new Float64Array(new SharedArrayBuffer(size_t << 3));
+    }
+    catch (error) {
+        //Compatibility for older Firefox Nightlies:
+        return new SharedFloat64Array(size_t);
     }
 }
 function getArray(size_t) {

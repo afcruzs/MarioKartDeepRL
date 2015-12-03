@@ -63,7 +63,7 @@ window.onload = function () {
 function registerIodineHandler() {
     try {
         //Will run like shit if missing some of this for the webworker copy:
-        if (!window.SharedInt32Array || !Atomics) {
+        if (!window.SharedArrayBuffer || !Atomics) {
             throw null;
         }
         //Try starting Iodine in a webworker:
