@@ -55,15 +55,15 @@ var Iodine = new GameBoyAdvanceEmulator();
 //Save callbacks waiting to be satisfied:
 var saveImportPool = [];
 //Graphics Buffer:
-var gfxBuffer = new SharedUint8Array(160 * 240 * 3);
-var gfxLock = new SharedInt32Array(2);
+var gfxBuffer = getSharedUint8Array(160 * 240 * 3);
+var gfxLock = getSharedInt32Array(2);
 //Audio Buffers:
 var audioBuffer = null;
 var audioBufferSize = 0;
-var audioLock = new SharedInt32Array(2);
-var audioMetrics = new SharedInt32Array(2);
+var audioLock = getSharedInt32Array(2);
+var audioMetrics = getSharedInt32Array(2);
 //Time Stamp tracking:
-var timestamp = new SharedFloat64Array(1);
+var timestamp = getSharedFloat64Array(1);
 //Pass the shared array buffers:
 postMessage({messageID:0, graphicsBuffer:gfxBuffer, gfxLock:gfxLock, audioLock:audioLock, audioMetrics:audioMetrics, timestamp:timestamp}, [gfxBuffer.buffer, gfxLock.buffer, audioLock.buffer, audioMetrics.buffer, timestamp.buffer]);
 //Event decoding:
@@ -158,7 +158,7 @@ var audioHandler = {
         audioBufferSize = ((bufferLimit | 0) * (channels | 0)) | 0;
         //Only regen the buffer if we need to make it bigger:
         if (!audioBuffer || (audioBufferSize | 0) > (audioBuffer.length | 0)) {
-            audioBuffer = new SharedFloat32Array(audioBufferSize | 0);
+            audioBuffer = getSharedFloat32Array(audioBufferSize | 0);
             postMessage({messageID:1, audioBuffer:audioBuffer}, [audioBuffer.buffer]);
         }
         postMessage({messageID:2, channels:channels | 0, sampleRate:+sampleRate, bufferLimit:bufferLimit | 0});
