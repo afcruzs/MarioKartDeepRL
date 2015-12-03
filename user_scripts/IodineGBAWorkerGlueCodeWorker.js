@@ -222,7 +222,7 @@ function processSaveImportFail() {
 }
 function waitForAccess(buffer) {
     //If already reporting 1, then wait:
-    if (Atomics.exchange(buffer, 0, 1) == 1) {
+    while (Atomics.exchange(buffer, 0, 1) == 1) {
         Atomics.futexWait(buffer, 0, 1);
     }
 }
