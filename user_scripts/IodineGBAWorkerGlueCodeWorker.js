@@ -149,7 +149,7 @@ function graphicsFrameHandler(swizzledFrame) {
 }
 //Shim for our audio api:
 var audioHandler = {
-    initialize:function (channels, sampleRate, bufferLimit) {
+    initialize:function (channels, sampleRate, bufferLimit, call1, call2, call3) {
         //Initialize the audio mixer input:
         channels = channels | 0;
         sampleRate = +sampleRate;
