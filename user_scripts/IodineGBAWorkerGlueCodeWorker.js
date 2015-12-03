@@ -201,8 +201,12 @@ var audioHandler = {
     },
     remainingBuffer:function () {
         //Report the amount of audio samples in-flight:
-        var audioDeviceBufferCount = Atomics.load(audioMetrics, 0) | 0;
-        var sharedMemoryBufferCount = Atomics.load(audioMetrics, 1) | 0;
+        //Obtain lock on buffer:
+        waitForAccess(audioLock);
+        var audioDeviceBufferCount = audioMetrics[0] | 0;
+        var sharedMemoryBufferCount = audioMetrics[1] | 0;
+        //Release lock:
+        releaseLock(audioLock);
         return ((audioDeviceBufferCount | 0) + (sharedMemoryBufferCount | 0)) | 0;
     }
 };
