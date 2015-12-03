@@ -201,7 +201,9 @@ var audioHandler = {
     },
     remainingBuffer:function () {
         //Report the amount of audio samples in-flight:
-        return ((audioMetrics[0] | 0) + (audioMetrics[1] | 0)) | 0;
+        var audioDeviceBufferCount = Atomics.load(audioMetrics, 0) | 0;
+        var sharedMemoryBufferCount = Atomics.load(audioMetrics, 1) | 0;
+        return ((audioDeviceBufferCount | 0) + (sharedMemoryBufferCount | 0)) | 0;
     }
 };
 function saveImportHandler(saveID, saveCallback, noSaveCallback) {
