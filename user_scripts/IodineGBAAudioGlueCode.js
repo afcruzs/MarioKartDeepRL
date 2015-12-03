@@ -77,7 +77,7 @@ GlueCodeMixer.prototype.checkAudio = function () {
 GlueCodeMixer.prototype.findLowestBufferCount = function () {
     var count = 0;
     for (var inputIndex = 0, inputCount = this.outputUnitsValid.length; inputIndex < inputCount; ++inputIndex) {
-        var tempCount = this.outputUnitsValid[inputIndex].buffer.remainingBuffer();
+        var tempCount = this.outputUnitsValid[inputIndex].buffer.resampledSamplesLeft();
         if (tempCount > 0) {
             if (count > 0) {
                 count = Math.min(count, tempCount);

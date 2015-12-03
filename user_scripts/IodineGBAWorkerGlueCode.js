@@ -66,10 +66,8 @@ IodineGBAWorkerShim.prototype.timerCallback = function (timestamp) {
         //Forward latest timestamp to worker:
         this.timestamp[0] = +timestamp;
     }
-    //If graphics callback handle provided and we got a buffer reference:
+    //Check for a pending frame of graphics:
     this.graphicsHeartBeat();
-    //Using main thread timer as heartbeat for shared array buffer checking:
-    this.audioHeartBeat();
 }
 IodineGBAWorkerShim.prototype.attachGraphicsFrameHandler = function (gfx) {
     this.gfx = gfx;
@@ -172,8 +170,8 @@ IodineGBAWorkerShim.prototype.audioInitialize = function (channels, sampleRate, 
     if (this.audio) {
         //(Re-)Initialize:
         this.audio.initialize(channels | 0, +sampleRate, bufferLimit | 0, function () {
-            //Main thread timer already checks this and is more stable in firing time (so buffering is smoother):
-            //parentObj.audioHeartBeat();
+            //Empty buffers inside the provided audio event callback:
+            parentObj.audioHeartBeat();
         }, function () {
             //Disable audio in the callback here:
             parentObj.disableAudio();
@@ -204,6 +202,7 @@ IodineGBAWorkerShim.prototype.audioHeartBeat = function () {
     }
 }
 IodineGBAWorkerShim.prototype.graphicsHeartBeat = function () {
+    //If graphics callback handle provided and we got a buffer reference:
     if (this.gfx && this.graphicsLock) {
         //Waits while locked:
         this.waitForAccess(this.graphicsLock);
