@@ -54,8 +54,10 @@ importScripts("../IodineGBA/core/cartridge/EEPROM.js");
 var Iodine = new GameBoyAdvanceEmulator();
 //Save callbacks waiting to be satisfied:
 var saveImportPool = [];
-//Graphics Buffer:
+//Graphics Buffers:
 var gfxBuffer = getSharedUint8Array(160 * 240 * 3);
+var gfxBuffer2 = getSharedUint8Array(160 * 240 * 3);
+var gfxCount = getSharedUint8Array(1);
 var gfxLock = getSharedInt32Array(2);
 //Audio Buffers:
 var audioBuffer = null;
@@ -65,7 +67,7 @@ var audioMetrics = getSharedInt32Array(2);
 //Time Stamp tracking:
 var timestamp = getSharedFloat64Array(1);
 //Pass the shared array buffers:
-postMessage({messageID:0, graphicsBuffer:gfxBuffer, gfxLock:gfxLock, audioLock:audioLock, audioMetrics:audioMetrics, timestamp:timestamp}, [gfxBuffer.buffer, gfxLock.buffer, audioLock.buffer, audioMetrics.buffer, timestamp.buffer]);
+postMessage({messageID:0, graphicsBuffer:gfxBuffer, graphicsBuffer2:gfxBuffer2, gfxCount:gfxCount, gfxLock:gfxLock, audioLock:audioLock, audioMetrics:audioMetrics, timestamp:timestamp}, [gfxBuffer.buffer, gfxBuffer2.buffer, gfxCount.buffer, gfxLock.buffer, audioLock.buffer, audioMetrics.buffer, timestamp.buffer]);
 //Event decoding:
 self.onmessage = function (event) {
     var data = event.data;
@@ -138,15 +140,30 @@ self.onmessage = function (event) {
             processSaveImportFail();
     }
 }
-function graphicsFrameHandler(swizzledFrame) {
-    //Push a frame of graphics to the blitter handle:
-    //Obtain lock on buffer:
-    waitForAccess(gfxLock);
-    //Pass the data out:
-    gfxBuffer.set(swizzledFrame);
-    //Release lock:
-    releaseLock(gfxLock);
-}
+var graphicsFrameHandler = {
+    copyBuffer:function (swizzledFrame) {
+        //Push a frame of graphics to the blitter handle:
+        //Obtain lock on buffer:
+        waitForAccess(gfxLock);
+        //Pass the data out:
+        switch (gfxCount[0]) {
+            case 0:
+                gfxBuffer.set(swizzledFrame);
+                gfxCount[0] = 1;
+                break;
+            case 1:
+                gfxBuffer2.set(swizzledFrame);
+                gfxCount[0] = 2;
+                break;
+            default:
+                gfxBuffer.set(gfxBuffer2);
+                gfxBuffer2.set(swizzledFrame);
+                gfxCount[0] = 2;
+        }
+        //Release lock:
+        releaseLock(gfxLock);
+    }
+};
 //Shim for our audio api:
 var audioHandler = {
     initialize:function (channels, sampleRate, bufferLimit, call1, call2, call3) {

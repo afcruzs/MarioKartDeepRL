@@ -86,7 +86,7 @@ function registerBeforeUnloadHandler(e) {
     return "IodineGBA needs to process your save data, leaving now may result in not saving current data.";
 }
 function registerTimerHandler() {
-    var rate = 4;
+    var rate = 16;
     IodineGUI.Iodine.setIntervalRate(rate | 0);
     setInterval(function () {
         //Check to see if web view is not hidden, if hidden don't run due to JS timers being inaccurate on page hide:
@@ -104,7 +104,7 @@ function registerTimerHandler() {
 function registerBlitterHandler() {
     IodineGUI.Blitter = new GlueCodeGfx(240, 160);
     IodineGUI.Blitter.attachCanvas(document.getElementById("emulator_target"));
-    IodineGUI.Iodine.attachGraphicsFrameHandler(function (buffer) {IodineGUI.Blitter.copyBuffer(buffer);});
+    IodineGUI.Iodine.attachGraphicsFrameHandler(IodineGUI.Blitter);
 }
 function registerAudioHandler() {
     var Mixer = new GlueCodeMixer();

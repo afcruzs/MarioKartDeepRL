@@ -34,7 +34,7 @@ function GameBoyAdvanceEmulator() {
     this.saveExportHandler = null;            //Save export handler attached by GUI.
     this.saveImportHandler = null;            //Save import handler attached by GUI.
     this.speedCallback = null;                //Speed report handler attached by GUI.
-    this.graphicsFrameCallback = null;        //Graphics blitter handler attached by GUI.
+    this.graphicsHandle = null;               //Graphics blitter handler attached by GUI.
     this.audioNumSamplesTotal = 0;            //Buffer size.
     this.timerIntervalRate = 4;               //How often the emulator core is called into (in milliseconds).
     this.lastTimestamp = 0;                   //Track the last time given in milliseconds.
@@ -269,8 +269,8 @@ GameBoyAdvanceEmulator.prototype.keyUp = function (keyReleased) {
     }
 }
 GameBoyAdvanceEmulator.prototype.attachGraphicsFrameHandler = function (handler) {
-    if (typeof handler == "function") {
-        this.graphicsFrameCallback = handler;
+    if (typeof handler == "object") {
+        this.graphicsHandle = handler;
     }
 }
 GameBoyAdvanceEmulator.prototype.attachAudioHandler = function (mixerInputHandler) {
@@ -296,9 +296,9 @@ GameBoyAdvanceEmulator.prototype.prepareFrame = function () {
     this.requestDraw();
 }
 GameBoyAdvanceEmulator.prototype.requestDraw = function () {
-    if (this.graphicsFrameCallback) {
+    if (this.graphicsHandle) {
         //We actually updated the graphics internally, so copy out:
-        this.graphicsFrameCallback(this.swizzledFrame);
+        this.graphicsHandle.copyBuffer(this.swizzledFrame);
     }
 }
 GameBoyAdvanceEmulator.prototype.enableAudio = function () {

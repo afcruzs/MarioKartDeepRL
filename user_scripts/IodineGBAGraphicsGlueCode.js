@@ -18,6 +18,8 @@ function GlueCodeGfx(width, height) {
     var offscreenRGBCount = this.offscreenWidth * this.offscreenHeight * 3;
     this.swizzledFrameFree = [getUint8Array(offscreenRGBCount), getUint8Array(offscreenRGBCount)];
     this.swizzledFrameReady = [];
+    this.gfxCallback = null;
+    this.oldTime = parseFloat((new Date()).getTime());
     this.initializeGraphicsBuffer();          //Pre-set the swizzled buffer for first frame.
 }
 GlueCodeGfx.prototype.attachCanvas = function (canvas) {
@@ -27,6 +29,11 @@ GlueCodeGfx.prototype.attachCanvas = function (canvas) {
 }
 GlueCodeGfx.prototype.detachCanvas = function () {
     this.canvas = null;
+}
+GlueCodeGfx.prototype.attachGfxCallback = function (gfxCallback) {
+    if (typeof gfxCallback == "function") {
+        this.gfxCallback = gfxCallback;
+    }
 }
 GlueCodeGfx.prototype.recomputeDimension = function () {
     //Cache some dimension info:
@@ -99,8 +106,13 @@ GlueCodeGfx.prototype.getBuffer = function (canvasContext, width, height) {
 }
 GlueCodeGfx.prototype.copyBuffer = function (buffer) {
     if (this.graphicsFound) {
+        var newTime = parseFloat((new Date()).getTime());
+        var timeDiff = newTime - this.oldTime;
+        this.oldTime = newTime;
         if (this.swizzledFrameFree.length == 0) {
-            if (this.didRAF) {
+            //Needed for iOS!
+            //iOS will refuse to fire rAF if CPU load hits 100%
+            if (this.didRAF && timeDiff > 100) {
                 this.requestDrawSingle();
             }
             else {
@@ -126,6 +138,9 @@ GlueCodeGfx.prototype.copyBuffer = function (buffer) {
             var parentObj = this;
             window.requestAnimationFrame(function () {
                 if (parentObj.canvas) {
+                    if (parentObj.gfxCallback) {
+                        parentObj.gfxCallback();
+                    }
                     parentObj.requestRAFDraw();
                 }
             });
@@ -157,6 +172,9 @@ GlueCodeGfx.prototype.requestDraw = function () {
         var parentObj = this;
         window.requestAnimationFrame(function () {
             if (parentObj.canvas) {
+                if (parentObj.gfxCallback) {
+                    parentObj.gfxCallback();
+                }
                 parentObj.requestDraw();
             }
         });
