@@ -9,17 +9,18 @@
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 var IodineGUI = {
-    "Iodine":null,
-    "Blitter":null,
-    "timerID": null,
-    "mixerInput":null,
-    "defaults":{
-        "sound":true,
-        "volume":1,
-        "skipBoot":false,
-        "toggleSmoothScaling":true,
-        "toggleDynamicSpeed":false,
-        "keyZones":[
+    Iodine:null,
+    Blitter:null,
+    timerID: null,
+    startTime:(+(new Date()).getTime()) >>> 0,
+    mixerInput:null,
+    defaults:{
+        sound:true,
+        volume:1,
+        skipBoot:false,
+        toggleSmoothScaling:true,
+        toggleDynamicSpeed:false,
+        keyZones:[
             //Use this to control the key mapping:
             //A:
             [88, 74],
@@ -94,7 +95,7 @@ function registerTimerHandler() {
             if (document.getElementById("play").style.display == "none") {
                 IodineGUI.Iodine.play();
             }
-            IodineGUI.Iodine.timerCallback(+(new Date()).getTime());
+            IodineGUI.Iodine.timerCallback((((+(new Date()).getTime()) >>> 0) - (IodineGUI.startTime >>> 0)) >>> 0);
         }
         else {
             IodineGUI.Iodine.pause();

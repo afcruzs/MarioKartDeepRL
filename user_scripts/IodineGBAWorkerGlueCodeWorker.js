@@ -65,7 +65,7 @@ var audioBufferSize = 0;
 var audioLock = getSharedInt32Array(2);
 var audioMetrics = getSharedInt32Array(2);
 //Time Stamp tracking:
-var timestamp = getSharedFloat64Array(1);
+var timestamp = getSharedUint32Array(1);
 //Pass the shared array buffers:
 postMessage({messageID:0, graphicsBuffer:gfxBuffer, graphicsBuffer2:gfxBuffer2, gfxCount:gfxCount, gfxLock:gfxLock, audioLock:audioLock, audioMetrics:audioMetrics, timestamp:timestamp}, [gfxBuffer.buffer, gfxBuffer2.buffer, gfxCount.buffer, gfxLock.buffer, audioLock.buffer, audioMetrics.buffer, timestamp.buffer]);
 //Event decoding:
@@ -83,7 +83,7 @@ self.onmessage = function (event) {
             break;
         case 3:
             Iodine.setIntervalRate(data.payload | 0);
-            setInterval(function() {Iodine.timerCallback(+timestamp[0]);}, data.payload | 0);
+            setInterval(function() {Iodine.timerCallback(Atomics.load(timestamp, 0) >>> 0);}, data.payload | 0);
             break;
         case 4:
             Iodine.attachGraphicsFrameHandler(graphicsFrameHandler);

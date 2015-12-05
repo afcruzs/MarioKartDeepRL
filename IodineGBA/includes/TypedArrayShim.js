@@ -34,11 +34,11 @@ function getUint8View(typed_array) {
 }
 function getSharedUint8Array(size_t) {
     try {
-        return new Uint8Array(new SharedArrayBuffer(size_t));
-    }
-    catch (error) {
         //Compatibility for older Firefox Nightlies:
         return new SharedUint8Array(size_t);
+    }
+    catch (error) {
+        return new Uint8Array(new SharedArrayBuffer(size_t));
     }
 }
 function getInt16Array(size_t) {
@@ -98,11 +98,11 @@ function getInt32ViewCustom(typed_array, start, end) {
 }
 function getSharedInt32Array(size_t) {
     try {
-        return new Int32Array(new SharedArrayBuffer(size_t << 2));
-    }
-    catch (error) {
         //Compatibility for older Firefox Nightlies:
         return new SharedInt32Array(size_t);
+    }
+    catch (error) {
+        return new Int32Array(new SharedArrayBuffer(size_t << 2));
     }
 }
 function getUint8ViewCustom(typed_array, start, end) {
@@ -128,6 +128,15 @@ function getUint32Array(size_t) {
         return getArray(size_t);
     }
 }
+function getSharedUint32Array(size_t) {
+    try {
+        //Compatibility for older Firefox Nightlies:
+        return new SharedUint32Array(size_t);
+    }
+    catch (error) {
+        return new Uint32Array(new SharedArrayBuffer(size_t << 2));
+    }
+}
 function getFloat32Array(size_t) {
     try {
         return new Float32Array(size_t);
@@ -138,20 +147,11 @@ function getFloat32Array(size_t) {
 }
 function getSharedFloat32Array(size_t) {
     try {
-        return new Float32Array(new SharedArrayBuffer(size_t << 2));
-    }
-    catch (error) {
         //Compatibility for older Firefox Nightlies:
         return new SharedFloat32Array(size_t);
     }
-}
-function getSharedFloat64Array(size_t) {
-    try {
-        return new Float64Array(new SharedArrayBuffer(size_t << 3));
-    }
     catch (error) {
-        //Compatibility for older Firefox Nightlies:
-        return new SharedFloat64Array(size_t);
+        return new Float32Array(new SharedArrayBuffer(size_t << 2));
     }
 }
 function getArray(size_t) {

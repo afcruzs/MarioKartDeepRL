@@ -61,11 +61,11 @@ IodineGBAWorkerShim.prototype.setIntervalRate = function (rate) {
     this.sendMessageDouble(3, rate | 0);
 }
 IodineGBAWorkerShim.prototype.timerCallback = function (timestamp) {
-    timestamp = +timestamp;
+    timestamp = timestamp >>> 0;
     //If memory location provided for timestamp buffering:
     if (this.timestamp) {
         //Forward latest timestamp to worker:
-        this.timestamp[0] = +timestamp;
+        Atomics.store(this.timestamp, 0, timestamp >>> 0);
     }
     //Run some checks for graphics:
     if (this.gfx && this.graphicsLock) {

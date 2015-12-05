@@ -90,7 +90,7 @@ GameBoyAdvanceEmulator.prototype.restart = function () {
 }
 GameBoyAdvanceEmulator.prototype.timerCallback = function (lastTimestamp) {
     //Callback passes us a reference timestamp:
-    this.lastTimestamp = +lastTimestamp;
+    this.lastTimestamp = lastTimestamp >>> 0;
     if ((this.emulatorStatus | 0) == 0x5) {                         //Any error pending or no ROM loaded is a show-stopper!
         this.iterationStartSequence();                              //Run start of iteration stuff.
         this.IOCore.enter(this.CPUCyclesTotal | 0);                 //Step through the emulation core loop.
@@ -207,7 +207,7 @@ GameBoyAdvanceEmulator.prototype.invalidateMetrics = function () {
 }
 GameBoyAdvanceEmulator.prototype.resetMetrics = function () {
     this.clockCyclesSinceStart = 0;
-    this.metricStart = +this.lastTimestamp;
+    this.metricStart = this.lastTimestamp >>> 0;
 }
 GameBoyAdvanceEmulator.prototype.calculateTimings = function () {
     this.clocksPerSecond = Math.min((+this.settings.emulatorSpeed) * 0x1000000, 0x3F000000) | 0;
@@ -228,11 +228,11 @@ GameBoyAdvanceEmulator.prototype.setIntervalRate = function (intervalRate) {
     }
 }
 GameBoyAdvanceEmulator.prototype.calculateSpeedPercentage = function () {
-    if ((+this.metricStart) != 0) {
-        var timeDiff = +Math.max((+this.lastTimestamp) - (+this.metricStart), 1);
-        if ((+timeDiff) >= (this.settings.metricCollectionMinimum | 0)) {
+    if ((this.metricStart >>> 0) != 0) {
+        var timeDiff = Math.max(((this.lastTimestamp >>> 0) - (this.metricStart >>> 0)) | 0, 1) >>> 0;
+        if ((timeDiff >>> 0) >= (this.settings.metricCollectionMinimum | 0)) {
             if (this.speedCallback) {
-                var result = ((this.clockCyclesSinceStart | 0) * 100000) / ((+timeDiff) * 0x1000000);
+                var result = ((this.clockCyclesSinceStart | 0) * 100000) / ((timeDiff >>> 0) * 0x1000000);
                 this.speedCallback(+result);
             }
             //Reset counter for speed check:
