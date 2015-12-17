@@ -1,18 +1,18 @@
 "use strict";
 /*
  Copyright (C) 2012-2015 Grant Galitz
- 
+
  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- 
+
  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
- 
+
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 var IodineGUI = {
     Iodine:null,
     Blitter:null,
     timerID: null,
-    startTime:(+(new Date()).getTime()) >>> 0,
+    startTime:(+(new Date()).getTime()),
     mixerInput:null,
     defaults:{
         sound:true,
@@ -95,7 +95,7 @@ function registerTimerHandler() {
             if (document.getElementById("play").style.display == "none") {
                 IodineGUI.Iodine.play();
             }
-            IodineGUI.Iodine.timerCallback((((+(new Date()).getTime()) >>> 0) - (IodineGUI.startTime >>> 0)) >>> 0);
+            IodineGUI.Iodine.timerCallback(((+(new Date()).getTime()) - (+IodineGUI.startTime)) >>> 0);
         }
         else {
             IodineGUI.Iodine.pause();
@@ -264,7 +264,7 @@ function clearTempString() {
 }
 //Some wrappers and extensions for non-DOM3 browsers:
 function addEvent(sEvent, oElement, fListener) {
-    try {    
+    try {
         oElement.addEventListener(sEvent, fListener, false);
     }
     catch (error) {
@@ -272,7 +272,7 @@ function addEvent(sEvent, oElement, fListener) {
     }
 }
 function removeEvent(sEvent, oElement, fListener) {
-    try {    
+    try {
         oElement.removeEventListener(sEvent, fListener, false);
     }
     catch (error) {

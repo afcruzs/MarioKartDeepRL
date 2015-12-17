@@ -1,11 +1,11 @@
 "use strict";
 /*
  Copyright (C) 2012-2015 Grant Galitz
- 
+
  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- 
+
  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
- 
+
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 function GameBoyAdvanceEmulator() {
@@ -109,6 +109,7 @@ GameBoyAdvanceEmulator.prototype.iterationStartSequence = function () {
 GameBoyAdvanceEmulator.prototype.iterationEndSequence = function () {
     this.emulatorStatus = this.emulatorStatus & 0x1D;                   //If core did not throw while running, unset the fatal error flag.
     this.clockCyclesSinceStart = ((this.clockCyclesSinceStart | 0) + (this.CPUCyclesTotal | 0)) | 0;    //Accumulate tracking.
+    this.submitAudioBuffer();                                           //Flush audio buffer to output.
 }
 GameBoyAdvanceEmulator.prototype.attachROM = function (ROM) {
     this.stop();
@@ -342,7 +343,7 @@ GameBoyAdvanceEmulator.prototype.initializeAudioBuffering = function () {
     this.audioBufferContainAmount = Math.max((+this.clocksPerMilliSecond) * (this.settings.audioBufferUnderrunLimit | 0) / (this.audioResamplerFirstPassFactor | 0), 3) << 1;
     this.audioBufferOverclockBlockAmount = Math.max((+this.clocksPerMilliSecond) * (this.settings.overclockBlockLimit | 0) / (this.audioResamplerFirstPassFactor | 0), 3) << 1;
     this.audioBufferDynamicContainAmount = Math.max((+this.clocksPerMilliSecond) * (this.settings.audioBufferDynamicLimit | 0) / (this.audioResamplerFirstPassFactor | 0), 2) << 1;
-    var audioNumSamplesTotal = Math.max((this.CPUCyclesPerIteration | 0) / (this.audioResamplerFirstPassFactor | 0), 1) << 1;
+    var audioNumSamplesTotal = Math.max((+this.clocksPerMilliSecond) * (this.settings.audioBufferSize | 0) / (this.audioResamplerFirstPassFactor | 0), 4) << 1;
     if ((audioNumSamplesTotal | 0) != (this.audioNumSamplesTotal | 0)) {
         if ((audioNumSamplesTotal | 0) > (this.audioNumSamplesTotal | 0)) {
             this.audioBuffer = getFloat32Array(audioNumSamplesTotal | 0);
@@ -357,15 +358,12 @@ GameBoyAdvanceEmulator.prototype.outputAudio = function (downsampleInputLeft, do
     this.audioDestinationPosition = ((this.audioDestinationPosition | 0) + 1) | 0;
     this.audioBuffer[this.audioDestinationPosition | 0] = ((downsampleInputRight | 0) * (+this.audioDownSampleInputDivider)) - 1;
     this.audioDestinationPosition = ((this.audioDestinationPosition | 0) + 1) | 0;
-    if ((this.audioDestinationPosition | 0) == (this.audioNumSamplesTotal | 0)) {
-        this.submitAudioBuffer();
-        this.audioDestinationPosition = 0;
-    }
 }
 GameBoyAdvanceEmulator.prototype.submitAudioBuffer = function () {
     if ((this.audioFound | 0) != 0) {
-        this.audio.push(this.audioBuffer, this.audioNumSamplesTotal | 0);
+        this.audio.push(this.audioBuffer, this.audioDestinationPosition | 0);
     }
+    this.audioDestinationPosition = 0;
 }
 GameBoyAdvanceEmulator.prototype.audioUnderrunAdjustment = function () {
     this.CPUCyclesTotal = this.CPUCyclesPerIteration | 0;
