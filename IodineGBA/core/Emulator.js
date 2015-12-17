@@ -35,7 +35,6 @@ function GameBoyAdvanceEmulator() {
     this.saveImportHandler = null;            //Save import handler attached by GUI.
     this.speedCallback = null;                //Speed report handler attached by GUI.
     this.graphicsHandle = null;               //Graphics blitter handler attached by GUI.
-    this.audioNumSamplesTotal = 0;            //Buffer size.
     this.timerIntervalRate = 4;               //How often the emulator core is called into (in milliseconds).
     this.lastTimestamp = 0;                   //Track the last time given in milliseconds.
     this.dynamicSpeedRefresh = false;         //Whether speed is allowed to be changed dynamically in the current cycle.
@@ -344,11 +343,8 @@ GameBoyAdvanceEmulator.prototype.initializeAudioBuffering = function () {
     this.audioBufferOverclockBlockAmount = Math.max((+this.clocksPerMilliSecond) * (this.settings.overclockBlockLimit | 0) / (this.audioResamplerFirstPassFactor | 0), 3) << 1;
     this.audioBufferDynamicContainAmount = Math.max((+this.clocksPerMilliSecond) * (this.settings.audioBufferDynamicLimit | 0) / (this.audioResamplerFirstPassFactor | 0), 2) << 1;
     var audioNumSamplesTotal = Math.max((+this.clocksPerMilliSecond) * (this.settings.audioBufferSize | 0) / (this.audioResamplerFirstPassFactor | 0), 4) << 1;
-    if ((audioNumSamplesTotal | 0) != (this.audioNumSamplesTotal | 0)) {
-        if ((audioNumSamplesTotal | 0) > (this.audioNumSamplesTotal | 0)) {
-            this.audioBuffer = getFloat32Array(audioNumSamplesTotal | 0);
-        }
-        this.audioNumSamplesTotal = audioNumSamplesTotal | 0;
+    if (!this.audioBuffer || ((audioNumSamplesTotal | 0) > (this.audioBuffer.length | 0))) {
+        this.audioBuffer = getFloat32Array(audioNumSamplesTotal | 0);
     }
 }
 GameBoyAdvanceEmulator.prototype.outputAudio = function (downsampleInputLeft, downsampleInputRight) {
