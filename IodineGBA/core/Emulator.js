@@ -342,8 +342,10 @@ GameBoyAdvanceEmulator.prototype.initializeAudioBuffering = function () {
     this.audioBufferContainAmount = Math.max((+this.clocksPerMilliSecond) * (this.settings.audioBufferUnderrunLimit | 0) / (this.audioResamplerFirstPassFactor | 0), 3) << 1;
     this.audioBufferOverclockBlockAmount = Math.max((+this.clocksPerMilliSecond) * (this.settings.overclockBlockLimit | 0) / (this.audioResamplerFirstPassFactor | 0), 3) << 1;
     this.audioBufferDynamicContainAmount = Math.max((+this.clocksPerMilliSecond) * (this.settings.audioBufferDynamicLimit | 0) / (this.audioResamplerFirstPassFactor | 0), 2) << 1;
-    var audioNumSamplesTotal = Math.max((+this.clocksPerMilliSecond) * (this.settings.audioBufferSize | 0) / (this.audioResamplerFirstPassFactor | 0), 4) << 1;
+    //Underrun logic will request at most 32 milliseconds of runtime per iteration, so set buffer size to 64 ms:
+    var audioNumSamplesTotal = Math.max(((+this.clocksPerMilliSecond) / (this.audioResamplerFirstPassFactor | 0)) << 6, 4) << 1;
     if (!this.audioBuffer || ((audioNumSamplesTotal | 0) > (this.audioBuffer.length | 0))) {
+        //Only regen buffer if the size is increased:
         this.audioBuffer = getFloat32Array(audioNumSamplesTotal | 0);
     }
 }
