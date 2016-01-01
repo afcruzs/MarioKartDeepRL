@@ -1,11 +1,11 @@
 "use strict";
 /*
  Copyright (C) 2012-2015 Grant Galitz
- 
+
  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- 
+
  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
- 
+
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 function GlueCodeMixer() {
@@ -134,12 +134,12 @@ GlueCodeMixerInput.prototype.prepareShift = function () {
 GlueCodeMixerInput.prototype.shift = function () {
     return this.buffer.shift() * this.volume;
 }
-GlueCodeMixerInput.prototype.push = function (buffer, upTo) {
-    this.buffer.push(buffer, upTo);
+GlueCodeMixerInput.prototype.push = function (buffer, start, end) {
+    this.buffer.push(buffer, start, end);
     this.mixer.checkAudio();
 }
-GlueCodeMixerInput.prototype.pushDeferred = function (buffer, upTo) {
-    this.buffer.push(buffer, upTo);
+GlueCodeMixerInput.prototype.pushDeferred = function (buffer, start, end) {
+    this.buffer.push(buffer, start, end);
 }
 GlueCodeMixerInput.prototype.flush = function () {
     this.mixer.checkAudio();
@@ -196,29 +196,29 @@ AudioBufferWrapper.prototype.copyOld = function (oldBuffer) {
         }
     }
 }
-AudioBufferWrapper.prototype.push = function (buffer, upTo) {
-    var length  = Math.min(buffer.length, upTo);
+AudioBufferWrapper.prototype.push = function (buffer, start, end) {
+    var length  = Math.min(buffer.length, end);
     if (this.channelCount < this.mixerChannelCount) {
-        for (var bufferCounter = 0; bufferCounter < length && this.inputOffset < this.inBufferSize;) {
+        for (; start < length && this.inputOffset < this.inBufferSize;) {
             for (var index = this.channelCount; index < this.mixerChannelCount; ++index) {
-                this.inBuffer[this.inputOffset++] = buffer[bufferCounter];
+                this.inBuffer[this.inputOffset++] = buffer[start];
             }
-            for (index = 0; index < this.channelCount && bufferCounter < length; ++index) {
-                this.inBuffer[this.inputOffset++] = buffer[bufferCounter++];
+            for (index = 0; index < this.channelCount && start < length; ++index) {
+                this.inBuffer[this.inputOffset++] = buffer[start++];
             }
         }
     }
     else if (this.channelCount == this.mixerChannelCount) {
-        for (var bufferCounter = 0; bufferCounter < length && this.inputOffset < this.inBufferSize;) {
-            this.inBuffer[this.inputOffset++] = buffer[bufferCounter++];
+        for (; start < length && this.inputOffset < this.inBufferSize;) {
+            this.inBuffer[this.inputOffset++] = buffer[start++];
         }
     }
     else {
-        for (var bufferCounter = 0; bufferCounter < length && this.inputOffset < this.inBufferSize;) {
-            for (index = 0; index < this.mixerChannelCount && bufferCounter < length; ++index) {
-                this.inBuffer[this.inputOffset++] = buffer[bufferCounter++];
+        for (; start < length && this.inputOffset < this.inBufferSize;) {
+            for (index = 0; index < this.mixerChannelCount && start < length; ++index) {
+                this.inBuffer[this.inputOffset++] = buffer[start++];
             }
-            bufferCounter += this.channelCount - this.mixerChannelCount;
+            start += this.channelCount - this.mixerChannelCount;
         }
     }
 }

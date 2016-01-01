@@ -55,19 +55,18 @@ var Iodine = new GameBoyAdvanceEmulator();
 //Save callbacks waiting to be satisfied:
 var saveImportPool = [];
 //Graphics Buffers:
-var gfxBuffer = getSharedUint8Array(160 * 240 * 3);
-var gfxBuffer2 = getSharedUint8Array(160 * 240 * 3);
-var gfxCount = getSharedUint8Array(1);
-var gfxLock = getSharedInt32Array(2);
+var gfxBuffers = [getSharedUint8Array(160 * 240 * 3),
+  getSharedUint8Array(160 * 240 * 3)];
+var gfxCounters = getSharedInt32Array(2);
 //Audio Buffers:
 var audioBuffer = null;
 var audioBufferSize = 0;
-var audioLock = getSharedInt32Array(2);
-var audioMetrics = getSharedInt32Array(2);
+var audioBufferSizeMask = 0;
+var audioCounters = getSharedInt32Array(3);
 //Time Stamp tracking:
 var timestamp = getSharedUint32Array(1);
 //Pass the shared array buffers:
-postMessage({messageID:0, graphicsBuffer:gfxBuffer, graphicsBuffer2:gfxBuffer2, gfxCount:gfxCount, gfxLock:gfxLock, audioLock:audioLock, audioMetrics:audioMetrics, timestamp:timestamp}, [gfxBuffer.buffer, gfxBuffer2.buffer, gfxCount.buffer, gfxLock.buffer, audioLock.buffer, audioMetrics.buffer, timestamp.buffer]);
+postMessage({messageID:0, gfxBuffer1:gfxBuffers[0], gfxBuffer2:gfxBuffers[1], gfxCounters:gfxCounters, audioCounters:audioCounters, timestamp:timestamp}, [gfxBuffers[0].buffer, gfxBuffers[1].buffer, gfxCounters.buffer, audioCounters.buffer, timestamp.buffer]);
 //Event decoding:
 self.onmessage = function (event) {
     var data = event.data;
@@ -143,25 +142,19 @@ self.onmessage = function (event) {
 var graphicsFrameHandler = {
     copyBuffer:function (swizzledFrame) {
         //Push a frame of graphics to the blitter handle:
-        //Obtain lock on buffer:
-        waitForAccess(gfxLock);
-        //Pass the data out:
-        switch (gfxCount[0]) {
-            case 0:
-                gfxBuffer.set(swizzledFrame);
-                gfxCount[0] = 1;
-                break;
-            case 1:
-                gfxBuffer2.set(swizzledFrame);
-                gfxCount[0] = 2;
-                break;
-            default:
-                gfxBuffer.set(gfxBuffer2);
-                gfxBuffer2.set(swizzledFrame);
-                gfxCount[0] = 2;
+        //Load the counter values:
+        var start = Atomics.load(gfxCounters, 0) | 0;
+        var end = Atomics.load(gfxCounters, 1) | 0;
+        //Check if buffer is full:
+        if ((end | 0) == (((start | 0) + 2) | 0)) {
+            //Skip copying a frame out:
+            return;
         }
-        //Release lock:
-        releaseLock(gfxLock);
+        //Copy samples into the ring buffer:
+        //Hardcoded for 2 buffers for a triple buffer effect:
+        gfxBuffers[end & 0x1].set(swizzledFrame);
+        //Increment the ending position counter by 11:
+        Atomics.store(gfxCounters, 1, ((end | 0) + 1) | 0);
     }
 };
 //Shim for our audio api:
@@ -173,6 +166,11 @@ var audioHandler = {
         bufferLimit = bufferLimit | 0;
         //Generate an audio buffer:
         audioBufferSize = ((bufferLimit | 0) * (channels | 0)) | 0;
+        audioBufferSizeMask = 1;
+        while ((audioBufferSize | 0) >= (audioBufferSizeMask | 0)) {
+            audioBufferSizeMask = (audioBufferSizeMask << 1) | 1;
+        }
+        audioBufferSize = ((audioBufferSizeMask | 0) + 1) | 0;
         //Only regen the buffer if we need to make it bigger:
         if (!audioBuffer || (audioBufferSize | 0) > (audioBuffer.length | 0)) {
             audioBuffer = getSharedFloat32Array(audioBufferSize | 0);
@@ -180,36 +178,36 @@ var audioHandler = {
         }
         postMessage({messageID:2, channels:channels | 0, sampleRate:+sampleRate, bufferLimit:bufferLimit | 0});
     },
-    push:function (buffer, amountToSend) {
-      amountToSend = amountToSend | 0;
+    push:function (buffer, startPos, endPos) {
+        startPos = startPos | 0;
+        endPos = endPos | 0;
         //Push audio to the audio mixer input handle:
-        //Obtain lock on buffer:
-        waitForAccess(audioLock);
+        //Load the counter values:
+        var start = Atomics.load(audioCounters, 0) | 0;
+        var end = Atomics.load(audioCounters, 1) | 0;
+        var endCorrected = ((end | 0) & (audioBufferSizeMask | 0)) | 0;
+        var freeBufferSpace = ((end | 0) - (start | 0)) | 0;
+        freeBufferSpace = ((audioBufferSize | 0) - (freeBufferSpace | 0)) | 0;
+        var amountToSend = ((endPos | 0) - (startPos | 0)) | 0;
+        amountToSend = Math.min(amountToSend | 0, freeBufferSpace | 0) | 0;
+        endPos = ((startPos | 0) + (amountToSend | 0)) | 0;
         //Push audio into buffer:
-        var offset = audioMetrics[1] | 0;
-        var endPosition = Math.min(((amountToSend | 0) + (offset | 0)) | 0, audioBufferSize | 0) | 0;
-        for (var position = 0; (offset | 0) < (endPosition | 0); position = ((position | 0) + 1) | 0) {
-            audioBuffer[offset | 0] = +buffer[position | 0];
-            offset = ((offset | 0) + 1) | 0;
+        for (; (startPos | 0) < (endPos | 0); startPos = ((startPos | 0) + 1) | 0) {
+            audioBuffer[endCorrected | 0] = +buffer[startPos | 0];
+            endCorrected = ((endCorrected | 0) + 1) | 0;
+            if ((endCorrected | 0) == (audioBufferSize | 0)) {
+                endCorrected = 0;
+            }
         }
         //Update the cross thread buffering count:
-        audioMetrics[1] = offset | 0;
-        //Release lock:
-        releaseLock(audioLock);
-        //If we filled the entire buffer:
-        if ((position | 0) < (amountToSend | 0)) {
-            //Wait for UI thread to process the buffer, and then queue the next batch:
-            Atomics.futexWait(audioLock, 1, 1);
-            this.push(buffer.subarray(position | 0), ((amountToSend | 0) - (position | 0)) | 0);
-        }
+        end = ((end | 0) + (amountToSend | 0)) | 0;
+        Atomics.store(audioCounters, 1, end | 0);
     },
     register:function () {
         //Register into the audio mixer:
         postMessage({messageID:3});
     },
     unregister:function () {
-        //Wait for UI thread to empty and process the OLD buffer:
-        Atomics.futexWait(audioLock, 1, 1);
         //Unregister from audio mixer:
         postMessage({messageID:4});
     },
@@ -219,13 +217,16 @@ var audioHandler = {
     },
     remainingBuffer:function () {
         //Report the amount of audio samples in-flight:
-        //Obtain lock on buffer:
-        waitForAccess(audioLock);
-        var audioDeviceBufferCount = audioMetrics[0] | 0;
-        var sharedMemoryBufferCount = audioMetrics[1] | 0;
-        //Release lock:
-        releaseLock(audioLock);
-        return ((audioDeviceBufferCount | 0) + (sharedMemoryBufferCount | 0)) | 0;
+        var ringBufferCount = this.remainingBufferShared() | 0;
+        var audioSysCount = Atomics.load(audioCounters, 2) | 0;
+        return ((ringBufferCount | 0) + (audioSysCount | 0)) | 0;
+    },
+    remainingBufferShared:function () {
+        //Reported the sample count left in the shared buffer:
+        var start = Atomics.load(audioCounters, 0) | 0;
+        var end = Atomics.load(audioCounters, 1) | 0;
+        var ringBufferCount = ((end | 0) - (start | 0)) | 0;
+        return ringBufferCount | 0;
     }
 };
 function saveImportHandler(saveID, saveCallback, noSaveCallback) {
@@ -243,17 +244,4 @@ function processSaveImportSuccess(saveData) {
 }
 function processSaveImportFail() {
     saveImportPool.shift()[1]();
-}
-function waitForAccess(buffer) {
-    //If already reporting 1, then wait:
-    while (Atomics.exchange(buffer, 0, 1) == 1) {
-        Atomics.futexWait(buffer, 0, 1);
-    }
-}
-function releaseLock(buffer) {
-    //Mark as ready to be consumed:
-    buffer[1] = 1;
-    //Release lock:
-    Atomics.store(buffer, 0, 0);
-    Atomics.futexWake(buffer, 0, 1);
 }
