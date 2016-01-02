@@ -221,7 +221,8 @@ if (Atomics.fence) {
       //Done before updating ring buffer counter, so we don't over-produce:
       this.audioPostHeartBeat();
       //Update the starting position counter to match the end position:
-      this.audioCounters[0] = end | 0;
+      //Atomic store, because the sample count by the audio system needs to be reported prior to this:
+      Atomics.store(this.audioCounters, 0, end | 0);
       //Tell audio mixer input to flush to audio mixer:
       this.audio.flush();
   }
@@ -246,7 +247,8 @@ else {
       //Done before updating ring buffer counter, so we don't over-produce:
       this.audioPostHeartBeat();
       //Update the starting position counter to match the end position:
-      this.audioCounters[0] = end | 0;
+      //Atomic store, because the sample count by the audio system needs to be reported prior to this:
+      Atomics.store(this.audioCounters, 0, end | 0);
       //Tell audio mixer input to flush to audio mixer:
       this.audio.flush();
   }
