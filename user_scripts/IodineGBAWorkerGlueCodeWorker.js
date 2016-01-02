@@ -82,7 +82,7 @@ self.onmessage = function (event) {
             break;
         case 3:
             Iodine.setIntervalRate(data.payload | 0);
-            setInterval(function() {Iodine.timerCallback(Atomics.load(timestamp, 0) >>> 0);}, data.payload | 0);
+            setInterval(function() {Iodine.timerCallback(timestamp[0] >>> 0);}, data.payload | 0);
             break;
         case 4:
             Iodine.attachGraphicsFrameHandler(graphicsFrameHandler);
@@ -143,8 +143,8 @@ var graphicsFrameHandler = {
     copyBuffer:function (swizzledFrame) {
         //Push a frame of graphics to the blitter handle:
         //Load the counter values:
-        var start = Atomics.load(gfxCounters, 0) | 0;
-        var end = Atomics.load(gfxCounters, 1) | 0;
+        var start = gfxCounters[0] | 0;
+        var end = gfxCounters[1] | 0;
         //Check if buffer is full:
         if ((end | 0) == (((start | 0) + 2) | 0)) {
             //Skip copying a frame out:
@@ -154,7 +154,7 @@ var graphicsFrameHandler = {
         //Hardcoded for 2 buffers for a triple buffer effect:
         gfxBuffers[end & 0x1].set(swizzledFrame);
         //Increment the ending position counter by 11:
-        Atomics.store(gfxCounters, 1, ((end | 0) + 1) | 0);
+        gfxCounters[1] = ((end | 0) + 1) | 0;
     }
 };
 //Shim for our audio api:
@@ -183,8 +183,8 @@ var audioHandler = {
         endPos = endPos | 0;
         //Push audio to the audio mixer input handle:
         //Load the counter values:
-        var start = Atomics.load(audioCounters, 0) | 0;
-        var end = Atomics.load(audioCounters, 1) | 0;
+        var start = audioCounters[0] | 0;
+        var end = audioCounters[1] | 0;
         var endCorrected = ((end | 0) & (audioBufferSizeMask | 0)) | 0;
         var freeBufferSpace = ((end | 0) - (start | 0)) | 0;
         freeBufferSpace = ((audioBufferSize | 0) - (freeBufferSpace | 0)) | 0;
@@ -201,7 +201,7 @@ var audioHandler = {
         }
         //Update the cross thread buffering count:
         end = ((end | 0) + (amountToSend | 0)) | 0;
-        Atomics.store(audioCounters, 1, end | 0);
+        audioCounters[1] = end | 0;
     },
     register:function () {
         //Register into the audio mixer:
@@ -218,13 +218,13 @@ var audioHandler = {
     remainingBuffer:function () {
         //Report the amount of audio samples in-flight:
         var ringBufferCount = this.remainingBufferShared() | 0;
-        var audioSysCount = Atomics.load(audioCounters, 2) | 0;
+        var audioSysCount = audioCounters[2] | 0;
         return ((ringBufferCount | 0) + (audioSysCount | 0)) | 0;
     },
     remainingBufferShared:function () {
         //Reported the sample count left in the shared buffer:
-        var start = Atomics.load(audioCounters, 0) | 0;
-        var end = Atomics.load(audioCounters, 1) | 0;
+        var start = audioCounters[0] | 0;
+        var end = audioCounters[1] | 0;
         var ringBufferCount = ((end | 0) - (start | 0)) | 0;
         return ringBufferCount | 0;
     }
