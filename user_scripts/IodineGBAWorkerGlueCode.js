@@ -199,7 +199,7 @@ IodineGBAWorkerShim.prototype.audioHeartBeat = function () {
         this.consumeAudioBuffer();
     }
 }
-if (Atomics.fence) {
+if (typeof Atomics == "object" && typeof Atomics.fence == "function") {
   IodineGBAWorkerShim.prototype.consumeAudioBuffer = function () {
       //Load the counter values:
       var start = this.audioCounters[0] | 0;
@@ -247,7 +247,7 @@ else {
       //Done before updating ring buffer counter, so we don't over-produce:
       this.audioPostHeartBeat();
       //Update the starting position counter to match the end position:
-      //Atomic store, because the sample count by the audio system needs to be reported prior to this:
+      //Atomic store, because the sample count by the audio system needs to be reported prior to this:o
       Atomics.store(this.audioCounters, 0, end | 0);
       //Tell audio mixer input to flush to audio mixer:
       this.audio.flush();
@@ -280,7 +280,7 @@ IodineGBAWorkerShim.prototype.graphicsHeartBeat = function () {
         this.consumeGraphicsBuffer();
     }
 }
-if (Atomics.fence) {
+if (typeof Atomics == "object" && typeof Atomics.fence == "function") {
   IodineGBAWorkerShim.prototype.consumeGraphicsBuffer = function () {
       //Load the counter values:
       var start = this.gfxCounters[0] | 0;
