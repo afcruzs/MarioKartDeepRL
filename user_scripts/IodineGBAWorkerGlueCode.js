@@ -199,59 +199,29 @@ IodineGBAWorkerShim.prototype.audioHeartBeat = function () {
         this.consumeAudioBuffer();
     }
 }
-if (typeof Atomics == "object" && typeof Atomics.fence == "function") {
-  IodineGBAWorkerShim.prototype.consumeAudioBuffer = function () {
-      //Load the counter values:
-      var start = this.audioCounters[0] | 0;
-      var end = this.audioCounters[1] | 0;
-      /*
-        Memory fence to make sure updates by the other thread are sync'd.
-        non-standard and removed from spec, as it's implied with other Atomic ops.
-        Buffer space up to the "end" variable will be synchronized with the mem fence here.
-      */
-      Atomics.fence();
-      //Don't process if nothing to process:
-      if ((end | 0) == (start | 0)) {
-          //Buffer is empty:
-          return;
-      }
-      //Copy samples out from the ring buffer:
-      this.copyAudioBuffer(start | 0, end | 0);
-      //Update the sample count reported by the audio mixer:
-      //Done before updating ring buffer counter, so we don't over-produce:
-      this.audioPostHeartBeat();
-      //Update the starting position counter to match the end position:
-      //Atomic store, because the sample count by the audio system needs to be reported prior to this:
-      Atomics.store(this.audioCounters, 0, end | 0);
-      //Tell audio mixer input to flush to audio mixer:
-      this.audio.flush();
-  }
-}
-else {
-  IodineGBAWorkerShim.prototype.consumeAudioBuffer = function () {
-      //Load the counter values:
-      var start = this.audioCounters[0] | 0;
-      /*
-        Int32 already implied atomic; use atomic load for fencing reasons instead:
-        Buffer will be guaranteed to be correct up to the end position reported:
-      */
-      var end = Atomics.load(this.audioCounters, 1) | 0;
-      //Don't process if nothing to process:
-      if ((end | 0) == (start | 0)) {
-          //Buffer is empty:
-          return;
-      }
-      //Copy samples out from the ring buffer:
-      this.copyAudioBuffer(start | 0, end | 0);
-      //Update the sample count reported by the audio mixer:
-      //Done before updating ring buffer counter, so we don't over-produce:
-      this.audioPostHeartBeat();
-      //Update the starting position counter to match the end position:
-      //Atomic store, because the sample count by the audio system needs to be reported prior to this:
-      Atomics.store(this.audioCounters, 0, end | 0);
-      //Tell audio mixer input to flush to audio mixer:
-      this.audio.flush();
-  }
+IodineGBAWorkerShim.prototype.consumeAudioBuffer = function () {
+    //Load the counter values:
+    /*
+      Int32 already implied atomic; use atomic load for fencing reasons instead:
+      Buffer will be guaranteed to be correct up to the end position reported:
+    */
+    var end = Atomics.load(this.audioCounters, 1) | 0;
+    var start = this.audioCounters[0] | 0;
+    //Don't process if nothing to process:
+    if ((end | 0) == (start | 0)) {
+        //Buffer is empty:
+        return;
+    }
+    //Copy samples out from the ring buffer:
+    this.copyAudioBuffer(start | 0, end | 0);
+    //Update the sample count reported by the audio mixer:
+    //Done before updating ring buffer counter, so we don't over-produce:
+    this.audioPostHeartBeat();
+    //Update the starting position counter to match the end position:
+    //Atomic store, because the sample count by the audio system needs to be reported prior to this:
+    Atomics.store(this.audioCounters, 0, end | 0);
+    //Tell audio mixer input to flush to audio mixer:
+    this.audio.flush();
 }
 IodineGBAWorkerShim.prototype.copyAudioBuffer = function (start, end) {
     start = start | 0;
@@ -280,55 +250,28 @@ IodineGBAWorkerShim.prototype.graphicsHeartBeat = function () {
         this.consumeGraphicsBuffer();
     }
 }
-if (typeof Atomics == "object" && typeof Atomics.fence == "function") {
-  IodineGBAWorkerShim.prototype.consumeGraphicsBuffer = function () {
-      //Load the counter values:
-      var start = this.gfxCounters[0] | 0;
-      var end = this.gfxCounters[1] | 0;
-      /*
-        Memory fence to make sure updates by the other thread are sync'd.
-        non-standard and removed from spec, as it's implied with other Atomic ops.
-        Buffer space up to the "end" variable will be synchronized with the mem fence here.
-      */
-      Atomics.fence();
-      //Don't process if nothing to process:
-      if ((end | 0) == (start | 0)) {
-          //Buffer is empty:
-          return;
-      }
-      //Copy samples out from the ring buffer:
-      do {
-          //Hardcoded for 2 buffers for a triple buffer effect:
-          this.gfx.copyBuffer(this.gfxBuffers[start & 0x1]);
-          start = ((start | 0) + 1) | 0;
-      } while ((start | 0) != (end | 0));
-      //Update the starting position counter to match the end position:
-      this.gfxCounters[0] = end | 0;
-  }
-}
-else {
-  IodineGBAWorkerShim.prototype.consumeGraphicsBuffer = function () {
-      //Load the counter values:
-      var start = this.gfxCounters[0] | 0;
-      /*
-        Int32 already implied atomic; use atomic load for fencing reasons instead:
-        Buffer will be guaranteed to be correct up to the end position reported:
-      */
-      var end = Atomics.load(this.gfxCounters, 1) | 0;
-      //Don't process if nothing to process:
-      if ((end | 0) == (start | 0)) {
-          //Buffer is empty:
-          return;
-      }
-      //Copy samples out from the ring buffer:
-      do {
-          //Hardcoded for 2 buffers for a triple buffer effect:
-          this.gfx.copyBuffer(this.gfxBuffers[start & 0x1]);
-          start = ((start | 0) + 1) | 0;
-      } while ((start | 0) != (end | 0));
-      //Update the starting position counter to match the end position:
-      this.gfxCounters[0] = end | 0;
-  }
+IodineGBAWorkerShim.prototype.consumeGraphicsBuffer = function () {
+    //Load the counter values:
+    /*
+      Int32 already implied atomic; use atomic load for fencing reasons instead:
+      Buffer will be guaranteed to be correct up to the end position reported:
+    */
+    var end = Atomics.load(this.gfxCounters, 1) | 0;
+    var start = this.gfxCounters[0] | 0;
+    //Don't process if nothing to process:
+    if ((end | 0) == (start | 0)) {
+        //Buffer is empty:
+        return;
+    }
+    //Copy samples out from the ring buffer:
+    do {
+        //Hardcoded for 2 buffers for a triple buffer effect:
+        this.gfx.copyBuffer(this.gfxBuffers[start & 0x1]);
+        start = ((start | 0) + 1) | 0;
+    } while ((start | 0) != (end | 0));
+    //Update the starting position counter to match the end position:
+    //Let the other Atomic loads/stores naturally flush this value:
+    this.gfxCounters[0] = end | 0;
 }
 IodineGBAWorkerShim.prototype.audioRegister = function () {
     if (this.audio) {

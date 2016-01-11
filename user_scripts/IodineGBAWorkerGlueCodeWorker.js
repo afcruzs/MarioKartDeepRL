@@ -153,8 +153,9 @@ var graphicsFrameHandler = {
         //Copy samples into the ring buffer:
         //Hardcoded for 2 buffers for a triple buffer effect:
         gfxBuffers[end & 0x1].set(swizzledFrame);
-        //Increment the ending position counter by 11:
-        gfxCounters[1] = ((end | 0) + 1) | 0;
+        //Increment the ending position counter by 1:
+        //Atomic to commit the counter to memory:
+        Atomics.store(gfxCounters, 1, ((end | 0) + 1) | 0);
     }
 };
 //Shim for our audio api:
@@ -201,7 +202,8 @@ var audioHandler = {
         }
         //Update the cross thread buffering count:
         end = ((end | 0) + (amountToSend | 0)) | 0;
-        audioCounters[1] = end | 0;
+        //Atomic store to commit writes to memory:
+        Atomics.store(audioCounters, 1, end | 0);
     },
     register:function () {
         //Register into the audio mixer:
