@@ -1,11 +1,11 @@
 "use strict";
 /*
  Copyright (C) 2012-2015 Grant Galitz
- 
+
  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- 
+
  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
- 
+
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 function GameBoyAdvanceMemory(IOCore) {
@@ -28,23 +28,6 @@ GameBoyAdvanceMemory.prototype.initialize = function () {
     this.internalRAM16 = getUint16View(this.internalRAM);
     this.internalRAM32 = getInt32View(this.internalRAM);
     this.lastBIOSREAD = 0;        //BIOS read bus last.
-    //After all sub-objects initialized, initialize dispatches:
-    this.memoryRead8 = this.memoryRead8Generated[1];
-    this.memoryWrite8 = this.memoryWrite8Generated[1];
-    this.memoryRead16 = this.memoryRead16Generated[1];
-    this.memoryReadDMA16 = this.memoryReadDMA16Generated[1];
-    this.memoryReadDMAFull16 = this.memoryReadDMA16FullGenerated[1];
-    this.memoryReadCPU16 = this.memoryReadCPU16Generated[1];
-    this.memoryWrite16 = this.memoryWrite16Generated[1];
-    this.memoryWriteDMA16 = this.memoryWriteDMA16Generated[1];
-    this.memoryWriteDMAFull16 = this.memoryWriteDMA16FullGenerated[1];
-    this.memoryRead32 = this.memoryRead32Generated[1];
-    this.memoryReadDMA32 = this.memoryReadDMA32Generated[1];
-    this.memoryReadDMAFull32 = this.memoryReadDMA32FullGenerated[1];
-    this.memoryReadCPU32 = this.memoryReadCPU32Generated[1];
-    this.memoryWrite32 = this.memoryWrite32Generated[1];
-    this.memoryWriteDMA32 = this.memoryWriteDMA32Generated[1];
-    this.memoryWriteDMAFull32 = this.memoryWriteDMA32FullGenerated[1];
     //Initialize the various handler objects:
     this.dma = this.IOCore.dma;
     this.dmaChannel0 = this.IOCore.dmaChannel0;
@@ -5207,5 +5190,22 @@ function generateMemoryTopLevelDispatch() {
                                                                                          "writeROM32"
                                                                                          )
                                                              ];
+    //Initialize to default memory map:
+    GameBoyAdvanceMemory.prototype.memoryRead8 = GameBoyAdvanceMemory.prototype.memoryRead8Generated[1];
+    GameBoyAdvanceMemory.prototype.memoryWrite8 = GameBoyAdvanceMemory.prototype.memoryWrite8Generated[1];
+    GameBoyAdvanceMemory.prototype.memoryRead16 = GameBoyAdvanceMemory.prototype.memoryRead16Generated[1];
+    GameBoyAdvanceMemory.prototype.memoryReadDMA16 = GameBoyAdvanceMemory.prototype.memoryReadDMA16Generated[1];
+    GameBoyAdvanceMemory.prototype.memoryReadDMAFull16 = GameBoyAdvanceMemory.prototype.memoryReadDMA16FullGenerated[1];
+    GameBoyAdvanceMemory.prototype.memoryReadCPU16 = GameBoyAdvanceMemory.prototype.memoryReadCPU16Generated[1];
+    GameBoyAdvanceMemory.prototype.memoryWrite16 = GameBoyAdvanceMemory.prototype.memoryWrite16Generated[1];
+    GameBoyAdvanceMemory.prototype.memoryWriteDMA16 = GameBoyAdvanceMemory.prototype.memoryWriteDMA16Generated[1];
+    GameBoyAdvanceMemory.prototype.memoryWriteDMAFull16 = GameBoyAdvanceMemory.prototype.memoryWriteDMA16FullGenerated[1];
+    GameBoyAdvanceMemory.prototype.memoryRead32 = GameBoyAdvanceMemory.prototype.memoryRead32Generated[1];
+    GameBoyAdvanceMemory.prototype.memoryReadDMA32 = GameBoyAdvanceMemory.prototype.memoryReadDMA32Generated[1];
+    GameBoyAdvanceMemory.prototype.memoryReadDMAFull32 = GameBoyAdvanceMemory.prototype.memoryReadDMA32FullGenerated[1];
+    GameBoyAdvanceMemory.prototype.memoryReadCPU32 = GameBoyAdvanceMemory.prototype.memoryReadCPU32Generated[1];
+    GameBoyAdvanceMemory.prototype.memoryWrite32 = GameBoyAdvanceMemory.prototype.memoryWrite32Generated[1];
+    GameBoyAdvanceMemory.prototype.memoryWriteDMA32 = GameBoyAdvanceMemory.prototype.memoryWriteDMA32Generated[1];
+    GameBoyAdvanceMemory.prototype.memoryWriteDMAFull32 = GameBoyAdvanceMemory.prototype.memoryWriteDMA32FullGenerated[1];
 }
 generateMemoryTopLevelDispatch();
