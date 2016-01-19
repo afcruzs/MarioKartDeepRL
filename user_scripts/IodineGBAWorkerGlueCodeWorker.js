@@ -143,8 +143,8 @@ var graphicsFrameHandler = {
     copyBuffer:function (swizzledFrame) {
         //Push a frame of graphics to the blitter handle:
         //Load the counter values:
-        var start = gfxCounters[0] | 0;
-        var end = gfxCounters[1] | 0;
+        var start = Atomics.load(gfxCounters, 0) | 0;       //Written by the other thread.
+        var end = gfxCounters[1] | 0;                       //Written by this thread.
         //Check if buffer is full:
         if ((end | 0) == (((start | 0) + 2) | 0)) {
             //Skip copying a frame out:
@@ -184,8 +184,8 @@ var audioHandler = {
         endPos = endPos | 0;
         //Push audio to the audio mixer input handle:
         //Load the counter values:
-        var start = audioCounters[0] | 0;
-        var end = audioCounters[1] | 0;
+        var start = Atomics.load(audioCounters, 0) | 0;   //Written to by the other thread.
+        var end = audioCounters[1] | 0;                   //Written by this thread.
         var endCorrected = ((end | 0) & (audioBufferSizeMask | 0)) | 0;
         var freeBufferSpace = ((end | 0) - (start | 0)) | 0;
         freeBufferSpace = ((audioBufferSize | 0) - (freeBufferSpace | 0)) | 0;

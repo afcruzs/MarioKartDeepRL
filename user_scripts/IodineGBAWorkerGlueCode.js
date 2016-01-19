@@ -201,12 +201,8 @@ IodineGBAWorkerShim.prototype.audioHeartBeat = function () {
 }
 IodineGBAWorkerShim.prototype.consumeAudioBuffer = function () {
     //Load the counter values:
-    /*
-      Int32 already implied atomic; use atomic load for fencing reasons instead:
-      Buffer will be guaranteed to be correct up to the end position reported:
-    */
-    var end = Atomics.load(this.audioCounters, 1) | 0;
-    var start = this.audioCounters[0] | 0;
+    var start = this.audioCounters[0] | 0;                //Written by this thread.
+    var end = Atomics.load(this.audioCounters, 1) | 0;    //Written to by the other thread.
     //Don't process if nothing to process:
     if ((end | 0) == (start | 0)) {
         //Buffer is empty:
@@ -252,12 +248,8 @@ IodineGBAWorkerShim.prototype.graphicsHeartBeat = function () {
 }
 IodineGBAWorkerShim.prototype.consumeGraphicsBuffer = function () {
     //Load the counter values:
-    /*
-      Int32 already implied atomic; use atomic load for fencing reasons instead:
-      Buffer will be guaranteed to be correct up to the end position reported:
-    */
-    var end = Atomics.load(this.gfxCounters, 1) | 0;
-    var start = this.gfxCounters[0] | 0;
+    var start = this.gfxCounters[0] | 0;              //Written by this thread.
+    var end = Atomics.load(this.gfxCounters, 1) | 0;  //Written by the other thread.
     //Don't process if nothing to process:
     if ((end | 0) == (start | 0)) {
         //Buffer is empty:
@@ -270,8 +262,7 @@ IodineGBAWorkerShim.prototype.consumeGraphicsBuffer = function () {
         start = ((start | 0) + 1) | 0;
     } while ((start | 0) != (end | 0));
     //Update the starting position counter to match the end position:
-    //Let the other Atomic loads/stores naturally flush this value:
-    this.gfxCounters[0] = end | 0;
+    Atomics.store(this.gfxCounters, 0, end | 0);
 }
 IodineGBAWorkerShim.prototype.audioRegister = function () {
     if (this.audio) {
