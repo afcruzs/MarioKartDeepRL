@@ -145,7 +145,7 @@ IodineGBAWorkerShim.prototype.decodeMessage = function (data) {
             this.audioBufferPush(data.audioBuffer);
             break;
         case 2:
-            this.audioInitialize(data.channels | 0, +data.sampleRate, data.bufferLimit | 0, data.audioBuffer);
+            this.audioInitialize(data.channels | 0, +data.sampleRate, data.bufferLimit | 0);
             break;
         case 3:
             this.audioRegister();
