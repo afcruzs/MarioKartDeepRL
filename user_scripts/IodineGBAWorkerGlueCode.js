@@ -262,7 +262,8 @@ IodineGBAWorkerShim.prototype.consumeGraphicsBuffer = function () {
         start = ((start | 0) + 1) | 0;
     } while ((start | 0) != (end | 0));
     //Update the starting position counter to match the end position:
-    Atomics.store(this.gfxCounters, 0, end | 0);
+    //Let the other Atomic loads/stores naturally flush this value:
+    this.gfxCounters[0] = end | 0;
 }
 IodineGBAWorkerShim.prototype.audioRegister = function () {
     if (this.audio) {
