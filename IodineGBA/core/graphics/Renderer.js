@@ -1369,12 +1369,15 @@ GameBoyAdvanceGraphicsRenderer.prototype.writeOAM32 = function (address, data) {
     this.objRenderer.writeOAM32(address >> 2, data | 0);
 }
 GameBoyAdvanceGraphicsRenderer.prototype.readOAM = function (address) {
+    address = address | 0;
     return this.objRenderer.readOAM(address | 0) | 0;
 }
 GameBoyAdvanceGraphicsRenderer.prototype.readOAM16 = function (address) {
+    address = address | 0;
     return this.objRenderer.readOAM16(address | 0) | 0;
 }
 GameBoyAdvanceGraphicsRenderer.prototype.readOAM32 = function (address) {
+    address = address | 0;
     return this.objRenderer.readOAM32(address | 0) | 0;
 }
 GameBoyAdvanceGraphicsRenderer.prototype.writePalette256Color = function (address, palette) {
@@ -1409,5 +1412,6 @@ GameBoyAdvanceGraphicsRenderer.prototype.writePalette16Color = function (address
     }
 }
 GameBoyAdvanceGraphicsRenderer.prototype.readPalette8 = function (address) {
+    address = address | 0;
     return this.paletteRAM[address & 0x3FF] | 0;
 }

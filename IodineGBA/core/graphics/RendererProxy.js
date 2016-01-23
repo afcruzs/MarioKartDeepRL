@@ -1148,7 +1148,9 @@ GameBoyAdvanceRendererProxy.prototype.writeBLDY8 = function (data) {
 GameBoyAdvanceRendererProxy.prototype.writeVRAM8 = function (address, data) {
     address = address | 0;
     data = data | 0;
-    this.renderer.writeVRAM8(address | 0, data | 0);
+    //if ((address & 0x10000) == 0 || ((address & 0x17FFF) < 0x14000 && (this.IOData8[0] & 0x7) >= 3)) {
+        this.renderer.writeVRAM8(address | 0, data | 0);
+    //}
 }
 GameBoyAdvanceRendererProxy.prototype.writeVRAM16 = function (address, data) {
     address = address | 0;
