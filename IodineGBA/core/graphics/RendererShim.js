@@ -46,14 +46,10 @@
      //Command buffer counters get synchronized with emulator runtime head/end for efficiency:
      var parentObj = this;
      this.coreExposed.appendStartIterationSync(function () {
-         //Load command buffer reader counter value:
-         parentObj.start = Atomics.load(parentObj.gfxCommandCounters, 0) | 0;
+         parentObj.synchronizeReader();
      });
      this.coreExposed.appendEndIterationSync(function () {
-         //Store command buffer writer counter value:
-         Atomics.store(parentObj.gfxCommandCounters, 1, parentObj.end | 0);
-         //Tell consumer thread to check command buffer:
-         parentObj.worker.postMessage({messageID:0});
+         parentObj.synchronizeWriter();
      });
      this.coreExposed.appendTerminationSync(function () {
          //Core instance being replaced, kill the worker thread:
@@ -93,11 +89,23 @@ GameBoyAdvanceGraphicsRendererShim.prototype.pushCommand = function (command, da
 }
 GameBoyAdvanceGraphicsRendererShim.prototype.blockIfCommandBufferFull = function () {
     if ((this.start | 0) == (((this.end | 0) - 0x80000) | 0)) {
+        //Give the reader our updated counter and tell it to run:
+        this.synchronizeWriter();
         //Wait for consumer thread:
         Atomics.futexWait(this.gfxCommandCounters, 0, ((this.end | 0) - 0x80000) | 0);
         //Reload reader counter value:
-        this.start = Atomics.load(this.gfxCommandCounters, 0) | 0;
+        this.synchronizeReader();
     }
+}
+GameBoyAdvanceGraphicsRendererShim.prototype.synchronizeWriter = function () {
+    //Store command buffer writer counter value:
+    Atomics.store(this.gfxCommandCounters, 1, this.end | 0);
+    //Tell consumer thread to check command buffer:
+    this.worker.postMessage({messageID:0});
+}
+GameBoyAdvanceGraphicsRendererShim.prototype.synchronizeReader = function () {
+    //Load command buffer reader counter value:
+    this.start = Atomics.load(this.gfxCommandCounters, 0) | 0;
 }
 GameBoyAdvanceGraphicsRendererShim.prototype.incrementScanLineQueue = function () {
     //Increment scan line command:
@@ -647,109 +655,153 @@ GameBoyAdvanceGraphicsRendererShim.prototype.writeBLDY8 = function (data) {
     data = data | 0;
     this.pushCommand(135, data | 0);
 }
-if (typeof Math.imul == "function") {
-    //Math.imul found, insert the optimized path in:
-    GameBoyAdvanceGraphicsRendererShim.prototype.writeVRAM8 = function (address, data) {
+if (__LITTLE_ENDIAN__) {
+    GameBoyAdvanceGraphicsRendererShim.prototype.writeVRAM8 =
+    GameBoyAdvanceGraphicsRendererShim.prototype.writeVRAM16 = function (address, data) {
         address = address | 0;
         data = data | 0;
-        address = address & (((address & 0x10000) >> 1) ^ address);
-        address = (address >> 1) & 0xFFFF;
-        data = Math.imul(data & 0xFF, 0x101) | 0;
-        this.VRAM16[address | 0] = data | 0;
+        this.VRAM16[address & 0xFFFF] = data & 0xFFFF;
         this.pushCommand(0x20000 | address, data | 0);
+    }
+    GameBoyAdvanceGraphicsRendererShim.prototype.writeVRAM32 = function (address, data) {
+        address = address | 0;
+        data = data | 0;
+        this.VRAM32[address & 0x7FFF] = data | 0;
+        this.pushCommand(0x40000 | address, data | 0);
+    }
+    GameBoyAdvanceGraphicsRendererShim.prototype.readVRAM16 = function (address) {
+        address = address | 0;
+        return this.VRAM16[address & 0xFFFF] | 0;
+    }
+    GameBoyAdvanceGraphicsRendererShim.prototype.readVRAM32 = function (address) {
+        address = address | 0;
+        return this.VRAM32[address & 0x7FFF] | 0;
+    }
+    GameBoyAdvanceGraphicsRendererShim.prototype.writePalette16 = function (address, data) {
+        data = data | 0;
+        address = address | 0;
+        this.paletteRAM16[address & 0x1FF] = data & 0xFFFF;
+        this.pushCommand(0x60000 | address, data | 0);
+    }
+    GameBoyAdvanceGraphicsRendererShim.prototype.writePalette32 = function (address, data) {
+        data = data | 0;
+        address = address | 0;
+        this.paletteRAM32[address & 0xFF] = data | 0;
+        this.pushCommand(0x80000 | address, data | 0);
+    }
+    GameBoyAdvanceGraphicsRendererShim.prototype.readPalette16 = function (address) {
+        address = address | 0;
+        return this.paletteRAM16[address & 0x1FF] | 0;
+    }
+    GameBoyAdvanceGraphicsRendererShim.prototype.readPalette32 = function (address) {
+        address = address | 0;
+        return this.paletteRAM32[address & 0xFF] | 0;
+    }
+    GameBoyAdvanceGraphicsRendererShim.prototype.writeOAM16 = function (address, data) {
+        address = address | 0;
+        data = data | 0;
+        this.OAMRAM16[address & 0x1FF] = data & 0xFFFF;
+        this.pushCommand(0xA0000 | address, data | 0);
+    }
+    GameBoyAdvanceGraphicsRendererShim.prototype.writeOAM32 = function (address, data) {
+        address = address | 0;
+        data = data | 0;
+        this.OAMRAM32[address & 0xFF] = data | 0;
+        this.pushCommand(0xC0000 | address, data | 0);
+    }
+    GameBoyAdvanceGraphicsRendererShim.prototype.readOAM16 = function (address) {
+        address = address | 0;
+        return this.OAMRAM16[address & 0x1FF] | 0;
+    }
+    GameBoyAdvanceGraphicsRendererShim.prototype.readOAM32 = function (address) {
+        address = address | 0;
+        return this.OAMRAM32[address & 0xFF] | 0;
     }
 }
 else {
-    //Math.imul not found, use the compatibility method:
-    GameBoyAdvanceGraphicsRendererShim.prototype.writeVRAM8 = function (address, data) {
-        address = address | 0;
-        data = data | 0;
-        address = address & (((address & 0x10000) >> 1) ^ address);
-        address = (address >> 1) & 0xFFFF;
-        data = (data & 0xFF) * 0x101;
-        this.VRAM16[address | 0] = data | 0;
-        this.pushCommand(0x20000 | address, data | 0);
+    GameBoyAdvanceGraphicsRendererShim.prototype.writeVRAM8 =
+    GameBoyAdvanceGraphicsRendererShim.prototype.writeVRAM16 = function (address, data) {
+        address <<= 1;
+        address &= 0x1FFFE;
+        this.VRAM[address] = data & 0xFF;
+        this.VRAM[address + 1] = (data >> 8) & 0xFF;
+        this.pushCommand(0x20000 | address, data);
     }
-}
-GameBoyAdvanceGraphicsRendererShim.prototype.writeVRAM16 = function (address, data) {
-    address = address | 0;
-    data = data | 0;
-    address = address & (((address & 0x10000) >> 1) ^ address);
-    address = (address >> 1) & 0xFFFF;
-    data = data & 0xFFFF;
-    this.VRAM16[address | 0] = data | 0;
-    this.pushCommand(0x40000 | address, | 0);
-}
-GameBoyAdvanceGraphicsRendererShim.prototype.writeVRAM32 = function (address, data) {
-    address = address | 0;
-    data = data | 0;
-    address = address & (((address & 0x10000) >> 1) ^ address);
-    address = (address >> 2) & 0x7FFF;
-    this.VRAM32[address | 0] = data | 0;
-    this.pushCommand(0x60000 | address, data | 0);
-}
-GameBoyAdvanceGraphicsRendererShim.prototype.readVRAM16 = function (address) {
-    address = address | 0;
-    address = address & (((address & 0x10000) >> 1) ^ address);
-    return this.VRAM16[(address >> 1) & 0xFFFF] | 0;
-}
-GameBoyAdvanceGraphicsRendererShim.prototype.readVRAM32 = function (address) {
-    address = address | 0;
-    address = address & (((address & 0x10000) >> 1) ^ address);
-    return this.VRAM32[(address >> 2) & 0x7FFF] | 0;
-}
-GameBoyAdvanceGraphicsRendererShim.prototype.writePalette16 = function (address, data) {
-    data = data | 0;
-    address = address >> 1;
-    address = address & 0x1FF;
-    this.paletteRAM16[address | 0] = data | 0;
-    this.pushCommand(0x80000 | address, data | 0);
-}
-GameBoyAdvanceGraphicsRendererShim.prototype.writePalette32 = function (address, data) {
-    data = data | 0;
-    address = address >> 1;
-    address = (address >> 1) & 0xFF;
-    this.paletteRAM32[address | 0] = data | 0;
-    this.pushCommand(0x100000 | address, data | 0);
-}
-GameBoyAdvanceGraphicsRendererShim.prototype.readPalette16 = function (address) {
-    address = address | 0;
-    return this.paletteRAM16[(address >> 1) & 0x1FF] | 0;
-}
-GameBoyAdvanceGraphicsRendererShim.prototype.readPalette32 = function (address) {
-    address = address | 0;
-    return this.paletteRAM32[(address >> 2) & 0xFF] | 0;
+    GameBoyAdvanceGraphicsRendererShim.prototype.writeVRAM32 = function (address, data) {
+        address <<= 2;
+        address &= 0x1FFFC;
+        this.VRAM[address] = data & 0xFF;
+        this.VRAM[address + 1 = (data >> 8) & 0xFF;
+        this.VRAM[address + 2] = (data >> 16) & 0xFF;
+        this.VRAM[address + 3] = data >>> 24;
+        this.pushCommand(0x40000 | address, data | 0);
+    }
+    GameBoyAdvanceGraphicsRendererShim.prototype.readVRAM16 = function (address) {
+        address <<= 1;
+        address &= 0x1FFFE;
+        return this.VRAM[address] | (this.VRAM[address + 1] << 8);
+    }
+    GameBoyAdvanceGraphicsRendererShim.prototype.readVRAM32 = function (address) {
+        address <<= 2;
+        address &= 0x1FFFC;
+        return this.VRAM[address] | (this.VRAM[address + 1] << 8) | (this.VRAM[address + 2] << 16) | (this.VRAM[address + 3] << 24);
+    }
+    GameBoyAdvanceGraphicsRendererShim.prototype.writePalette16 = function (address, data) {
+        this.paletteRAM[address << 1] = data & 0xFF;
+        this.paletteRAM[(address << 1) + 1] = data >> 8;
+        this.pushCommand(0x60000 | address, data | 0);
+    }
+    GameBoyAdvanceGraphicsRendererShim.prototype.writePalette32 = function (address, data) {
+        address <<= 2;
+        this.paletteRAM[address] = data & 0xFF;
+        this.paletteRAM[address | 1] = (data >> 8) & 0xFF;
+        this.paletteRAM[address | 2] = (data >> 16) & 0xFF;
+        this.paletteRAM[address | 3] = data >>> 24;
+        address >>= 2;
+        this.pushCommand(0x80000 | address, data | 0);
+    }
+    GameBoyAdvanceGraphicsRendererShim.prototype.readPalette16 = function (address) {
+        address &= 0x3FE;
+        return this.paletteRAM[address] | (this.paletteRAM[address | 1] << 8);
+    }
+    GameBoyAdvanceGraphicsRendererShim.prototype.readPalette32 = function (address) {
+        address &= 0x3FC;
+        return this.paletteRAM[address] | (this.paletteRAM[address | 1] << 8) | (this.paletteRAM[address | 2] << 16)  | (this.paletteRAM[address | 3] << 24);
+    }
+    GameBoyAdvanceGraphicsRendererShim.prototype.writeOAM16 = function (address, data) {
+        address &= 0x1FF;
+        this.OAMRAM[address << 1] = data & 0xFF;
+        this.OAMRAM[(address << 1) | 1] = data >> 8;
+        this.pushCommand(0xA0000 | address, data);
+    }
+    GameBoyAdvanceGraphicsRendererShim.prototype.writeOAM32 = function (address, data) {
+        address &= 0xFF;
+        address <<= 2;
+        this.OAMRAM[address] = data & 0xFF;
+        this.OAMRAM[address + 1] = (data >> 8) & 0xFF;
+        this.OAMRAM[address + 2] = (data >> 16) & 0xFF;
+        this.OAMRAM[address + 3] = data >>> 24;
+        address >>= 2;
+        this.pushCommand(0xC0000 | address, data);
+    }
+    GameBoyAdvanceGraphicsRendererShim.prototype.readOAM16 = function (address) {
+        address &= 0x1FF;
+        address <<= 1;
+        return this.OAMRAM[address] | (this.OAMRAM[address | 1] << 8);
+    }
+    GameBoyAdvanceGraphicsRendererShim.prototype.readOAM32 = function (address) {
+        address &= 0xFF;
+        address <<= 2;
+        return this.OAMRAM[address] | (this.OAMRAM[address | 1] << 8) | (this.OAMRAM[address | 2] << 16)  | (this.OAMRAM[address | 3] << 24);
+    }
 }
 GameBoyAdvanceGraphicsRendererShim.prototype.readVRAM8 = function (address) {
     address = address | 0;
-    address = address & (((address & 0x10000) >> 1) ^ address);
     return this.VRAM[address & 0x1FFFF] | 0;
-}
-GameBoyAdvanceGraphicsRendererShim.prototype.writeOAM16 = function (address, data) {
-    address = address | 0;
-    data = data | 0;
-    address = address >> 1;
-    this.OAMRAM16[address | 0] = data | 0;
-    this.pushCommand(0x120000 | address, data | 0);
-}
-GameBoyAdvanceGraphicsRendererShim.prototype.writeOAM32 = function (address, data) {
-    address = address | 0;
-    data = data | 0;
-    address = address >> 2;
-    this.OAMRAM32[address | 0] = data | 0;
-    this.pushCommand(0x140000 | address, data | 0);
 }
 GameBoyAdvanceGraphicsRendererShim.prototype.readOAM = function (address) {
     address = address | 0;
     return this.OAMRAM[address & 0x3FF] | 0;
-}
-GameBoyAdvanceGraphicsRendererShim.prototype.readOAM16 = function (address) {
-    address = address | 0;
-    return this.OAMRAM16[(address >> 1) & 0x1FF] | 0;
-}
-GameBoyAdvanceGraphicsRendererShim.prototype.readOAM32 = function (address) {
-    address = address | 0;
-    return this.OAMRAM32[(address >> 2) & 0xFF] | 0;
 }
 GameBoyAdvanceGraphicsRendererShim.prototype.readPalette8 = function (address) {
     address = address | 0;

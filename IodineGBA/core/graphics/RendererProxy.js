@@ -1145,42 +1145,65 @@ GameBoyAdvanceRendererProxy.prototype.writeBLDY8 = function (data) {
     this.IOCore.updateGraphicsClocking();
     this.renderer.writeBLDY8(data | 0);
 }
-GameBoyAdvanceRendererProxy.prototype.writeVRAM8 = function (address, data) {
-    address = address | 0;
-    data = data | 0;
-    //if ((address & 0x10000) == 0 || ((address & 0x17FFF) < 0x14000 && (this.IOData8[0] & 0x7) >= 3)) {
-        this.renderer.writeVRAM8(address | 0, data | 0);
-    //}
+if (typeof Math.imul == "function") {
+    //Math.imul found, insert the optimized path in:
+    GameBoyAdvanceRendererProxy.prototype.writeVRAM8 = function (address, data) {
+        address = address | 0;
+        data = data | 0;
+        if ((address & 0x10000) == 0 || ((address & 0x17FFF) < 0x14000 && (this.IOData8[0] & 0x7) >= 3)) {
+            address = address & (((address & 0x10000) >> 1) ^ address);
+            address = address >> 1;
+            data = Math.imul(data & 0xFF, 0x101) | 0;
+            this.renderer.writeVRAM8(address | 0, data | 0);
+        }
+    }
+}
+else {
+    //Math.imul not found, use the compatibility method:
+    GameBoyAdvanceRendererProxy.prototype.writeVRAM8 = function (address, data) {
+        address = address | 0;
+        data = data | 0;
+        if ((address & 0x10000) == 0 || ((address & 0x17FFF) < 0x14000 && (this.IOData8[0] & 0x7) >= 3)) {
+            address = address & (((address & 0x10000) >> 1) ^ address);
+            address = address >> 1;
+            data = (data & 0xFF) * 0x101;
+            this.renderer.writeVRAM8(address | 0, data | 0);
+        }
+    }
 }
 GameBoyAdvanceRendererProxy.prototype.writeVRAM16 = function (address, data) {
     address = address | 0;
     data = data | 0;
-    this.renderer.writeVRAM16(address | 0, data | 0);
+    address = address & (((address & 0x10000) >> 1) ^ address);
+    this.renderer.writeVRAM16(address >> 1, data | 0);
 }
 GameBoyAdvanceRendererProxy.prototype.writeVRAM32 = function (address, data) {
     address = address | 0;
     data = data | 0;
-    this.renderer.writeVRAM32(address | 0, data | 0);
+    address = address & (((address & 0x10000) >> 1) ^ address);
+    this.renderer.writeVRAM32(address >> 2, data | 0);
 }
 GameBoyAdvanceRendererProxy.prototype.readVRAM16 = function (address) {
     address = address | 0;
-    var data = this.renderer.readVRAM16(address | 0) | 0;
+    address = address & (((address & 0x10000) >> 1) ^ address);
+    var data = this.renderer.readVRAM16(address >> 1) | 0;
     return data | 0;
 }
 GameBoyAdvanceRendererProxy.prototype.readVRAM32 = function (address) {
     address = address | 0;
-    var data = this.renderer.readVRAM32(address | 0) | 0;
+    address = address & (((address & 0x10000) >> 1) ^ address);
+    var data = this.renderer.readVRAM32(address >> 2) | 0;
     return data | 0;
 }
 GameBoyAdvanceRendererProxy.prototype.writePalette16 = function (address, data) {
     data = data | 0;
     address = address | 0;
-    this.renderer.writePalette16(address | 0, data | 0);
+    this.renderer.writePalette16(address >> 1, data | 0);
 }
 GameBoyAdvanceRendererProxy.prototype.writePalette32 = function (address, data) {
     data = data | 0;
     address = address | 0;
-    this.renderer.writePalette32(address | 0, data | 0);
+    this.renderer.writePalette32(address >> 2, data | 0);
 }
 GameBoyAdvanceRendererProxy.prototype.readPalette16 = function (address) {
     address = address | 0;
@@ -1194,18 +1217,19 @@ GameBoyAdvanceRendererProxy.prototype.readPalette32 = function (address) {
 }
 GameBoyAdvanceRendererProxy.prototype.readVRAM8 = function (address) {
     address = address | 0;
+    address = address & (((address & 0x10000) >> 1) ^ address);
     var data = this.renderer.readVRAM8(address | 0) | 0;
     return data | 0;
 }
 GameBoyAdvanceRendererProxy.prototype.writeOAM16 = function (address, data) {
     address = address | 0;
     data = data | 0;
-    this.renderer.writeOAM16(address | 0, data | 0);
+    this.renderer.writeOAM16(address >> 1, data | 0);
 }
 GameBoyAdvanceRendererProxy.prototype.writeOAM32 = function (address, data) {
     address = address | 0;
     data = data | 0;
-    this.renderer.writeOAM32(address | 0, data | 0);
+    this.renderer.writeOAM32(address >> 2, data | 0);
 }
 GameBoyAdvanceRendererProxy.prototype.readOAM = function (address) {
     address = address | 0;
@@ -1214,12 +1238,12 @@ GameBoyAdvanceRendererProxy.prototype.readOAM = function (address) {
 }
 GameBoyAdvanceRendererProxy.prototype.readOAM16 = function (address) {
     address = address | 0;
-    var data = this.renderer.readOAM16(address | 0) | 0;
+    var data = this.renderer.readOAM16(address >> 1) | 0;
     return data | 0;
 }
 GameBoyAdvanceRendererProxy.prototype.readOAM32 = function (address) {
     address = address | 0;
-    var data = this.renderer.readOAM32(address | 0) | 0;
+    var data = this.renderer.readOAM32(address >> 2) | 0;
     return data | 0;
 }
 GameBoyAdvanceRendererProxy.prototype.readPalette8 = function (address) {

@@ -2102,7 +2102,7 @@ GameBoyAdvanceMemory.prototype.writeOBJ16 = function (address, data) {
     data = data | 0;
     this.IOCore.updateGraphicsClocking();
     this.wait.OAMAccess();
-    this.gfxRenderer.writeOAM16(address & 0x3FE, data & 0xFFFF);
+    this.gfxRenderer.writeOAM16(address | 0, data | 0);
 }
 GameBoyAdvanceMemory.prototype.writePalette32 = function (address, data) {
     address = address | 0;
@@ -2123,7 +2123,7 @@ GameBoyAdvanceMemory.prototype.writeOBJ32 = function (address, data) {
     data = data | 0;
     this.IOCore.updateGraphicsClocking();
     this.wait.OAMAccess();
-    this.gfxRenderer.writeOAM32(address & 0x3FC, data | 0);
+    this.gfxRenderer.writeOAM32(address | 0, data | 0);
 }
 GameBoyAdvanceMemory.prototype.writeROM8 = function (address, data) {
     address = address | 0;
