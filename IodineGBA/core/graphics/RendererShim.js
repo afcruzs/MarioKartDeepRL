@@ -22,10 +22,8 @@
      this.initializeBuffers();
      this.shareBuffers(skippingBIOS);
  }
- var tempvar = document.getElementsByTagName("script");
- GameBoyAdvanceGraphicsRendererShim.prototype.filepath = tempvar[tempvar.length-1].src;
  GameBoyAdvanceGraphicsRendererShim.prototype.initializeWorker = function () {
-     this.worker = new Worker(this.filepath.substring(0, (this.filepath.length | 0) - 3) + "Worker.js");
+     this.worker = new Worker("RendererShimWorker.js");
  }
  GameBoyAdvanceGraphicsRendererShim.prototype.initializeBuffers = function () {
      //Graphics Buffers:
