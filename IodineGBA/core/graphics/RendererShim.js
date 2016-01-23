@@ -29,7 +29,7 @@
  }
  GameBoyAdvanceGraphicsRendererShim.prototype.initializeBuffers = function () {
      //Graphics Buffers:
-     this.gfxCommandBuffer = getSharedInt32Array(0x40000);
+     this.gfxCommandBuffer = getSharedInt32Array(0x80000);
      this.gfxCommandCounters = getSharedInt32Array(2);
  }
  GameBoyAdvanceGraphicsRendererShim.prototype.shareBuffers = function (skippingBIOS) {
@@ -54,9 +54,9 @@ GameBoyAdvanceGraphicsRendererShim.prototype.pushCommand = function (command, da
     //Load the write counter value:
     var end = this.gfxCommandCounters[1] | 0;
     //Block while full:
-    Atomics.futexWait(this.gfxCommandCounters, 0, ((end | 0) - 0x40000) | 0);
+    Atomics.futexWait(this.gfxCommandCounters, 0, ((end | 0) - 0x80000) | 0);
     //Get the write offset into the ring buffer:
-    var endCorrected = end & 0x3FFFF;
+    var endCorrected = end & 0x7FFFF;
     //Push command into buffer:
     this.gfxCommandBuffer[endCorrected | 0] = command | 0;
     //Push data into buffer:
@@ -65,4 +65,8 @@ GameBoyAdvanceGraphicsRendererShim.prototype.pushCommand = function (command, da
     end = ((end | 0) + 2) | 0;
     //Atomic store to commit writes to memory:
     Atomics.store(this.gfxCommandCounters, 1, end | 0);
+}
+GameBoyAdvanceGraphicsRendererShim.prototype.incrementScanLineQueue = function () {
+    //Increment scan line command:
+    this.pushCommand(0, 0);
 }
