@@ -731,7 +731,7 @@ else {
         address <<= 2;
         address &= 0x1FFFC;
         this.VRAM[address] = data & 0xFF;
-        this.VRAM[address + 1 = (data >> 8) & 0xFF;
+        this.VRAM[address + 1] = (data >> 8) & 0xFF;
         this.VRAM[address + 2] = (data >> 16) & 0xFF;
         this.VRAM[address + 3] = data >>> 24;
         this.pushCommand(0x40000 | address, data | 0);

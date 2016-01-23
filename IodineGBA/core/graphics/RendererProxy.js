@@ -1207,12 +1207,12 @@ GameBoyAdvanceRendererProxy.prototype.writePalette32 = function (address, data) 
 }
 GameBoyAdvanceRendererProxy.prototype.readPalette16 = function (address) {
     address = address | 0;
-    var data = this.renderer.readPalette16(address | 0) | 0;
+    var data = this.renderer.readPalette16(address >> 1) | 0;
     return data | 0;
 }
 GameBoyAdvanceRendererProxy.prototype.readPalette32 = function (address) {
     address = address | 0;
-    var data = this.renderer.readPalette32(address | 0) | 0;
+    var data = this.renderer.readPalette32(address >> 2) | 0;
     return data | 0;
 }
 GameBoyAdvanceRendererProxy.prototype.readVRAM8 = function (address) {
