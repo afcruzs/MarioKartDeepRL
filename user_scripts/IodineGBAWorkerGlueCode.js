@@ -42,10 +42,6 @@ IodineGBAWorkerShim.prototype.sendMessageDouble = function (eventCode, eventData
     eventCode = eventCode | 0;
     this.worker.postMessage({messageID:eventCode, payload:eventData});
 }
-IodineGBAWorkerShim.prototype.sendBufferBack = function (eventCode, eventData) {
-    eventCode = eventCode | 0;
-    this.worker.postMessage({messageID:eventCode, payload:eventData}, [eventData.buffer]);
-}
 IodineGBAWorkerShim.prototype.play = function () {
     this.sendMessageSingle(0);
 }
