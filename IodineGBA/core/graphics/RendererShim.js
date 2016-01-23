@@ -43,11 +43,11 @@
          //Store command buffer writer counter value:
          Atomics.store(parentObj.gfxCommandCounters, 1, parentObj.end | 0);
          //Tell consumer thread to check command buffer:
-         this.worker.postMessage({messageID:0});
+         parentObj.worker.postMessage({messageID:0});
      });
      this.coreExposed.appendTerminationSync(function () {
          //Core instance being replaced, kill the worker thread:
-         this.worker.terminate();
+         parentObj.worker.terminate();
      });
  }
  GameBoyAdvanceGraphicsRendererShim.prototype.shareBuffers = function (skippingBIOS) {
