@@ -141,6 +141,7 @@ self.onmessage = function (event) {
     }
 }
 var graphicsFrameHandler = {
+    //Function only called if graphics is THIS thread:
     copyBuffer:function (swizzledFrame) {
         //Push a frame of graphics to the blitter handle:
         //Load the counter values:
