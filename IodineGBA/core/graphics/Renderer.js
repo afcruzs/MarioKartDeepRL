@@ -1,11 +1,11 @@
 "use strict";
 /*
  Copyright (C) 2012-2015 Grant Galitz
- 
+
  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- 
+
  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
- 
+
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 function GameBoyAdvanceGraphicsRenderer(coreExposed, skippingBIOS) {
@@ -30,7 +30,8 @@ if (__VIEWS_SUPPORTED__) {
         this.paletteRAM32 = getInt32View(this.paletteRAM);
         this.buffer = getInt32Array(0x680);
         this.lineBuffer = getInt32ViewCustom(this.buffer, 0, 240);
-        this.frameBuffer = this.coreExposed.frameBuffer;
+        this.frameBuffer = getInt32Array(38400);        //The internal buffer to composite to.
+        this.swizzledFrame = getUint8Array(115200);     //The swizzled output buffer that syncs to the internal framebuffer on v-blank.
         this.totalLinesPassed = 0;
         this.queuedScanLines = 0;
         this.lastUnrenderedLine = 0;
@@ -55,7 +56,8 @@ else {
         this.paletteRAM16 = getUint16View(this.paletteRAM);
         this.paletteRAM32 = getInt32View(this.paletteRAM);
         this.buffer = getInt32Array(0x680);
-        this.frameBuffer = this.coreExposed.frameBuffer;
+        this.frameBuffer = getInt32Array(38400);        //The internal buffer to composite to.
+        this.swizzledFrame = getUint8Array(115200);     //The swizzled output buffer that syncs to the internal framebuffer on v-blank.
         this.totalLinesPassed = 0;
         this.queuedScanLines = 0;
         this.lastUnrenderedLine = 0;
@@ -120,7 +122,30 @@ GameBoyAdvanceGraphicsRenderer.prototype.ensureFraming = function () {
         //Make sure our gfx are up-to-date:
         this.graphicsJITVBlank();
         //Draw the frame:
-        this.coreExposed.prepareFrame();
+        this.prepareFrame();
+    }
+}
+GameBoyAdvanceGraphicsRenderer.prototype.swizzleFrameBuffer = function () {
+    //Convert our dirty 15-bit (15-bit, with internal render flags above it) framebuffer to an 8-bit buffer with separate indices for the RGB channels:
+    var bufferIndex = 0;
+    for (var canvasIndex = 0; (canvasIndex | 0) < 115200; bufferIndex = ((bufferIndex | 0) + 1) | 0) {
+        this.swizzledFrame[canvasIndex | 0] = (this.frameBuffer[bufferIndex | 0] & 0x1F) << 3;      //Red
+        canvasIndex = ((canvasIndex | 0) + 1) | 0;
+        this.swizzledFrame[canvasIndex | 0] = (this.frameBuffer[bufferIndex | 0] & 0x3E0) >> 2;     //Green
+        canvasIndex = ((canvasIndex | 0) + 1) | 0;
+        this.swizzledFrame[canvasIndex | 0] = (this.frameBuffer[bufferIndex | 0] & 0x7C00) >> 7;    //Blue
+        canvasIndex = ((canvasIndex | 0) + 1) | 0;
+    }
+}
+GameBoyAdvanceGraphicsRenderer.prototype.prepareFrame = function () {
+    //Copy the internal frame buffer to the output buffer:
+    this.swizzleFrameBuffer();
+    this.requestDraw();
+}
+GameBoyAdvanceGraphicsRenderer.prototype.requestDraw = function () {
+    if (this.coreExposed.graphicsHandle) {
+        //We actually updated the graphics internally, so copy out:
+        this.coreExposed.graphicsHandle.copyBuffer(this.swizzledFrame);
     }
 }
 GameBoyAdvanceGraphicsRenderer.prototype.graphicsJIT = function () {
