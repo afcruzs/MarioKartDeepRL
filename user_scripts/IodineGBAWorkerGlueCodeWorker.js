@@ -32,6 +32,7 @@ importScripts("../IodineGBA/core/CPU/ARM.js");
 importScripts("../IodineGBA/core/CPU/THUMB.js");
 importScripts("../IodineGBA/core/CPU/CPSR.js");
 importScripts("../IodineGBA/core/graphics/Renderer.js");
+importScripts("../IodineGBA/core/graphics/RendererShim.js");
 importScripts("../IodineGBA/core/graphics/RendererProxy.js");
 importScripts("../IodineGBA/core/graphics/BGTEXT.js");
 importScripts("../IodineGBA/core/graphics/BG2FrameBuffer.js");
