@@ -33,7 +33,7 @@ importScripts("../IodineGBA/core/CPU/THUMB.js");
 importScripts("../IodineGBA/core/CPU/CPSR.js");
 importScripts("../IodineGBA/core/graphics/RendererProxy.js");
 importScripts("../IodineGBA/core/graphics/RendererShim.js");
-importScripts("../IodineGBA/core/graphics/Renderer.js");
+/*importScripts("../IodineGBA/core/graphics/Renderer.js");
 importScripts("../IodineGBA/core/graphics/BGTEXT.js");
 importScripts("../IodineGBA/core/graphics/BG2FrameBuffer.js");
 importScripts("../IodineGBA/core/graphics/BGMatrix.js");
@@ -43,7 +43,7 @@ importScripts("../IodineGBA/core/graphics/Mosaic.js");
 importScripts("../IodineGBA/core/graphics/OBJ.js");
 importScripts("../IodineGBA/core/graphics/OBJWindow.js");
 importScripts("../IodineGBA/core/graphics/Window.js");
-importScripts("../IodineGBA/core/graphics/Compositor.js");
+importScripts("../IodineGBA/core/graphics/Compositor.js");*/
 importScripts("../IodineGBA/core/memory/DMA0.js");
 importScripts("../IodineGBA/core/memory/DMA1.js");
 importScripts("../IodineGBA/core/memory/DMA2.js");
