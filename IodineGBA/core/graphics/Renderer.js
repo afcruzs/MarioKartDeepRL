@@ -116,15 +116,6 @@ GameBoyAdvanceGraphicsRenderer.prototype.initializePaletteStorage = function () 
         this.paletteOBJ16[index << 4] = 0x3800000;
     }
 }
-GameBoyAdvanceGraphicsRenderer.prototype.ensureFraming = function () {
-    //Ensure JIT framing alignment:
-    if ((this.totalLinesPassed | 0) < 160) {
-        //Make sure our gfx are up-to-date:
-        this.graphicsJITVBlank();
-        //Draw the frame:
-        this.prepareFrame();
-    }
-}
 GameBoyAdvanceGraphicsRenderer.prototype.swizzleFrameBuffer = function () {
     //Convert our dirty 15-bit (15-bit, with internal render flags above it) framebuffer to an 8-bit buffer with separate indices for the RGB channels:
     var bufferIndex = 0;
@@ -148,38 +139,42 @@ GameBoyAdvanceGraphicsRenderer.prototype.requestDraw = function () {
         this.coreExposed.graphicsHandle.copyBuffer(this.swizzledFrame);
     }
 }
-GameBoyAdvanceGraphicsRenderer.prototype.graphicsJIT = function () {
-    this.totalLinesPassed = 0;            //Mark frame for ensuring a JIT pass for the next framebuffer output.
-    this.graphicsJITScanlineGroup();
+if (typeof SharedArrayBuffer == "function" && typeof Atomics == "object") {
+    GameBoyAdvanceGraphicsRenderer.prototype.graphicsJIT = function () {}
 }
-GameBoyAdvanceGraphicsRenderer.prototype.graphicsJITVBlank = function () {
-    //JIT the graphics to v-blank framing:
-    this.totalLinesPassed = ((this.totalLinesPassed | 0) + (this.queuedScanLines | 0)) | 0;
-    this.graphicsJITScanlineGroup();
-}
-GameBoyAdvanceGraphicsRenderer.prototype.graphicsJITScanlineGroup = function () {
-    //Normal rendering JIT, where we try to do groups of scanlines at once:
-    while ((this.queuedScanLines | 0) > 0) {
-        this.renderScanLine();
-        if ((this.lastUnrenderedLine | 0) < 159) {
-            this.lastUnrenderedLine = ((this.lastUnrenderedLine | 0) + 1) | 0;
+else {
+    GameBoyAdvanceGraphicsRenderer.prototype.graphicsJIT = function () {
+        this.totalLinesPassed = 0;            //Mark frame for ensuring a JIT pass for the next framebuffer output.
+        this.graphicsJITScanlineGroup();
+    }
+    GameBoyAdvanceGraphicsRenderer.prototype.graphicsJITVBlank = function () {
+        //JIT the graphics to v-blank framing:
+        this.totalLinesPassed = ((this.totalLinesPassed | 0) + (this.queuedScanLines | 0)) | 0;
+        this.graphicsJITScanlineGroup();
+    }
+    GameBoyAdvanceGraphicsRenderer.prototype.graphicsJITScanlineGroup = function () {
+        //Normal rendering JIT, where we try to do groups of scanlines at once:
+        while ((this.queuedScanLines | 0) > 0) {
+            this.renderScanLine();
+            this.incrementScanLine();
+            this.queuedScanLines = ((this.queuedScanLines | 0) - 1) | 0;
+        }
+    }
+    GameBoyAdvanceGraphicsRenderer.prototype.incrementScanLineQueue = function () {
+        if ((this.queuedScanLines | 0) < 160) {
+            this.queuedScanLines = ((this.queuedScanLines | 0) + 1) | 0;
         }
         else {
-            this.lastUnrenderedLine = 0;
+            this.incrementScanLine();
         }
-        this.queuedScanLines = ((this.queuedScanLines | 0) - 1) | 0;
     }
-}
-GameBoyAdvanceGraphicsRenderer.prototype.incrementScanLineQueue = function () {
-    if ((this.queuedScanLines | 0) < 160) {
-        this.queuedScanLines = ((this.queuedScanLines | 0) + 1) | 0;
-    }
-    else {
-        if ((this.lastUnrenderedLine | 0) < 159) {
-            this.lastUnrenderedLine = ((this.lastUnrenderedLine | 0) + 1) | 0;
-        }
-        else {
-            this.lastUnrenderedLine = 0;
+    GameBoyAdvanceGraphicsRenderer.prototype.ensureFraming = function () {
+        //Ensure JIT framing alignment:
+        if ((this.totalLinesPassed | 0) < 160) {
+            //Make sure our gfx are up-to-date:
+            this.graphicsJITVBlank();
+            //Draw the frame:
+            this.prepareFrame();
         }
     }
 }
@@ -213,6 +208,14 @@ GameBoyAdvanceGraphicsRenderer.prototype.renderScanLine = function () {
     }
     //Update the affine bg counters:
     this.updateReferenceCounters();
+}
+GameBoyAdvanceGraphicsRenderer.prototype.incrementScanLine = function () {
+    if ((this.lastUnrenderedLine | 0) < 159) {
+        this.lastUnrenderedLine = ((this.lastUnrenderedLine | 0) + 1) | 0;
+    }
+    else {
+        this.lastUnrenderedLine = 0;
+    }
 }
 GameBoyAdvanceGraphicsRenderer.prototype.renderMode0 = function (line) {
     line = line | 0;

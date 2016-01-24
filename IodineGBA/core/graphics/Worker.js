@@ -539,9 +539,13 @@ function decodeInternalCommand(data) {
     data = data | 0;
     switch (data | 0) {
         case 0:
-            renderer.incrementScanLineQueue();
+            //Render a scanline:
+            renderer.renderScanLine();
+            //Clock the scanline counter:
+            renderer.incrementScanLine();
             break;
         default:
-            renderer.ensureFraming();
+            //Push out a frame of graphics:
+            renderer.prepareFrame();
     }
 }
