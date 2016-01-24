@@ -18,13 +18,18 @@
  }
  function GameBoyAdvanceGraphicsRendererShim(coreExposed, skippingBIOS) {
      this.coreExposed = coreExposed;
-     this.initializeWorker();
+     this.initializeWorker(skippingBIOS);
      this.appendAtomicSync();
      this.initializeBuffers();
-     this.shareBuffers(skippingBIOS);
+     this.shareBuffers();
  }
- GameBoyAdvanceGraphicsRendererShim.prototype.initializeWorker = function () {
+ GameBoyAdvanceGraphicsRendererShim.prototype.initializeWorker = function (skippingBIOS) {
+     skippingBIOS = !!skippingBIOS;
      this.worker = new Worker("RendererShimWorker.js");
+     this.worker.postMessage({
+         messageID:2,
+         skippingBIOS:!!skippingBIOS
+     });
  }
  GameBoyAdvanceGraphicsRendererShim.prototype.initializeBuffers = function () {
      //Graphics Buffers:
@@ -56,11 +61,9 @@
          parentObj.worker.terminate();
      });
  }
- GameBoyAdvanceGraphicsRendererShim.prototype.shareBuffers = function (skippingBIOS) {
-     skippingBIOS = !!skippingBIOS;
+ GameBoyAdvanceGraphicsRendererShim.prototype.shareBuffers = function () {
      this.worker.postMessage({
          messageID:1,
-         skippingBIOS:!!skippingBIOS,
          gfxBuffers:gfxBuffers,
          gfxCounters:gfxCounters,
          gfxCommandBuffer:this.gfxCommandBuffer,
