@@ -1,11 +1,11 @@
 "use strict";
 /*
  Copyright (C) 2012-2015 Grant Galitz
- 
+
  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- 
+
  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
- 
+
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 function GameBoyAdvanceOBJRenderer(gfx) {
@@ -293,7 +293,7 @@ GameBoyAdvanceOBJRenderer.prototype.computeCycles = function (cycles, matrix2D, 
         cyclesToSubtract = cyclesToSubtract << 1;
         cyclesToSubtract = ((cyclesToSubtract | 0) + 10) | 0;
         cycles = ((cycles | 0) - (cyclesToSubtract | 0)) | 0;
-        
+
     }
     else {
         //Regular Scrolling:
@@ -896,7 +896,7 @@ if (__LITTLE_ENDIAN__) {
             default:
                 this.OBJMatrixParameters[address >> 2] = (data << 16) >> 16;
         }
-        this.OAMRAM16[address | 0] = data | 0;
+        this.OAMRAM16[address | 0] = data & 0xFFFF;
     }
     GameBoyAdvanceOBJRenderer.prototype.writeOAM32 = function (address, data) {
         address = address | 0;
@@ -930,17 +930,18 @@ if (__LITTLE_ENDIAN__) {
     }
     GameBoyAdvanceOBJRenderer.prototype.readOAM16 = function (address) {
         address = address | 0;
-        return this.OAMRAM16[(address >> 1) & 0x1FF] | 0;
+        return this.OAMRAM16[address & 0x1FF] | 0;
     }
     GameBoyAdvanceOBJRenderer.prototype.readOAM32 = function (address) {
         address = address | 0;
-        return this.OAMRAM32[(address >> 2) & 0xFF] | 0;
+        return this.OAMRAM32[address & 0xFF] | 0;
     }
 }
 else {
     GameBoyAdvanceOBJRenderer.prototype.writeOAM16 = function (address, data) {
         address = address | 0;
         data = data | 0;
+        address = address & 0x1FF;
         var OAMTable = this.OAMTable[address >> 2];
         switch (address & 0x3) {
                 //Attrib 0:
@@ -978,6 +979,7 @@ else {
     GameBoyAdvanceOBJRenderer.prototype.writeOAM32 = function (address, data) {
         address = address | 0;
         data = data | 0;
+        address = address & 0xFF;
         var OAMTable = this.OAMTable[address >> 1];
         if ((address & 0x1) == 0) {
             //Attrib 0:
@@ -1010,11 +1012,13 @@ else {
         this.OAMRAM[address | 3] = data >>> 24;
     }
     GameBoyAdvanceOBJRenderer.prototype.readOAM16 = function (address) {
-        address &= 0x3FE;
+        address &= 0x1FF;
+        address <<= 1;
         return this.OAMRAM[address] | (this.OAMRAM[address | 1] << 8);
     }
     GameBoyAdvanceOBJRenderer.prototype.readOAM32 = function (address) {
-        address &= 0x3FC;
+        address &= 0xFF;
+        address <<= 2;
         return this.OAMRAM[address] | (this.OAMRAM[address | 1] << 8) | (this.OAMRAM[address | 2] << 16)  | (this.OAMRAM[address | 3] << 24);
     }
 }

@@ -1,6 +1,6 @@
 "use strict";
 /*
- Copyright (C) 2012-2015 Grant Galitz
+ Copyright (C) 2012-2016 Grant Galitz
 
  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -8,49 +8,39 @@
 
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-importScripts("../IodineGBA/includes/TypedArrayShim.js");
-importScripts("../IodineGBA/core/Cartridge.js");
-importScripts("../IodineGBA/core/DMA.js");
-importScripts("../IodineGBA/core/Emulator.js");
-importScripts("../IodineGBA/core/Graphics.js");
-importScripts("../IodineGBA/core/RunLoop.js");
-importScripts("../IodineGBA/core/Memory.js");
-importScripts("../IodineGBA/core/IRQ.js");
-importScripts("../IodineGBA/core/JoyPad.js");
-importScripts("../IodineGBA/core/Serial.js");
-importScripts("../IodineGBA/core/Sound.js");
-importScripts("../IodineGBA/core/Timer.js");
-importScripts("../IodineGBA/core/Wait.js");
-importScripts("../IodineGBA/core/CPU.js");
-importScripts("../IodineGBA/core/Saves.js");
-importScripts("../IodineGBA/core/sound/FIFO.js");
-importScripts("../IodineGBA/core/sound/Channel1.js");
-importScripts("../IodineGBA/core/sound/Channel2.js");
-importScripts("../IodineGBA/core/sound/Channel3.js");
-importScripts("../IodineGBA/core/sound/Channel4.js");
-importScripts("../IodineGBA/core/CPU/ARM.js");
-importScripts("../IodineGBA/core/CPU/THUMB.js");
-importScripts("../IodineGBA/core/CPU/CPSR.js");
-importScripts("../IodineGBA/core/graphics/Renderer.js");
-importScripts("../IodineGBA/core/graphics/RendererProxy.js");
-importScripts("../IodineGBA/core/graphics/BGTEXT.js");
-importScripts("../IodineGBA/core/graphics/BG2FrameBuffer.js");
-importScripts("../IodineGBA/core/graphics/BGMatrix.js");
-importScripts("../IodineGBA/core/graphics/AffineBG.js");
-importScripts("../IodineGBA/core/graphics/ColorEffects.js");
-importScripts("../IodineGBA/core/graphics/Mosaic.js");
-importScripts("../IodineGBA/core/graphics/OBJ.js");
-importScripts("../IodineGBA/core/graphics/OBJWindow.js");
-importScripts("../IodineGBA/core/graphics/Window.js");
-importScripts("../IodineGBA/core/graphics/Compositor.js");
-importScripts("../IodineGBA/core/memory/DMA0.js");
-importScripts("../IodineGBA/core/memory/DMA1.js");
-importScripts("../IodineGBA/core/memory/DMA2.js");
-importScripts("../IodineGBA/core/memory/DMA3.js");
-importScripts("../IodineGBA/core/cartridge/SaveDeterminer.js");
-importScripts("../IodineGBA/core/cartridge/SRAM.js");
-importScripts("../IodineGBA/core/cartridge/FLASH.js");
-importScripts("../IodineGBA/core/cartridge/EEPROM.js");
+importScripts("../includes/TypedArrayShim.js");
+importScripts("Cartridge.js");
+importScripts("DMA.js");
+importScripts("Emulator.js");
+importScripts("Graphics.js");
+importScripts("RunLoop.js");
+importScripts("Memory.js");
+importScripts("IRQ.js");
+importScripts("JoyPad.js");
+importScripts("Serial.js");
+importScripts("Sound.js");
+importScripts("Timer.js");
+importScripts("Wait.js");
+importScripts("CPU.js");
+importScripts("Saves.js");
+importScripts("sound/FIFO.js");
+importScripts("sound/Channel1.js");
+importScripts("sound/Channel2.js");
+importScripts("sound/Channel3.js");
+importScripts("sound/Channel4.js");
+importScripts("CPU/ARM.js");
+importScripts("CPU/THUMB.js");
+importScripts("CPU/CPSR.js");
+importScripts("graphics/RendererProxy.js");
+importScripts("graphics/RendererShim.js");
+importScripts("memory/DMA0.js");
+importScripts("memory/DMA1.js");
+importScripts("memory/DMA2.js");
+importScripts("memory/DMA3.js");
+importScripts("cartridge/SaveDeterminer.js");
+importScripts("cartridge/SRAM.js");
+importScripts("cartridge/FLASH.js");
+importScripts("cartridge/EEPROM.js");
 var Iodine = new GameBoyAdvanceEmulator();
 //Save callbacks waiting to be satisfied:
 var saveImportPool = [];
@@ -140,6 +130,7 @@ self.onmessage = function (event) {
     }
 }
 var graphicsFrameHandler = {
+    //Function only called if graphics is THIS thread:
     copyBuffer:function (swizzledFrame) {
         //Push a frame of graphics to the blitter handle:
         //Load the counter values:

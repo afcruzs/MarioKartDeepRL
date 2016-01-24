@@ -21,20 +21,15 @@ function GameBoyAdvanceEmulator() {
     };
     this.audioFound = 0;                      //Do we have audio output sink found yet?
     this.emulatorStatus = 0x10;               //{paused, saves loaded, fault found, loaded}
-    this.offscreenWidth = 240;                //Width of the GBA screen.
-    this.offscreenHeight = 160;               //Height of the GBA screen.
     this.BIOS = [];                           //Initialize BIOS as not existing.
     this.ROM = [];                            //Initialize BIOS as not existing.
-    //Cache some frame buffer lengths:
-    this.offscreenRGBCount = ((this.offscreenWidth | 0) * (this.offscreenHeight | 0) * 3) | 0;
-    //Graphics buffers to generate in advance:
-    this.frameBuffer = getInt32Array(this.offscreenRGBCount | 0);        //The internal buffer to composite to.
-    this.swizzledFrame = getUint8Array(this.offscreenRGBCount | 0);      //The swizzled output buffer that syncs to the internal framebuffer on v-blank.
     this.audioUpdateState = 1;                //Do we need to update the sound core with new info?
     this.saveExportHandler = null;            //Save export handler attached by GUI.
     this.saveImportHandler = null;            //Save import handler attached by GUI.
     this.speedCallback = null;                //Speed report handler attached by GUI.
-    this.graphicsHandle = null;               //Graphics blitter handler attached by GUI.
+    this.startCallbacks = [];                 //Some jobs to run at iteration head.
+    this.endCallbacks = [];                   //Some jobs to run at iteration end.
+    this.terminationCallbacks = [];           //Some jobs to run if the emulation core is killed.
     this.timerIntervalRate = 4;               //How often the emulator core is called into (in milliseconds).
     this.lastTimestamp = 0;                   //Track the last time given in milliseconds.
     this.dynamicSpeedRefresh = false;         //Whether speed is allowed to be changed dynamically in the current cycle.
@@ -44,12 +39,18 @@ function GameBoyAdvanceEmulator() {
 GameBoyAdvanceEmulator.prototype.generateCoreExposed = function () {
     var parentObj = this;
     this.coreExposed = {
-        "outputAudio":function (l, r) {
+        outputAudio:function (l, r) {
             parentObj.outputAudio(l, r);
         },
-        "frameBuffer":parentObj.frameBuffer,
-        "prepareFrame":function () {
-            parentObj.prepareFrame();
+        graphicsHandle:null,
+        appendStartIterationSync:function (callback) {
+            parentObj.startCallbacks.push(callback);
+        },
+        appendEndIterationSync:function (callback) {
+            parentObj.endCallbacks.push(callback);
+        },
+        appendTerminationSync:function (callback) {
+            parentObj.terminationCallbacks.push(callback);
         }
     }
 }
@@ -104,11 +105,41 @@ GameBoyAdvanceEmulator.prototype.iterationStartSequence = function () {
     this.emulatorStatus = this.emulatorStatus | 0x2;                    //If the end routine doesn't unset this, then we are marked as having crashed.
     this.audioUnderrunAdjustment();                                     //If audio is enabled, look to see how much we should overclock by to maintain the audio buffer.
     this.audioPushNewState();                                           //Check to see if we need to update the audio core for any output changes.
+    this.runStartJobs();                                                //Run various callbacks assigned from internal components.
 }
 GameBoyAdvanceEmulator.prototype.iterationEndSequence = function () {
     this.emulatorStatus = this.emulatorStatus & 0x1D;                   //If core did not throw while running, unset the fatal error flag.
     this.clockCyclesSinceStart = ((this.clockCyclesSinceStart | 0) + (this.CPUCyclesTotal | 0)) | 0;    //Accumulate tracking.
     this.submitAudioBuffer();                                           //Flush audio buffer to output.
+    this.runEndJobs();                                                  //Run various callbacks assigned from internal components.
+}
+GameBoyAdvanceEmulator.prototype.runStartJobs = function () {
+    var length = this.startCallbacks.length | 0;
+    //Loop through all jobs:
+    for (var index = 0; (index | 0) < (length | 0); index = ((index | 0) + 1) | 0) {
+        //Run job:
+        this.startCallbacks[index | 0]();
+    }
+}
+GameBoyAdvanceEmulator.prototype.runEndJobs = function () {
+    var length = this.endCallbacks.length | 0;
+    //Loop through all jobs:
+    for (var index = 0; (index | 0) < (length | 0); index = ((index | 0) + 1) | 0) {
+        //Run job:
+        this.endCallbacks[index | 0]();
+    }
+}
+GameBoyAdvanceEmulator.prototype.runTerminationJobs = function () {
+    var length = this.terminationCallbacks.length | 0;
+    //Loop through all jobs:
+    for (var index = 0; (index | 0) < (length | 0); index = ((index | 0) + 1) | 0) {
+        //Run job:
+        this.terminationCallbacks[index | 0]();
+    }
+    //Remove old jobs:
+    this.startCallbacks = [];
+    this.endCallbacks = [];
+    this.terminationCallbacks = [];
 }
 GameBoyAdvanceEmulator.prototype.attachROM = function (ROM) {
     this.stop();
@@ -253,6 +284,8 @@ GameBoyAdvanceEmulator.prototype.calculateSpeedPercentage = function () {
     }
 }
 GameBoyAdvanceEmulator.prototype.initializeCore = function () {
+    //Wrap up any old internal instance callbacks:
+    this.runTerminationJobs();
     //Setup a new instance of the i/o core:
     this.IOCore = new GameBoyAdvanceIO(this.settings.SKIPBoot, this.coreExposed, this.BIOS, this.ROM);
 }
@@ -270,35 +303,12 @@ GameBoyAdvanceEmulator.prototype.keyUp = function (keyReleased) {
 }
 GameBoyAdvanceEmulator.prototype.attachGraphicsFrameHandler = function (handler) {
     if (typeof handler == "object") {
-        this.graphicsHandle = handler;
+        this.coreExposed.graphicsHandle = handler;
     }
 }
 GameBoyAdvanceEmulator.prototype.attachAudioHandler = function (mixerInputHandler) {
     if (mixerInputHandler) {
         this.audio = mixerInputHandler;
-    }
-}
-GameBoyAdvanceEmulator.prototype.swizzleFrameBuffer = function () {
-    //Convert our dirty 15-bit (15-bit, with internal render flags above it) framebuffer to an 8-bit buffer with separate indices for the RGB channels:
-    var bufferIndex = 0;
-    for (var canvasIndex = 0; (canvasIndex | 0) < (this.offscreenRGBCount | 0); bufferIndex = ((bufferIndex | 0) + 1) | 0) {
-        this.swizzledFrame[canvasIndex | 0] = (this.frameBuffer[bufferIndex | 0] & 0x1F) << 3;      //Red
-        canvasIndex = ((canvasIndex | 0) + 1) | 0;
-        this.swizzledFrame[canvasIndex | 0] = (this.frameBuffer[bufferIndex | 0] & 0x3E0) >> 2;     //Green
-        canvasIndex = ((canvasIndex | 0) + 1) | 0;
-        this.swizzledFrame[canvasIndex | 0] = (this.frameBuffer[bufferIndex | 0] & 0x7C00) >> 7;    //Blue
-        canvasIndex = ((canvasIndex | 0) + 1) | 0;
-    }
-}
-GameBoyAdvanceEmulator.prototype.prepareFrame = function () {
-    //Copy the internal frame buffer to the output buffer:
-    this.swizzleFrameBuffer();
-    this.requestDraw();
-}
-GameBoyAdvanceEmulator.prototype.requestDraw = function () {
-    if (this.graphicsHandle) {
-        //We actually updated the graphics internally, so copy out:
-        this.graphicsHandle.copyBuffer(this.swizzledFrame);
     }
 }
 GameBoyAdvanceEmulator.prototype.enableAudio = function () {
