@@ -8,18 +8,18 @@
 
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-importScripts("../IodineGBA/includes/TypedArrayShim.js");
-importScripts("../IodineGBA/core/graphics/Renderer.js");
-importScripts("../IodineGBA/core/graphics/BGTEXT.js");
-importScripts("../IodineGBA/core/graphics/BG2FrameBuffer.js");
-importScripts("../IodineGBA/core/graphics/BGMatrix.js");
-importScripts("../IodineGBA/core/graphics/AffineBG.js");
-importScripts("../IodineGBA/core/graphics/ColorEffects.js");
-importScripts("../IodineGBA/core/graphics/Mosaic.js");
-importScripts("../IodineGBA/core/graphics/OBJ.js");
-importScripts("../IodineGBA/core/graphics/OBJWindow.js");
-importScripts("../IodineGBA/core/graphics/Window.js");
-importScripts("../IodineGBA/core/graphics/Compositor.js");
+importScripts("../../includes/TypedArrayShim.js");
+importScripts("Renderer.js");
+importScripts("BGTEXT.js");
+importScripts("BG2FrameBuffer.js");
+importScripts("BGMatrix.js");
+importScripts("AffineBG.js");
+importScripts("ColorEffects.js");
+importScripts("Mosaic.js");
+importScripts("OBJ.js");
+importScripts("OBJWindow.js");
+importScripts("Window.js");
+importScripts("Compositor.js");
 var renderer = null;
 var gfxBuffers = null;
 var gfxCounters = null;
@@ -63,11 +63,11 @@ function initializeRenderer(skippingBIOS) {
     skippingBIOS = !!skippingBIOS;
     renderer = new GameBoyAdvanceGraphicsRenderer(coreExposed, !!skippingBIOS);
 }
-function assignBuffers(gfxBuffers, gfxCounters, gfxCommandBuffer, gfxCommandCounters) {
-    gfxBuffers = gfxBuffers;
-    gfxCounters = gfxCounters;
-    gfxCommandBuffer = gfxCommandBuffer;
-    gfxCommandCounters = gfxCommandCounters;
+function assignBuffers(gfxb, gfxc, cmdb, cmdc) {
+    gfxBuffers = gfxb;
+    gfxCounters = gfxc;
+    gfxCommandBuffer = cmdb;
+    gfxCommandCounters = cmdc;
 }
 function processCommands() {
     //Load the counter values:
@@ -87,6 +87,7 @@ function processCommands() {
     } while ((startCorrected | 0) != (endCorrected | 0));
     //Update the starting position counter to match the end position:
     Atomics.store(gfxCommandCounters, 0, end | 0);
+    Atomics.futexWake(gfxCommandCounters, 1, end | 0);
 }
 function dispatchCommand(command, data) {
     command = command | 0;

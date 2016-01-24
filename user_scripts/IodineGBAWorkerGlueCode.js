@@ -29,7 +29,10 @@ var tempvar = document.getElementsByTagName("script");
 IodineGBAWorkerShim.prototype.filepath = tempvar[tempvar.length-1].src;
 IodineGBAWorkerShim.prototype.initialize = function () {
     var parentObj = this;
-    this.worker = new Worker(this.filepath.substring(0, (this.filepath.length | 0) - 3) + "Worker.js");
+    var loc = this.filepath.split("/");
+    loc = loc.slice(0, loc.length - 2).join("/");
+    loc += "/IodineGBA/core/Worker.js";
+    this.worker = new Worker(loc);
     this.worker.onmessage = function (event) {
         parentObj.decodeMessage(event.data);
     }

@@ -64,7 +64,7 @@ window.onload = function () {
 function registerIodineHandler() {
     try {
         //Will run like shit if missing some of this for the webworker copy:
-        if (!window.SharedArrayBuffer || !Atomics) {
+        if (typeof SharedArrayBuffer != "function" || typeof Atomics != "object") {
             throw null;
         }
         //Try starting Iodine in a webworker:
