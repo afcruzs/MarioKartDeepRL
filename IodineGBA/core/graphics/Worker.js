@@ -83,7 +83,7 @@ function processCommands() {
     var endCorrected = end & 0x7FFFF;
     do {
         dispatchCommand(gfxCommandBuffer[startCorrected | 0] | 0, gfxCommandBuffer[startCorrected | 1] | 0);
-        startCorrected = ((startCorrected | 0) + 2) | 0;
+        startCorrected = ((startCorrected | 0) + 2) & 0x7FFFF;
     } while ((startCorrected | 0) != (endCorrected | 0));
     //Update the starting position counter to match the end position:
     Atomics.store(gfxCommandCounters, 0, end | 0);
@@ -92,7 +92,7 @@ function processCommands() {
 function dispatchCommand(command, data) {
     command = command | 0;
     data = data | 0;
-    switch (command >> 17) {
+    switch (command >> 16) {
         //IO:
         case 0:
             dispatchIOCommand(command | 0, data | 0);

@@ -114,6 +114,42 @@ GameBoyAdvanceGraphicsRendererShim.prototype.synchronizeReader = function () {
     //Load command buffer reader counter value:
     this.start = Atomics.load(this.gfxCommandCounters, 0) | 0;
 }
+GameBoyAdvanceGraphicsRendererShim.prototype.pushVRAM16 = function (address, data) {
+    address = address | 0;
+    data = data | 0;
+    address = address & 0xFFFF;
+    this.pushCommand(0x10000 | address, data | 0);
+}
+GameBoyAdvanceGraphicsRendererShim.prototype.pushVRAM32 = function (address, data) {
+    address = address | 0;
+    data = data | 0;
+    address = address & 0x7FFF;
+    this.pushCommand(0x20000 | address, data | 0);
+}
+GameBoyAdvanceGraphicsRendererShim.prototype.pushPAL16 = function (address, data) {
+    address = address | 0;
+    data = data | 0;
+    address = address & 0x1FF;
+    this.pushCommand(0x30000 | address, data | 0);
+}
+GameBoyAdvanceGraphicsRendererShim.prototype.pushPAL32 = function (address, data) {
+    address = address | 0;
+    data = data | 0;
+    address = address & 0xFF;
+    this.pushCommand(0x40000 | address, data | 0);
+}
+GameBoyAdvanceGraphicsRendererShim.prototype.pushOAM16 = function (address, data) {
+    address = address | 0;
+    data = data | 0;
+    address = address & 0x1FF;
+    this.pushCommand(0x50000 | address, data | 0);
+}
+GameBoyAdvanceGraphicsRendererShim.prototype.pushOAM32 = function (address, data) {
+    address = address | 0;
+    data = data | 0;
+    address = address & 0xFF;
+    this.pushCommand(0x60000 | address, data | 0);
+}
 GameBoyAdvanceGraphicsRendererShim.prototype.incrementScanLineQueue = function () {
     //Increment scan line command:
     this.pushCommand(0, 0);
@@ -668,13 +704,13 @@ if (__LITTLE_ENDIAN__) {
         address = address | 0;
         data = data | 0;
         this.VRAM16[address & 0xFFFF] = data & 0xFFFF;
-        this.pushCommand(0x20000 | address, data | 0);
+        this.pushVRAM16(address | 0, data | 0);
     }
     GameBoyAdvanceGraphicsRendererShim.prototype.writeVRAM32 = function (address, data) {
         address = address | 0;
         data = data | 0;
         this.VRAM32[address & 0x7FFF] = data | 0;
-        this.pushCommand(0x40000 | address, data | 0);
+        this.pushVRAM32(address | 0, data | 0);
     }
     GameBoyAdvanceGraphicsRendererShim.prototype.readVRAM16 = function (address) {
         address = address | 0;
@@ -688,13 +724,13 @@ if (__LITTLE_ENDIAN__) {
         data = data | 0;
         address = address | 0;
         this.paletteRAM16[address & 0x1FF] = data & 0xFFFF;
-        this.pushCommand(0x60000 | address, data | 0);
+        this.pushPAL16(address | 0, data | 0);
     }
     GameBoyAdvanceGraphicsRendererShim.prototype.writePalette32 = function (address, data) {
         data = data | 0;
         address = address | 0;
         this.paletteRAM32[address & 0xFF] = data | 0;
-        this.pushCommand(0x80000 | address, data | 0);
+        this.pushPAL32(address | 0, data | 0);
     }
     GameBoyAdvanceGraphicsRendererShim.prototype.readPalette16 = function (address) {
         address = address | 0;
@@ -708,13 +744,13 @@ if (__LITTLE_ENDIAN__) {
         address = address | 0;
         data = data | 0;
         this.OAMRAM16[address & 0x1FF] = data & 0xFFFF;
-        this.pushCommand(0xA0000 | address, data | 0);
+        this.pushOAM16(address | 0, data | 0);
     }
     GameBoyAdvanceGraphicsRendererShim.prototype.writeOAM32 = function (address, data) {
         address = address | 0;
         data = data | 0;
         this.OAMRAM32[address & 0xFF] = data | 0;
-        this.pushCommand(0xC0000 | address, data | 0);
+        this.pushOAM32(address | 0, data | 0);
     }
     GameBoyAdvanceGraphicsRendererShim.prototype.readOAM16 = function (address) {
         address = address | 0;
@@ -732,7 +768,7 @@ else {
         address &= 0x1FFFE;
         this.VRAM[address] = data & 0xFF;
         this.VRAM[address + 1] = (data >> 8) & 0xFF;
-        this.pushCommand(0x20000 | address, data);
+        this.pushVRAM16(address, data);
     }
     GameBoyAdvanceGraphicsRendererShim.prototype.writeVRAM32 = function (address, data) {
         address <<= 2;
@@ -741,7 +777,7 @@ else {
         this.VRAM[address + 1] = (data >> 8) & 0xFF;
         this.VRAM[address + 2] = (data >> 16) & 0xFF;
         this.VRAM[address + 3] = data >>> 24;
-        this.pushCommand(0x40000 | address, data | 0);
+        this.pushVRAM32(address, data);
     }
     GameBoyAdvanceGraphicsRendererShim.prototype.readVRAM16 = function (address) {
         address <<= 1;
@@ -756,7 +792,7 @@ else {
     GameBoyAdvanceGraphicsRendererShim.prototype.writePalette16 = function (address, data) {
         this.paletteRAM[address << 1] = data & 0xFF;
         this.paletteRAM[(address << 1) + 1] = data >> 8;
-        this.pushCommand(0x60000 | address, data | 0);
+        this.pushPAL16(address, data);
     }
     GameBoyAdvanceGraphicsRendererShim.prototype.writePalette32 = function (address, data) {
         address <<= 2;
@@ -765,7 +801,7 @@ else {
         this.paletteRAM[address | 2] = (data >> 16) & 0xFF;
         this.paletteRAM[address | 3] = data >>> 24;
         address >>= 2;
-        this.pushCommand(0x80000 | address, data | 0);
+        this.pushPAL32(address, data);
     }
     GameBoyAdvanceGraphicsRendererShim.prototype.readPalette16 = function (address) {
         address &= 0x3FE;
@@ -779,7 +815,7 @@ else {
         address &= 0x1FF;
         this.OAMRAM[address << 1] = data & 0xFF;
         this.OAMRAM[(address << 1) | 1] = data >> 8;
-        this.pushCommand(0xA0000 | address, data);
+        this.pushOAM16(address, data);
     }
     GameBoyAdvanceGraphicsRendererShim.prototype.writeOAM32 = function (address, data) {
         address &= 0xFF;
@@ -789,7 +825,7 @@ else {
         this.OAMRAM[address + 2] = (data >> 16) & 0xFF;
         this.OAMRAM[address + 3] = data >>> 24;
         address >>= 2;
-        this.pushCommand(0xC0000 | address, data);
+        this.pushOAM32(address, data);
     }
     GameBoyAdvanceGraphicsRendererShim.prototype.readOAM16 = function (address) {
         address &= 0x1FF;
