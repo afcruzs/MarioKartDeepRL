@@ -25,6 +25,7 @@ var gfxBuffers = null;
 var gfxCounters = null;
 var gfxCommandBuffer = null;
 var gfxCommandCounters = null;
+var timerHandle = null;
 self.onmessage = function (event) {
     var data = event.data;
     switch (data.messageID) {
@@ -36,6 +37,10 @@ self.onmessage = function (event) {
             break;
         default:
             initializeRenderer(!!data.skippingBIOS);
+            if (timerHandle) {
+                clearInterval(timerHandle);
+            }
+            timerHandle = setInterval(processCommands, 16);
     }
 }
 var coreExposed = {
