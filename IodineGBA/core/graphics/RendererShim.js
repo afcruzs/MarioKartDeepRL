@@ -149,7 +149,7 @@ GameBoyAdvanceGraphicsRendererShim.prototype.synchronizeWriter = function () {
 }
 GameBoyAdvanceGraphicsRendererShim.prototype.synchronizeReader = function () {
     //Wait if we ran ahead of the consumer thread too much:
-    while ((((this.linesPassed | 0) - (Atomics.load(this.gfxLineCounter, 0) | 0)) | 0) >= 320) {
+    while ((((this.linesPassed | 0) - (Atomics.load(this.gfxLineCounter, 0) | 0)) | 0) >= 480) {
         //Wait for consumer thread:
         Atomics.futexWait(this.gfxLineCounter, 2, 0);
     }
