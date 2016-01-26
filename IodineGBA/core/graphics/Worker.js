@@ -33,7 +33,7 @@ self.onmessage = function (event) {
     var data = event.data;
     switch (data.messageID | 0) {
         case 0:
-            assignTimerInterval(data.timerInterval | 0);
+            assignTimerInterval(data.timerInterval >> 1);
             break;
         case 1:
             assignStaticBuffers(data.gfxBuffers, data.gfxCounters, data.gfxLineCounter);
