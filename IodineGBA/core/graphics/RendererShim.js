@@ -44,7 +44,7 @@
      this.gfxCommandBufferMask = ((this.gfxCommandBufferLength | 0) - 1) | 0;
      this.gfxCommandBuffer = getSharedInt32Array(this.gfxCommandBufferLength | 0);
      this.gfxCommandCounters = getSharedInt32Array(2);
-     this.gfxLineCounter = getSharedInt32Array(2);
+     this.gfxLineCounter = getSharedInt32Array(3);
      this.start = 0;
      this.end = 0;
      this.linesPassed = 0;
@@ -145,12 +145,13 @@ GameBoyAdvanceGraphicsRendererShim.prototype.blockIfCommandBufferFull = function
 GameBoyAdvanceGraphicsRendererShim.prototype.synchronizeWriter = function () {
     //Store command buffer writer counter value:
     Atomics.store(this.gfxCommandCounters, 1, this.end | 0);
+    Atomics.store(this.gfxLineCounter, 1, this.linesPassed | 0);
 }
 GameBoyAdvanceGraphicsRendererShim.prototype.synchronizeReader = function () {
     //Wait if we ran ahead of the consumer thread too much:
     while ((((this.linesPassed | 0) - (Atomics.load(this.gfxLineCounter, 0) | 0)) | 0) >= 320) {
         //Wait for consumer thread:
-        Atomics.futexWait(this.gfxLineCounter, 1, 0);
+        Atomics.futexWait(this.gfxLineCounter, 2, 0);
     }
     //Load command buffer reader counter value:
     this.start = Atomics.load(this.gfxCommandCounters, 0) | 0;

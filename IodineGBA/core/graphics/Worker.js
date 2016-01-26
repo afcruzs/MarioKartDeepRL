@@ -27,7 +27,8 @@ var gfxCommandBuffer = null;
 var gfxCommandCounters = null;
 var gfxCommandBufferMask = 1;
 var gfxLineCounter = null;
-var gfxLinesPassed = 0;
+var gfxLineCPU = 0;
+var gfxLinesGPU = 0;
 var timerHandle = null;
 self.onmessage = function (event) {
     var data = event.data;
@@ -97,6 +98,7 @@ function processCommands() {
     //Load the counter values:
     var start = gfxCommandCounters[0] | 0;              //Written by this thread.
     var end = Atomics.load(gfxCommandCounters, 1) | 0;  //Written by the other thread.
+    gfxLineCPU = Atomics.load(this.gfxLineCounter, 1) | 0;
     //Don't process if nothing to process:
     if ((end | 0) == (start | 0)) {
         //Attempt to wake the writer thread if it is sleeping:
@@ -117,10 +119,10 @@ function processCommands() {
     //Update the starting position counter to match the end position:
     Atomics.store(gfxCommandCounters, 0, end | 0);
     //Update how many scanlines we've received:
-    Atomics.store(gfxLineCounter, 0, gfxLinesPassed | 0);
+    Atomics.store(gfxLineCounter, 0, gfxLinesGPU | 0);
     //Attempt to wake the writer thread if it is sleeping:
-    Atomics.store(gfxLineCounter, 1, 0);
-    Atomics.futexWake(gfxLineCounter, 1, 1);
+    Atomics.store(gfxLineCounter, 2, 0);
+    Atomics.futexWake(gfxLineCounter, 2, 1);
 }
 function dispatchCommand(command, data) {
     command = command | 0;
@@ -577,12 +579,19 @@ function decodeInternalCommand(data) {
     data = data | 0;
     switch (data | 0) {
         case 0:
-            //Render a scanline:
-            renderer.renderScanLine();
+            //Check to see if we need to skip rendering to catch up:
+            if ((((gfxLineCPU | 0) - (gfxLinesGPU | 0)) | 0) < 320) {
+                //Render a scanline:
+                renderer.renderScanLine();
+            }
+            else {
+                //Update some internal counters to maintain state:
+                renderer.updateReferenceCounters();
+            }
             //Clock the scanline counter:
             renderer.incrementScanLine();
             //Increment how many scanlines we've received out:
-            gfxLinesPassed = ((gfxLinesPassed | 0) + 1) | 0;
+            gfxLinesGPU = ((gfxLinesGPU | 0) + 1) | 0;
             break;
         default:
             //Push out a frame of graphics:
