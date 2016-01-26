@@ -21,7 +21,10 @@
      this.initializeWorker(skippingBIOS);
      this.appendAtomicSync();
      this.initializeBuffers();
-     this.shareBuffers();
+     this.shareStaticBuffers();
+     this.shareDynamicBuffers();
+     this.setTimerAlterCallback();
+     this.setRendererTimer();
  }
  GameBoyAdvanceGraphicsRendererShim.prototype.initializeWorker = function (skippingBIOS) {
      skippingBIOS = !!skippingBIOS;
@@ -37,10 +40,14 @@
  }
  GameBoyAdvanceGraphicsRendererShim.prototype.initializeBuffers = function () {
      //Graphics Buffers:
-     this.gfxCommandBuffer = getSharedInt32Array(0x80000);
+     this.gfxCommandBufferLength = 0x80000;
+     this.gfxCommandBufferMask = ((this.gfxCommandBufferLength | 0) - 1) | 0;
+     this.gfxCommandBuffer = getSharedInt32Array(this.gfxCommandBufferLength | 0);
      this.gfxCommandCounters = getSharedInt32Array(2);
+     this.gfxLineCounter = getSharedInt32Array(2);
      this.start = 0;
      this.end = 0;
+     this.linesPassed = 0;
      this.OAMRAM = getUint8Array(0x400);
      this.OAMRAM16 = getUint16View(this.OAMRAM);
      this.OAMRAM32 = getInt32View(this.OAMRAM);
@@ -50,6 +57,17 @@
      this.VRAM32 = getInt32View(this.VRAM);
      this.paletteRAM16 = getUint16View(this.paletteRAM);
      this.paletteRAM32 = getInt32View(this.paletteRAM);
+ }
+ GameBoyAdvanceGraphicsRendererShim.prototype.increaseCommandBufferCapacity = function () {
+     //Double the size to the next power of 2:
+     this.gfxCommandBufferLength = this.gfxCommandBufferLength << 1;
+     this.gfxCommandBufferMask = ((this.gfxCommandBufferLength | 0) - 1) | 0;
+     this.gfxCommandBuffer = getSharedInt32Array(this.gfxCommandBufferLength | 0);
+     this.gfxCommandCounters = getSharedInt32Array(2);
+     this.start = 0;
+     this.end = 0;
+     //Share our new buffers:
+     this.shareDynamicBuffers();
  }
  GameBoyAdvanceGraphicsRendererShim.prototype.appendAtomicSync = function () {
      //Command buffer counters get synchronized with emulator runtime head/end for efficiency:
@@ -61,32 +79,52 @@
          parentObj.synchronizeWriter();
      });
      this.coreExposed.appendTerminationSync(function () {
+         //Remove a callback that relies on the worker existing:
+         parentObj.coreExposed.graphicsTimerAlterCallback = null;
          //Core instance being replaced, kill the worker thread:
          parentObj.worker.terminate();
      });
  }
- GameBoyAdvanceGraphicsRendererShim.prototype.shareBuffers = function () {
+GameBoyAdvanceGraphicsRendererShim.prototype.shareStaticBuffers = function () {
      this.worker.postMessage({
          messageID:1,
          gfxBuffers:gfxBuffers,
          gfxCounters:gfxCounters,
-         gfxCommandBuffer:this.gfxCommandBuffer,
-         gfxCommandCounters:this.gfxCommandCounters
+         gfxLineCounter:this.gfxLineCounter
      }, [
          gfxBuffers[0].buffer,
          gfxBuffers[1].buffer,
          gfxCounters.buffer,
+         this.gfxLineCounter.buffer
+     ]);
+}
+GameBoyAdvanceGraphicsRendererShim.prototype.shareDynamicBuffers = function () {
+     this.worker.postMessage({
+         messageID:3,
+         gfxCommandBuffer:this.gfxCommandBuffer,
+         gfxCommandCounters:this.gfxCommandCounters
+     }, [
          this.gfxCommandBuffer.buffer,
          this.gfxCommandCounters.buffer
      ]);
+}
+ GameBoyAdvanceGraphicsRendererShim.prototype.setTimerAlterCallback = function () {
+      var parentObj = this;
+      this.coreExposed.graphicsTimerAlterCallback = function () {
+          var interval = parentObj.coreExposed.getTimerIntervalRate() | 0;
+          parentObj.worker.postMessage({messageID:0, timerInterval:interval | 0});
+      }
  }
+GameBoyAdvanceGraphicsRendererShim.prototype.setRendererTimer = function () {
+     this.coreExposed.graphicsTimerAlterCallback();
+}
 GameBoyAdvanceGraphicsRendererShim.prototype.pushCommand = function (command, data) {
     command = command | 0;
     data = data | 0;
     //Block while full:
     this.blockIfCommandBufferFull();
     //Get the write offset into the ring buffer:
-    var endCorrected = this.end & 0x7FFFF;
+    var endCorrected = this.end & this.gfxCommandBufferMask;
     //Push command into buffer:
     this.gfxCommandBuffer[endCorrected | 0] = command | 0;
     //Push data into buffer:
@@ -95,11 +133,11 @@ GameBoyAdvanceGraphicsRendererShim.prototype.pushCommand = function (command, da
     this.end = ((this.end | 0) + 2) | 0;
 }
 GameBoyAdvanceGraphicsRendererShim.prototype.blockIfCommandBufferFull = function () {
-    if ((this.start | 0) == (((this.end | 0) - 0x80000) | 0)) {
+    if ((this.start | 0) == (((this.end | 0) - (this.gfxCommandBufferLength | 0)) | 0)) {
         //Give the reader our updated counter and tell it to run:
         this.synchronizeWriter();
-        //Wait for consumer thread:
-        Atomics.futexWait(this.gfxCommandCounters, 0, ((this.end | 0) - 0x80000) | 0);
+        //Increase buffer size & wait:
+        this.increaseCommandBufferCapacity();
         //Reload reader counter value:
         this.synchronizeReader();
     }
@@ -107,10 +145,14 @@ GameBoyAdvanceGraphicsRendererShim.prototype.blockIfCommandBufferFull = function
 GameBoyAdvanceGraphicsRendererShim.prototype.synchronizeWriter = function () {
     //Store command buffer writer counter value:
     Atomics.store(this.gfxCommandCounters, 1, this.end | 0);
-    //Tell consumer thread to check command buffer:
-    this.worker.postMessage({messageID:0});
 }
 GameBoyAdvanceGraphicsRendererShim.prototype.synchronizeReader = function () {
+    //Wait if we ran ahead of the consumer thread too much:
+    while ((((this.linesPassed | 0) - (Atomics.load(this.gfxLineCounter, 0) | 0)) | 0) >= 320) {
+        //Wait for consumer thread:
+        //futexWake BROKEN IN FIREFOX NIGHTLY, so add a timeout:
+        Atomics.futexWait(this.gfxLineCounter, 1, 0, 16);
+    }
     //Load command buffer reader counter value:
     this.start = Atomics.load(this.gfxCommandCounters, 0) | 0;
 }
@@ -153,6 +195,8 @@ GameBoyAdvanceGraphicsRendererShim.prototype.pushOAM32 = function (address, data
 GameBoyAdvanceGraphicsRendererShim.prototype.incrementScanLineQueue = function () {
     //Increment scan line command:
     this.pushCommand(0, 0);
+    //Increment how many scanlines we've pushed out:
+    this.linesPassed = ((this.linesPassed | 0) + 1) | 0;
 }
 GameBoyAdvanceGraphicsRendererShim.prototype.ensureFraming = function () {
     //Vertical blank synchronization command:

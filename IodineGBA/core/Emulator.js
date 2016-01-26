@@ -10,14 +10,14 @@
  */
 function GameBoyAdvanceEmulator() {
     this.settings = {
-        "SKIPBoot":false,                   //Skip the BIOS boot screen.
-        "audioBufferUnderrunLimit":100,     //Audio buffer minimum span amount over x milliseconds.
-        "audioBufferDynamicLimit":32,       //Audio buffer dynamic minimum span amount over x milliseconds.
-        "audioBufferSize":300,              //Audio buffer maximum span amount over x milliseconds.
-        "emulatorSpeed":1.0,                //Speed multiplier of the emulator.
-        "metricCollectionMinimum":500,      //How many milliseconds of cycling to count before determining speed.
-        "dynamicSpeed":false,               //Whether to actively change the target speed for best user experience.
-        "overclockBlockLimit":200           //Whether to throttle clocks in audio adjustment.
+        SKIPBoot:false,                   //Skip the BIOS boot screen.
+        audioBufferUnderrunLimit:100,     //Audio buffer minimum span amount over x milliseconds.
+        audioBufferDynamicLimit:32,       //Audio buffer dynamic minimum span amount over x milliseconds.
+        audioBufferSize:300,              //Audio buffer maximum span amount over x milliseconds.
+        emulatorSpeed:1.0,                //Speed multiplier of the emulator.
+        metricCollectionMinimum:500,      //How many milliseconds of cycling to count before determining speed.
+        dynamicSpeed:false,               //Whether to actively change the target speed for best user experience.
+        overclockBlockLimit:200           //Whether to throttle clocks in audio adjustment.
     };
     this.audioFound = 0;                      //Do we have audio output sink found yet?
     this.emulatorStatus = 0x10;               //{paused, saves loaded, fault found, loaded}
@@ -51,6 +51,10 @@ GameBoyAdvanceEmulator.prototype.generateCoreExposed = function () {
         },
         appendTerminationSync:function (callback) {
             parentObj.terminationCallbacks.push(callback);
+        },
+        graphicsTimerAlterCallback:null,
+        getTimerIntervalRate:function () {
+            return parentObj.timerIntervalRate | 0;
         }
     }
 }
@@ -255,7 +259,13 @@ GameBoyAdvanceEmulator.prototype.setIntervalRate = function (intervalRate) {
         if ((intervalRate | 0) != (this.timerIntervalRate | 0)) {
             this.timerIntervalRate = intervalRate | 0;
             this.calculateTimings();
+            this.reinitializeGraphicsTimer();
         }
+    }
+}
+GameBoyAdvanceEmulator.prototype.reinitializeGraphicsTimer = function () {
+    if (typeof this.coreExposed.graphicsTimerAlterCallback == "function") {
+        this.coreExposed.graphicsTimerAlterCallback();
     }
 }
 GameBoyAdvanceEmulator.prototype.calculateSpeedPercentage = function () {

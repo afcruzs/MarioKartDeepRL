@@ -25,22 +25,24 @@ var gfxBuffers = null;
 var gfxCounters = null;
 var gfxCommandBuffer = null;
 var gfxCommandCounters = null;
+var gfxCommandBufferMask = 1;
+var gfxLineCounter = null;
+var gfxLinesPassed = 0;
 var timerHandle = null;
 self.onmessage = function (event) {
     var data = event.data;
-    switch (data.messageID) {
+    switch (data.messageID | 0) {
         case 0:
-            processCommands();
+            assignTimerInterval(data.timerInterval | 0);
             break;
         case 1:
-            assignBuffers(data.gfxBuffers, data.gfxCounters, data.gfxCommandBuffer, data.gfxCommandCounters);
+            assignStaticBuffers(data.gfxBuffers, data.gfxCounters, data.gfxLineCounter);
+            break;
+        case 2:
+            initializeRenderer(!!data.skippingBIOS);
             break;
         default:
-            initializeRenderer(!!data.skippingBIOS);
-            if (timerHandle) {
-                clearInterval(timerHandle);
-            }
-            timerHandle = setInterval(processCommands, 16);
+            assignDynamicBuffers(data.gfxCommandBuffer, data.gfxCommandCounters);
     }
 }
 var coreExposed = {
@@ -68,11 +70,28 @@ function initializeRenderer(skippingBIOS) {
     skippingBIOS = !!skippingBIOS;
     renderer = new GameBoyAdvanceGraphicsRenderer(coreExposed, !!skippingBIOS);
 }
-function assignBuffers(gfxb, gfxc, cmdb, cmdc) {
+function assignStaticBuffers(gfxb, gfxc, cmdl) {
     gfxBuffers = gfxb;
     gfxCounters = gfxc;
+    gfxLineCounter = cmdl;
+}
+function assignDynamicBuffers(cmdb, cmdc) {
+    if (gfxCommandBuffer) {
+        processCommands();
+    }
     gfxCommandBuffer = cmdb;
     gfxCommandCounters = cmdc;
+    var gfxCommandBufferLength = gfxCommandBuffer.length | 0;
+    gfxCommandBufferMask = ((gfxCommandBufferLength | 0) - 1) | 0;
+}
+function assignTimerInterval(timerInterval) {
+    timerInterval = timerInterval | 0;
+    //Clear any previous timer:
+    if (timerHandle) {
+        clearInterval(timerHandle);
+    }
+    //Set our new timer:
+    timerHandle = setInterval(processCommands, timerInterval | 0);
 }
 function processCommands() {
     //Load the counter values:
@@ -80,23 +99,37 @@ function processCommands() {
     var end = Atomics.load(gfxCommandCounters, 1) | 0;  //Written by the other thread.
     //Don't process if nothing to process:
     if ((end | 0) == (start | 0)) {
+        //Attempt to wake the writer thread if it is sleeping:
+        //BROKEN IN FIREFOX NIGHTLY:
+        Atomics.futexWake(gfxLineCounter, 0, 1);
         //Buffer is empty:
         return;
     }
     //Dispatch commands:
-    var startCorrected = start & 0x7FFFF;
-    var endCorrected = end & 0x7FFFF;
+    var startCorrected = start & gfxCommandBufferMask;
+    var endCorrected = end & gfxCommandBufferMask;
     do {
+        //Read a command:
         dispatchCommand(gfxCommandBuffer[startCorrected | 0] | 0, gfxCommandBuffer[startCorrected | 1] | 0);
-        startCorrected = ((startCorrected | 0) + 2) & 0x7FFFF;
+        //Increment by two since we're reading the command code and corresponding data after it:
+        startCorrected = ((startCorrected | 0) + 2) & gfxCommandBufferMask;
     } while ((startCorrected | 0) != (endCorrected | 0));
     //Update the starting position counter to match the end position:
     Atomics.store(gfxCommandCounters, 0, end | 0);
-    Atomics.futexWake(gfxCommandCounters, 1, end | 0);
+    //Update how many scanlines we've received:
+    Atomics.store(gfxLineCounter, 0, gfxLinesPassed | 0);
+    //Attempt to wake the writer thread if it is sleeping:
+    //BROKEN IN FIREFOX NIGHTLY:
+    Atomics.futexWake(gfxLineCounter, 0, 1);
 }
 function dispatchCommand(command, data) {
     command = command | 0;
     data = data | 0;
+    /*
+        We squeeze some address bits as a portion of the command code.
+        The top bits will be the actual command, the bottom ones will be the address,
+        unless of course the top bits are zero, for which then it's purely a command code:
+    */
     switch (command >> 16) {
         //IO:
         case 0:
@@ -548,6 +581,8 @@ function decodeInternalCommand(data) {
             renderer.renderScanLine();
             //Clock the scanline counter:
             renderer.incrementScanLine();
+            //Increment how many scanlines we've received out:
+            gfxLinesPassed = ((gfxLinesPassed | 0) + 1) | 0;
             break;
         default:
             //Push out a frame of graphics:
