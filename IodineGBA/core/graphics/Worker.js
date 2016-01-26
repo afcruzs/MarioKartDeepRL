@@ -100,8 +100,8 @@ function processCommands() {
     //Don't process if nothing to process:
     if ((end | 0) == (start | 0)) {
         //Attempt to wake the writer thread if it is sleeping:
-        //BROKEN IN FIREFOX NIGHTLY:
-        Atomics.futexWake(gfxLineCounter, 0, 1);
+        Atomics.store(gfxLineCounter, 1, 0);
+        Atomics.futexWake(gfxLineCounter, 1, 1);
         //Buffer is empty:
         return;
     }
@@ -119,8 +119,8 @@ function processCommands() {
     //Update how many scanlines we've received:
     Atomics.store(gfxLineCounter, 0, gfxLinesPassed | 0);
     //Attempt to wake the writer thread if it is sleeping:
-    //BROKEN IN FIREFOX NIGHTLY:
-    Atomics.futexWake(gfxLineCounter, 0, 1);
+    Atomics.store(gfxLineCounter, 1, 0);
+    Atomics.futexWake(gfxLineCounter, 1, 1);
 }
 function dispatchCommand(command, data) {
     command = command | 0;

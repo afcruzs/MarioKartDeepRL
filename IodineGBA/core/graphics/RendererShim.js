@@ -150,8 +150,7 @@ GameBoyAdvanceGraphicsRendererShim.prototype.synchronizeReader = function () {
     //Wait if we ran ahead of the consumer thread too much:
     while ((((this.linesPassed | 0) - (Atomics.load(this.gfxLineCounter, 0) | 0)) | 0) >= 320) {
         //Wait for consumer thread:
-        //futexWake BROKEN IN FIREFOX NIGHTLY, so add a timeout:
-        /*console.log("futexWait return code: " + */Atomics.futexWait(this.gfxLineCounter, 1, 0, 4)//);
+        Atomics.futexWait(this.gfxLineCounter, 1, 0);
     }
     //Load command buffer reader counter value:
     this.start = Atomics.load(this.gfxCommandCounters, 0) | 0;
