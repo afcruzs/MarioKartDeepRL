@@ -27,7 +27,7 @@ var gfxCommandBuffer = null;
 var gfxCommandCounters = null;
 var gfxCommandBufferMask = 1;
 var gfxLineCounter = null;
-var gfxLineCPU = 0;
+var gfxLinesCPU = 0;
 var gfxLinesGPU = 0;
 var timerHandle = null;
 self.onmessage = function (event) {
@@ -98,12 +98,9 @@ function processCommands() {
     //Load the counter values:
     var start = gfxCommandCounters[0] | 0;              //Written by this thread.
     var end = Atomics.load(gfxCommandCounters, 1) | 0;  //Written by the other thread.
-    gfxLineCPU = Atomics.load(this.gfxLineCounter, 1) | 0;
+    gfxLinesCPU = Atomics.load(this.gfxLineCounter, 0) | 0;
     //Don't process if nothing to process:
     if ((end | 0) == (start | 0)) {
-        //Attempt to wake the writer thread if it is sleeping:
-        Atomics.store(gfxLineCounter, 1, 0);
-        Atomics.futexWake(gfxLineCounter, 1, 1);
         //Buffer is empty:
         return;
     }
@@ -118,11 +115,6 @@ function processCommands() {
     } while ((startCorrected | 0) != (endCorrected | 0));
     //Update the starting position counter to match the end position:
     Atomics.store(gfxCommandCounters, 0, end | 0);
-    //Update how many scanlines we've received:
-    Atomics.store(gfxLineCounter, 0, gfxLinesGPU | 0);
-    //Attempt to wake the writer thread if it is sleeping:
-    Atomics.store(gfxLineCounter, 2, 0);
-    Atomics.futexWake(gfxLineCounter, 2, 1);
 }
 function dispatchCommand(command, data) {
     command = command | 0;
@@ -580,7 +572,7 @@ function decodeInternalCommand(data) {
     switch (data | 0) {
         case 0:
             //Check to see if we need to skip rendering to catch up:
-            if ((((gfxLineCPU | 0) - (gfxLinesGPU | 0)) | 0) < 320) {
+            if ((((gfxLinesCPU | 0) - (gfxLinesGPU | 0)) | 0) < 320) {
                 //Render a scanline:
                 renderer.renderScanLine();
             }
@@ -594,7 +586,10 @@ function decodeInternalCommand(data) {
             gfxLinesGPU = ((gfxLinesGPU | 0) + 1) | 0;
             break;
         default:
-            //Push out a frame of graphics:
-            renderer.prepareFrame();
+            //Check to see if we need to skip rendering to catch up:
+            if ((((gfxLinesCPU | 0) - (gfxLinesGPU | 0)) | 0) < 320) {
+                //Push out a frame of graphics:
+                renderer.prepareFrame();
+            }
     }
 }
