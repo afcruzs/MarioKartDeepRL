@@ -52,13 +52,11 @@ span#tempMessage {
 div#menu {
     position: absolute;
     z-index: 2;
-    height: 20px;
     width: 100%;
     min-width: 600px;
 }
 
-div#menu ul
-{
+div#menu ul {
 	list-style:none;
 	position:relative;
 	float:left;
@@ -75,9 +73,8 @@ div#menu ul span, div#menu ul button {
 	font-size: 12px;
 	line-height: 32px;
 	padding: 0 15px;
-	font-family:"HelveticaNeue","Helvetica Neue",Helvetica,Arial,sans-serif
+	font-family:"HelveticaNeue","Helvetica Neue",Helvetica,Arial,sans-serif;
 }
-
 div#menu ul li {
 	position:relative;
 	float:left;
@@ -99,24 +96,20 @@ div#menu ul ul {
 	background: rbg(255, 255, 255);
 	padding: 0;
 }
-
 div#menu ul ul li {
 	float:none;
 	width:300px;
     z-index: 3;
     background-color: rgb(255, 255, 255);
 }
-
 div#menu ul ul a, div#menu ul ul span, div#menu ul ul button {
 	line-height: 120%;
 	padding: 10px 15px;
 }
-
 div#menu ul ul ul {
 	top: 0;
 	left: 100%;
 }
-
 div#menu ul li:hover > ul {
 	display: block;
 }
