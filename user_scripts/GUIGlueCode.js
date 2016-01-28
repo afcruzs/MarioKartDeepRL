@@ -56,6 +56,15 @@ function registerGUIEvents() {
     addEvent("click", document.getElementById("toggleDynamicSpeed"), function () {
              IodineGUI.Iodine.toggleDynamicSpeed(this.checked);
     });
+    addEvent("click", document.getElementById("speedup"), function () {
+             IodineGUI.Iodine.incrementSpeed(0.05);
+    });
+    addEvent("click", document.getElementById("speeddown"), function () {
+             IodineGUI.Iodine.incrementSpeed(-0.05);
+    });
+    addEvent("click", document.getElementById("speedreset"), function () {
+             IodineGUI.Iodine.setSpeed(1);
+    });
     addEvent("click", document.getElementById("fullscreen"), toggleFullScreen);
     addEvent("change", document.getElementById("import"), function (e) {
              if (typeof this.files != "undefined") {
