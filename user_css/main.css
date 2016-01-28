@@ -65,7 +65,7 @@ div#menu ul {
     width: 100%;
     background-color: rgb(255, 255, 255);
 }
-div#menu ul span, div#menu ul button {
+div#menu ul span {
 	color: #333;
 	text-decoration: none;
 	font-weight: 700;
@@ -80,11 +80,8 @@ div#menu ul li {
 	margin:0;
 	padding:0
 }
-button.hide {
-    display: none;
-}
-button.show {
-    display: inline;
+li.hide {
+    display: none !important;
 }
 div#menu ul li:hover {
 	background: #f6f6f6 !important;
@@ -104,7 +101,7 @@ div#menu ul ul li {
     z-index: 3;
     background-color: rgb(255, 255, 255);
 }
-div#menu ul ul a, div#menu ul ul span, div#menu ul ul button {
+div#menu ul ul a, div#menu ul ul span {
 	line-height: 120%;
 	padding: 10px 15px;
 }
