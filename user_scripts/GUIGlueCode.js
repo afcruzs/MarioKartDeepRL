@@ -141,8 +141,8 @@ function registerGUISettings() {
     IodineGUI.Iodine.toggleDynamicSpeed(IodineGUI.defaults.toggleDynamicSpeed);
 }
 function resetPlayButton() {
-    document.getElementById("pause").style.display = "none";
-    document.getElementById("play").style.display = "inline";
+    document.getElementById("pause").className = "hide";
+    document.getElementById("play").className = "show";
 }
 function stepVolume(delta) {
     var volume = document.getElementById("volume").value / 100;

@@ -78,8 +78,8 @@ function registerIodineHandler() {
 }
 function registerBeforeUnloadHandler(e) {
     IodineGUI.Iodine.pause();
-    document.getElementById("pause").style.display = "none";
-    document.getElementById("play").style.display = "inline";
+    document.getElementById("pause").className = "hide";
+    document.getElementById("play").className = "show";
     if (e.preventDefault) {
         e.preventDefault();
     }
@@ -92,7 +92,7 @@ function registerTimerHandler() {
     setInterval(function () {
         //Check to see if web view is not hidden, if hidden don't run due to JS timers being inaccurate on page hide:
         if (!document.hidden && !document.msHidden && !document.mozHidden && !document.webkitHidden) {
-            if (document.getElementById("play").style.display == "none") {
+            if (document.getElementById("play").className == "hide") {
                 IodineGUI.Iodine.play();
             }
             IodineGUI.Iodine.timerCallback(((+(new Date()).getTime()) - (+IodineGUI.startTime)) >>> 0);
