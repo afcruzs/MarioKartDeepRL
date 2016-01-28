@@ -53,7 +53,6 @@ div#menu {
     position: absolute;
     z-index: 1;
     width: 100%;
-    min-width: 600px;
     height: 0px;
 }
 div#menu ul {
@@ -120,4 +119,7 @@ div#menu.paused > ul, div#menu.playing > ul:hover {
 }
 div#menu.playing > ul {
     opacity: 0;
+}
+div#menu input+span {
+    padding-left: 30px;
 }
