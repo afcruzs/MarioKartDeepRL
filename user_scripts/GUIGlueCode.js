@@ -20,6 +20,7 @@ function registerGUIEvents() {
         if (e.preventDefault) {
              e.preventDefault();
         }
+        document.getElementById("menu").className = "playing";
     });
     addEvent("click", document.getElementById("pause"), function (e) {
         IodineGUI.Iodine.pause();
@@ -28,6 +29,7 @@ function registerGUIEvents() {
         if (e.preventDefault) {
              e.preventDefault();
         }
+        document.getElementById("menu").className = "paused";
     });
     addEvent("click", document.getElementById("restart"), function (e) {
         IodineGUI.Iodine.restart();

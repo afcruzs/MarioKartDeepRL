@@ -9,7 +9,7 @@ div#container {
 }
 div#main {
     position:absolute;
-    top: 40px;
+    top: 0px;
     left: 0px;
     right: 0px;
     bottom: 0px;
@@ -54,7 +54,7 @@ div#menu {
     z-index: 2;
     height: 20px;
     width: 100%;
-    background-color: rgb(255, 255, 255);
+    min-width: 600px;
 }
 
 div#menu ul
@@ -63,7 +63,9 @@ div#menu ul
 	position:relative;
 	float:left;
 	margin:0;
-	padding:0
+	padding:0;
+    width: 100%;
+    background-color: rgb(255, 255, 255);
 }
 
 div#menu ul span, div#menu ul button {
@@ -120,4 +122,10 @@ div#menu ul li:hover > ul {
 }
 input {
     max-width: 150px;
+}
+div#menu.paused ul, div#menu.playing ul:hover {
+    opacity: 1;
+}
+div#menu.playing ul {
+    opacity: 0;
 }
