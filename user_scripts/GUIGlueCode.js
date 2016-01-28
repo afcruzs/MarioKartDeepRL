@@ -18,24 +18,15 @@ function registerGUIEvents() {
         this.className = "hide";
         document.getElementById("pause").className = "show";
         document.getElementById("menu").className = "playing";
-        if (e.preventDefault) {
-             e.preventDefault();
-        }
     });
     addEvent("click", document.getElementById("pause"), function (e) {
         IodineGUI.Iodine.pause();
         this.className = "hide";
         document.getElementById("play").className = "show";
         document.getElementById("menu").className = "paused";
-        if (e.preventDefault) {
-             e.preventDefault();
-        }
     });
     addEvent("click", document.getElementById("restart"), function (e) {
         IodineGUI.Iodine.restart();
-        if (e.preventDefault) {
-             e.preventDefault();
-        }
     });
     addEvent("click", document.getElementById("sound"), function () {
         if (this.checked) {
