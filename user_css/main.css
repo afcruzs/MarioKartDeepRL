@@ -3,70 +3,39 @@ html, body {
     padding: 0;
     overflow: hidden;
 }
-body:hover div#control_panel {
-    opacity: 0;
-}
-#load_panel, #save_controls {
-    text-align: left;
-}
-#load_panel label, #save_controls label {
-    margin-right: 5px;
-}
-input {
-    max-width: 150px;
-}
-#play_controls label {
-    float: left;
-    clear: left;
-}
-#play_controls input.checkbox {
-    float: right;
-    clear: right;
-}
-#pause {
-    display: none;
-}
-div#log_control button {
-    clear: none;
-}
-div#control_panel {
-    position: absolute;
-    left: 0px;
-    width: 250px;
-    bottom: 0px;
-    top: 0px;
-    background-color: rgb(220, 220, 220);
-    padding: 5px 3px;
-    overflow: hidden;
-    white-space: nowrap;
-}
-div#control_panel:hover {
-    opacity: 1 !important;
-}
-div#playControls {
-    text-align: center;
-    padding: 0 0 10px 0;
-}
-div#playControls button#play {
-    margin-right: 5px;
-}
-div#main {
-    top: 0px;
-    bottom: 0px;
-    position: absolute;
-    left: 0px;
-    right: 0px;
-    background-color: rgb(200, 200, 200);
-}
-div#main canvas {
-    position: absolute;
-    top: 0;
-    left: 0;
+div#container {
     width: 100%;
     height: 100%;
 }
+div#main {
+    position:absolute;
+    top: 40px;
+    left: 0px;
+    right: 0px;
+    bottom: 0px;
+    background-color: rgb(0, 0, 0);
+}
+div#main canvas {
+    margin: auto;
+    display: block;
+    padding: 0px;
+    background-color: rgb(248, 248, 248);
+}
 canvas {
     cursor: none;
+}
+canvas.textureSmooth {
+    image-rendering: auto;
+    image-rendering: optimizeQuality;
+    -ms-interpolation-mode: bicubic;
+}
+canvas.texturePixelated {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: -o-crisp-edges;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    image-rendering: pixelated;
+    -ms-interpolation-mode: nearest-neighbor;
 }
 span#tempMessage {
     color: red;
@@ -79,4 +48,76 @@ span#tempMessage {
     text-align: right;
     vertical-align: bottom;
     font-family: monospace;
+}
+div#menu {
+    position: absolute;
+    z-index: 2;
+    height: 20px;
+    width: 100%;
+    background-color: rgb(255, 255, 255);
+}
+
+div#menu ul
+{
+	list-style:none;
+	position:relative;
+	float:left;
+	margin:0;
+	padding:0
+}
+
+div#menu ul span, div#menu ul button {
+	color: #333;
+	text-decoration: none;
+	font-weight: 700;
+	font-size: 12px;
+	line-height: 32px;
+	padding: 0 15px;
+	font-family:"HelveticaNeue","Helvetica Neue",Helvetica,Arial,sans-serif
+}
+
+div#menu ul li {
+	position:relative;
+	float:left;
+	margin:0;
+	padding:0
+}
+button#pause {
+    display: none;
+}
+div#menu ul li:hover {
+	background: #f6f6f6 !important;
+}
+
+div#menu ul ul {
+	display: none;
+	position: absolute;
+	top: 100%;
+	left: 0;
+	background: rbg(255, 255, 255);
+	padding: 0;
+}
+
+div#menu ul ul li {
+	float:none;
+	width:300px;
+    z-index: 3;
+    background-color: rgb(255, 255, 255);
+}
+
+div#menu ul ul span, div#menu ul ul button {
+	line-height: 120%;
+	padding: 10px 15px;
+}
+
+div#menu ul ul ul {
+	top: 0;
+	left: 100%;
+}
+
+div#menu ul li:hover > ul {
+	display: block;
+}
+input {
+    max-width: 150px;
 }
