@@ -54,6 +54,7 @@ function registerGUIEvents() {
     addEvent("click", document.getElementById("toggleDynamicSpeed"), function () {
              IodineGUI.Iodine.toggleDynamicSpeed(this.checked);
     });
+    addEvent("click", document.getElementById("fullscreen"), toggleFullScreen);
     addEvent("change", document.getElementById("import"), function (e) {
              if (typeof this.files != "undefined") {
                 try {
