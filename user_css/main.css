@@ -54,8 +54,8 @@ div#menu {
     z-index: 2;
     width: 100%;
     min-width: 600px;
+    height: 0px;
 }
-
 div#menu ul {
 	list-style:none;
 	position:relative;
@@ -65,7 +65,6 @@ div#menu ul {
     width: 100%;
     background-color: rgb(255, 255, 255);
 }
-
 div#menu ul span, div#menu ul button {
 	color: #333;
 	text-decoration: none;
@@ -81,8 +80,11 @@ div#menu ul li {
 	margin:0;
 	padding:0
 }
-button#pause {
+button.hide {
     display: none;
+}
+button.show {
+    display: inline;
 }
 div#menu ul li:hover {
 	background: #f6f6f6 !important;

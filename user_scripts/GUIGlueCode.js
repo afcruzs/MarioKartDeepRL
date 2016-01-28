@@ -15,21 +15,21 @@ function registerGUIEvents() {
     addEvent("change", document.getElementById("bios_load"), fileLoadBIOS);
     addEvent("click", document.getElementById("play"), function (e) {
         IodineGUI.Iodine.play();
-        this.style.display = "none";
-        document.getElementById("pause").style.display = "inline";
+        this.className = "hide";
+        document.getElementById("pause").className = "show";
+        document.getElementById("menu").className = "playing";
         if (e.preventDefault) {
              e.preventDefault();
         }
-        document.getElementById("menu").className = "playing";
     });
     addEvent("click", document.getElementById("pause"), function (e) {
         IodineGUI.Iodine.pause();
-        this.style.display = "none";
-        document.getElementById("play").style.display = "inline";
+        this.className = "hide";
+        document.getElementById("play").className = "show";
+        document.getElementById("menu").className = "paused";
         if (e.preventDefault) {
              e.preventDefault();
         }
-        document.getElementById("menu").className = "paused";
     });
     addEvent("click", document.getElementById("restart"), function (e) {
         IodineGUI.Iodine.restart();
