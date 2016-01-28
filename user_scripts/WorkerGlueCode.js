@@ -65,8 +65,6 @@ IodineGBAWorkerShim.prototype.timerCallback = function (timestamp) {
         //Forward latest timestamp to worker:
         Atomics.store(this.timestamp, 0, timestamp >>> 0);
     }
-    //Run some checks for graphics:
-    this.graphicsHeartBeat();
 }
 IodineGBAWorkerShim.prototype.attachGraphicsFrameHandler = function (gfx) {
     this.gfx = gfx;
