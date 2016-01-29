@@ -193,7 +193,11 @@ GameBoyAdvanceEmulator.prototype.importSave = function () {
                                 convertedSave[index | 0] = save[index | 0] & 0xFF;
                             }
                             //We used to save this code wrong, fix the error in old saves:
-                            if ((saveType.length | 0) == 1) {
+                            if ((saveType.length | 0) != 1) {
+                                //0 is fallthrough "UNKNOWN" aka autodetect type:
+                                parentObj.IOCore.saves.importSave(convertedSave, 0);
+                            }
+                            else {
                                 parentObj.IOCore.saves.importSave(convertedSave, saveType[0] & 0xFF);
                             }
                             parentObj.emulatorStatus = parentObj.emulatorStatus | 0x4;
