@@ -66,7 +66,7 @@ div#menu ul {
     z-index: 2;
 }
 div#menu ul span, div#menu ul a {
-	color: #333;
+	color: rgb(50, 50, 50);
 	text-decoration: none;
 	font-weight: 700;
 	font-size: 12px;
@@ -85,7 +85,7 @@ div#menu ul li {
 	padding: 0;
 }
 div#menu ul li:hover {
-	background: #f6f6f6 !important;
+	background-color: rgb(240, 240, 240) !important;
 }
 div#menu ul li:hover > ul {
 	display: block;
@@ -103,7 +103,7 @@ div#menu ul ul {
 }
 div#menu ul ul li {
 	float: none;
-    min-width: 300px;
+    display: table-row;
     z-index: 3;
     background-color: rgb(255, 255, 255);
 }
@@ -122,4 +122,7 @@ div#menu.playing > ul {
 }
 div#menu input+span {
     padding-left: 30px;
+}
+.nowrap {
+    white-space: nowrap;
 }
