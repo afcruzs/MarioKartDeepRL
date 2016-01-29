@@ -1,6 +1,6 @@
 "use strict";
 /*
- Copyright (C) 2012-2015 Grant Galitz
+ Copyright (C) 2012-2016 Grant Galitz
 
  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -192,7 +192,10 @@ GameBoyAdvanceEmulator.prototype.importSave = function () {
                             for (var index = 0; (index | 0) < (length | 0); index = ((index | 0) + 1) | 0) {
                                 convertedSave[index | 0] = save[index | 0] & 0xFF;
                             }
-                            parentObj.IOCore.saves.importSave(convertedSave, saveType | 0);
+                            //We used to save this code wrong, fix the error in old saves:
+                            if ((saveType.length | 0) == 1) {
+                                parentObj.IOCore.saves.importSave(convertedSave, saveType[0] & 0xFF);
+                            }
                             parentObj.emulatorStatus = parentObj.emulatorStatus | 0x4;
                         }
                     }
@@ -206,10 +209,10 @@ GameBoyAdvanceEmulator.prototype.importSave = function () {
 GameBoyAdvanceEmulator.prototype.exportSave = function () {
     if (this.saveExportHandler && (this.emulatorStatus & 0x3) == 0x1) {
         var save = this.IOCore.saves.exportSave();
-        var saveType = this.IOCore.saves.exportSaveType();
-        if (save != null && saveType != null) {
+        var saveType = this.IOCore.saves.exportSaveType() | 0;
+        if (save != null) {
             this.saveExportHandler(this.IOCore.cartridge.name, save);
-            this.saveExportHandler("TYPE_" + this.IOCore.cartridge.name, saveType | 0);
+            this.saveExportHandler("TYPE_" + this.IOCore.cartridge.name, [saveType | 0]);
         }
     }
 }
