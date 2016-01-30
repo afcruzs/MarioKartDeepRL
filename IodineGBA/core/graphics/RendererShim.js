@@ -26,11 +26,20 @@
  }
  GameBoyAdvanceGraphicsRendererShim.prototype.initializeWorker = function (skippingBIOS) {
      skippingBIOS = !!skippingBIOS;
+     //Apparently running on localhost is nearly impossible for webworkers in a cross-browser manner:
      var loc = location.href;
-     loc = loc.split("/");
+     var loc = loc.split("/");
      loc = loc.slice(0, loc.length - 1).join("/");
-     loc += "/graphics/Worker.js";
-     this.worker = new Worker(loc);
+     try {
+         //Firefox:
+         var loc2 = loc + "/graphics/Worker.js";
+         this.worker = new Worker(loc2);
+     }
+     catch (e) {
+         //Google Chrome:
+         var loc3 = loc + "/IodineGBA/core/graphics/Worker.js";
+         this.worker = new Worker(loc3);
+     }
      this.worker.postMessage({
          messageID:1,
          skippingBIOS:!!skippingBIOS
