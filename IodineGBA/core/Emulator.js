@@ -30,7 +30,7 @@ function GameBoyAdvanceEmulator() {
     this.startCallbacks = [];                 //Some jobs to run at iteration head.
     this.endCallbacks = [];                   //Some jobs to run at iteration end.
     this.terminationCallbacks = [];           //Some jobs to run if the emulation core is killed.
-    this.timerIntervalRate = 4;               //How often the emulator core is called into (in milliseconds).
+    this.timerIntervalRate = 16;              //How often the emulator core is called into (in milliseconds).
     this.lastTimestamp = 0;                   //Track the last time given in milliseconds.
     this.dynamicSpeedRefresh = false;         //Whether speed is allowed to be changed dynamically in the current cycle.
     this.calculateTimings();                  //Calculate some multipliers against the core emulator timer.
@@ -51,10 +51,6 @@ GameBoyAdvanceEmulator.prototype.generateCoreExposed = function () {
         },
         appendTerminationSync:function (callback) {
             parentObj.terminationCallbacks.push(callback);
-        },
-        graphicsTimerAlterCallback:null,
-        getTimerIntervalRate:function () {
-            return parentObj.timerIntervalRate | 0;
         }
     }
 }
@@ -266,13 +262,7 @@ GameBoyAdvanceEmulator.prototype.setIntervalRate = function (intervalRate) {
         if ((intervalRate | 0) != (this.timerIntervalRate | 0)) {
             this.timerIntervalRate = intervalRate | 0;
             this.calculateTimings();
-            this.reinitializeGraphicsTimer();
         }
-    }
-}
-GameBoyAdvanceEmulator.prototype.reinitializeGraphicsTimer = function () {
-    if (typeof this.coreExposed.graphicsTimerAlterCallback == "function") {
-        this.coreExposed.graphicsTimerAlterCallback();
     }
 }
 GameBoyAdvanceEmulator.prototype.calculateSpeedPercentage = function () {
@@ -405,7 +395,7 @@ GameBoyAdvanceEmulator.prototype.audioUnderrunAdjustment = function () {
                         this.processNewSpeed(+speed);
                     }
                 }
-                this.CPUCyclesTotal = Math.min(((this.CPUCyclesTotal | 0) + ((underrunAmount >> 1) * (this.audioResamplerFirstPassFactor | 0))) | 0, (+this.clocksPerMilliSecond) << 5) | 0;
+                this.CPUCyclesTotal = Math.min(((this.CPUCyclesTotal | 0) + ((underrunAmount >> 1) * (this.audioResamplerFirstPassFactor | 0))) | 0, (+this.clocksPerMilliSecond) * 20) | 0;
             }
             else {
                 if (this.dynamicSpeedRefresh && this.settings.dynamicSpeed) {

@@ -23,8 +23,6 @@
      this.initializeBuffers();
      this.shareStaticBuffers();
      this.shareDynamicBuffers();
-     this.setTimerAlterCallback();
-     this.setRendererTimer();
  }
  GameBoyAdvanceGraphicsRendererShim.prototype.initializeWorker = function (skippingBIOS) {
      skippingBIOS = !!skippingBIOS;
@@ -34,7 +32,7 @@
      loc += "/graphics/Worker.js";
      this.worker = new Worker(loc);
      this.worker.postMessage({
-         messageID:2,
+         messageID:1,
          skippingBIOS:!!skippingBIOS
      });
  }
@@ -43,7 +41,7 @@
      this.gfxCommandBufferLength = 0x80000;
      this.gfxCommandBufferMask = ((this.gfxCommandBufferLength | 0) - 1) | 0;
      this.gfxCommandBuffer = getSharedInt32Array(this.gfxCommandBufferLength | 0);
-     this.gfxCommandCounters = getSharedInt32Array(2);
+     this.gfxCommandCounters = getSharedInt32Array(3);
      this.gfxLineCounter = getSharedInt32Array(1);
      this.start = 0;
      this.end = 0;
@@ -59,11 +57,13 @@
      this.paletteRAM32 = getInt32View(this.paletteRAM);
  }
  GameBoyAdvanceGraphicsRendererShim.prototype.increaseCommandBufferCapacity = function () {
+     //Tell the other thread to break for receiving the new buffer:
+     Atomics.store(this.gfxCommandCounters, 2, 1);
      //Double the size to the next power of 2:
      this.gfxCommandBufferLength = this.gfxCommandBufferLength << 1;
      this.gfxCommandBufferMask = ((this.gfxCommandBufferLength | 0) - 1) | 0;
      this.gfxCommandBuffer = getSharedInt32Array(this.gfxCommandBufferLength | 0);
-     this.gfxCommandCounters = getSharedInt32Array(2);
+     this.gfxCommandCounters = getSharedInt32Array(3);
      this.start = 0;
      this.end = 0;
      //Share our new buffers:
@@ -79,15 +79,13 @@
          parentObj.synchronizeWriter();
      });
      this.coreExposed.appendTerminationSync(function () {
-         //Remove a callback that relies on the worker existing:
-         parentObj.coreExposed.graphicsTimerAlterCallback = null;
          //Core instance being replaced, kill the worker thread:
          parentObj.worker.terminate();
      });
  }
 GameBoyAdvanceGraphicsRendererShim.prototype.shareStaticBuffers = function () {
      this.worker.postMessage({
-         messageID:1,
+         messageID:0,
          gfxBuffers:gfxBuffers,
          gfxCounters:gfxCounters,
          gfxLineCounter:this.gfxLineCounter
@@ -100,23 +98,13 @@ GameBoyAdvanceGraphicsRendererShim.prototype.shareStaticBuffers = function () {
 }
 GameBoyAdvanceGraphicsRendererShim.prototype.shareDynamicBuffers = function () {
      this.worker.postMessage({
-         messageID:3,
+         messageID:2,
          gfxCommandBuffer:this.gfxCommandBuffer,
          gfxCommandCounters:this.gfxCommandCounters
      }, [
          this.gfxCommandBuffer.buffer,
          this.gfxCommandCounters.buffer
      ]);
-}
- GameBoyAdvanceGraphicsRendererShim.prototype.setTimerAlterCallback = function () {
-      var parentObj = this;
-      this.coreExposed.graphicsTimerAlterCallback = function () {
-          var interval = parentObj.coreExposed.getTimerIntervalRate() | 0;
-          parentObj.worker.postMessage({messageID:0, timerInterval:interval | 0});
-      }
- }
-GameBoyAdvanceGraphicsRendererShim.prototype.setRendererTimer = function () {
-     this.coreExposed.graphicsTimerAlterCallback();
 }
 GameBoyAdvanceGraphicsRendererShim.prototype.pushCommand = function (command, data) {
     command = command | 0;
@@ -136,7 +124,7 @@ GameBoyAdvanceGraphicsRendererShim.prototype.blockIfCommandBufferFull = function
     if ((this.start | 0) == (((this.end | 0) - (this.gfxCommandBufferLength | 0)) | 0)) {
         //Give the reader our updated counter and tell it to run:
         this.synchronizeWriter();
-        //Increase buffer size & wait:
+        //Increase buffer size:
         this.increaseCommandBufferCapacity();
         //Reload reader counter value:
         this.synchronizeReader();

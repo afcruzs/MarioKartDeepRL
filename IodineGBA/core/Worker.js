@@ -47,7 +47,7 @@ var saveImportPool = [];
 //Graphics Buffers:
 var gfxBuffers = [getSharedUint8Array(160 * 240 * 3),
   getSharedUint8Array(160 * 240 * 3)];
-var gfxCounters = getSharedInt32Array(2);
+var gfxCounters = getSharedInt32Array(3);
 //Audio Buffers:
 var audioBuffer = null;
 var audioBufferSize = 0;

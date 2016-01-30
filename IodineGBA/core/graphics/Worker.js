@@ -34,16 +34,14 @@ self.onmessage = function (event) {
     var data = event.data;
     switch (data.messageID | 0) {
         case 0:
-            assignTimerInterval(data.timerInterval >> 1);
-            break;
-        case 1:
             assignStaticBuffers(data.gfxBuffers, data.gfxCounters, data.gfxLineCounter);
             break;
-        case 2:
+        case 1:
             initializeRenderer(!!data.skippingBIOS);
             break;
         default:
             assignDynamicBuffers(data.gfxCommandBuffer, data.gfxCommandCounters);
+            waitForVSync();
     }
 }
 var coreExposed = {
@@ -51,7 +49,7 @@ var coreExposed = {
         copyBuffer:function (swizzledFrame) {
             //Push a frame of graphics to the blitter handle:
             //Load the counter values:
-            var start = gfxCounters[0] | 0;                     //Written by the other thread.
+            var start = Atomics.load(gfxCounters, 0) | 0;       //Written by the other thread.
             var end = gfxCounters[1] | 0;                       //Written by this thread.
             //Check if buffer is full:
             if ((end | 0) == (((start | 0) + 2) | 0)) {
@@ -67,6 +65,17 @@ var coreExposed = {
         }
     }
 }
+function waitForVSync() {
+    //Only breaks if the buffer gets resized:
+    while ((Atomics.load(gfxCommandCounters, 2) | 0) == 0) {
+        //Process the current buffer:
+        processCommands();
+        //Main thread calls futexWake to unblock us here:
+        Atomics.futexWait(gfxCounters, 2, 0);
+    }
+    //Empty old buffer before getting a new buffer to refer to:
+    processCommands();
+}
 function initializeRenderer(skippingBIOS) {
     skippingBIOS = !!skippingBIOS;
     renderer = new GameBoyAdvanceGraphicsRenderer(coreExposed, !!skippingBIOS);
@@ -77,28 +86,16 @@ function assignStaticBuffers(gfxb, gfxc, cmdl) {
     gfxLineCounter = cmdl;
 }
 function assignDynamicBuffers(cmdb, cmdc) {
-    if (gfxCommandBuffer) {
-        processCommands();
-    }
     gfxCommandBuffer = cmdb;
     gfxCommandCounters = cmdc;
     var gfxCommandBufferLength = gfxCommandBuffer.length | 0;
     gfxCommandBufferMask = ((gfxCommandBufferLength | 0) - 1) | 0;
 }
-function assignTimerInterval(timerInterval) {
-    timerInterval = timerInterval | 0;
-    //Clear any previous timer:
-    if (timerHandle) {
-        clearInterval(timerHandle);
-    }
-    //Set our new timer:
-    timerHandle = setInterval(processCommands, timerInterval | 0);
-}
 function processCommands() {
     //Load the counter values:
     var start = gfxCommandCounters[0] | 0;              //Written by this thread.
     var end = Atomics.load(gfxCommandCounters, 1) | 0;  //Written by the other thread.
-    gfxLinesCPU = Atomics.load(this.gfxLineCounter, 0) | 0;
+    gfxLinesCPU = Atomics.load(gfxLineCounter, 0) | 0;  //Keep atomic; IonMonkey thinks this is dead code if it's removed.
     //Don't process if nothing to process:
     if ((end | 0) == (start | 0)) {
         //Buffer is empty:
@@ -572,7 +569,7 @@ function decodeInternalCommand(data) {
     switch (data | 0) {
         case 0:
             //Check to see if we need to skip rendering to catch up:
-            if ((((gfxLinesCPU | 0) - (gfxLinesGPU | 0)) | 0) < 320) {
+            if ((((gfxLinesCPU | 0) - (gfxLinesGPU | 0)) | 0) < 480) {
                 //Render a scanline:
                 renderer.renderScanLine();
             }
@@ -587,7 +584,7 @@ function decodeInternalCommand(data) {
             break;
         default:
             //Check to see if we need to skip rendering to catch up:
-            if ((((gfxLinesCPU | 0) - (gfxLinesGPU | 0)) | 0) < 320) {
+            if ((((gfxLinesCPU | 0) - (gfxLinesGPU | 0)) | 0) < 480) {
                 //Push out a frame of graphics:
                 renderer.prepareFrame();
             }
