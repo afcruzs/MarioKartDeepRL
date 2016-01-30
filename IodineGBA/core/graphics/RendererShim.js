@@ -109,8 +109,8 @@ GameBoyAdvanceGraphicsRendererShim.prototype.shareDynamicBuffers = function () {
 GameBoyAdvanceGraphicsRendererShim.prototype.pushCommand = function (command, data) {
     command = command | 0;
     data = data | 0;
-    //Block while full:
-    this.blockIfCommandBufferFull();
+    //Check if buffer is full:
+    this.checkCommandBufferFull();
     //Get the write offset into the ring buffer:
     var endCorrected = this.end & this.gfxCommandBufferMask;
     //Push command into buffer:
@@ -120,7 +120,7 @@ GameBoyAdvanceGraphicsRendererShim.prototype.pushCommand = function (command, da
     //Update the cross thread buffering count:
     this.end = ((this.end | 0) + 2) | 0;
 }
-GameBoyAdvanceGraphicsRendererShim.prototype.blockIfCommandBufferFull = function () {
+GameBoyAdvanceGraphicsRendererShim.prototype.checkCommandBufferFull = function () {
     if ((this.start | 0) == (((this.end | 0) - (this.gfxCommandBufferLength | 0)) | 0)) {
         //Give the reader our updated counter and tell it to run:
         this.synchronizeWriter();
