@@ -31,7 +31,7 @@
      var loc = loc.split("/");
      loc = loc.slice(0, loc.length - 1).join("/");
      try {
-         if (typeof WorkerGlobalScope === 'undefined' || self instanceof WorkerGlobalScope) {
+         if (typeof WorkerGlobalScope === 'undefined' || !(self instanceof WorkerGlobalScope)) {
              //Use the catch block:
              throw null;
          }
