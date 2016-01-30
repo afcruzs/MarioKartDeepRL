@@ -67,9 +67,16 @@ function registerIodineHandler() {
         if (typeof SharedArrayBuffer != "function" || typeof Atomics != "object") {
             throw null;
         }
-        //Try starting Iodine in a webworker:
-        IodineGUI.Iodine = new IodineGBAWorkerShim();
-        addEvent("beforeunload", window, registerBeforeUnloadHandler);
+        else if (navigator.userAgent.indexOf('AppleWebKit') != -1) {
+            //Try starting Iodine normally, but initialize offthread gfx:
+            IodineGUI.Iodine = new IodineGBAWorkerGfxShim();
+        }
+        else {
+            //Try starting Iodine in a webworker:
+            IodineGUI.Iodine = new IodineGBAWorkerShim();
+            //In order for save on page unload, this needs to be done:
+            addEvent("beforeunload", window, registerBeforeUnloadHandler);
+        }
     }
     catch (e) {
         //Otherwise just run on-thread:
@@ -83,7 +90,6 @@ function registerBeforeUnloadHandler(e) {
     if (e.preventDefault) {
         e.preventDefault();
     }
-    removeEvent("beforeunload", window, registerBeforeUnloadHandler);
     return "IodineGBA needs to process your save data, leaving now may result in not saving current data.";
 }
 function registerTimerHandler() {
