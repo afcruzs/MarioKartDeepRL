@@ -31,6 +31,10 @@
      var loc = loc.split("/");
      loc = loc.slice(0, loc.length - 1).join("/");
      try {
+         if (typeof WorkerGlobalScope === 'undefined' || self instanceof WorkerGlobalScope) {
+             //Use the catch block:
+             throw null;
+         }
          //Firefox:
          var loc2 = loc + "/graphics/Worker.js";
          this.worker = new Worker(loc2);

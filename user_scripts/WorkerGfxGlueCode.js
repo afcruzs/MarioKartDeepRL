@@ -16,7 +16,6 @@ function IodineGBAWorkerGfxShim() {
       getSharedUint8Array(160 * 240 * 3)];
     gfxCounters = getSharedInt32Array(3);
     this.Iodine = new GameBoyAdvanceEmulator();
-    this.initialize();
 }
 IodineGBAWorkerGfxShim.prototype.play = function () {
     this.Iodine.play();
