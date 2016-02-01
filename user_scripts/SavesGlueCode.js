@@ -10,7 +10,7 @@
  */
 function ImportSaveCallback(name, callbackFunc, callbackFuncNoSave) {
     try {
-        var save = findValue("SAVE_" + name);
+        var save = findValue(name);
         if (save != null) {
             writeRedTemporaryText("Loaded save.");
             callbackFunc(base64ToArray(save));
@@ -28,7 +28,7 @@ function ExportSave() {
 function ExportSaveCallback(name, save) {
     if (name != "") {
         try {
-            setValue("SAVE_" + name, arrayToBase64(save));
+            setValue(name, arrayToBase64(save));
         }
         catch (error) {
             writeRedTemporaryText("Could not store save: " + error.message);
@@ -44,12 +44,14 @@ function import_save(blobData) {
     if (blobData && blobData.blobs) {
         if (blobData.blobs.length > 0) {
             for (var index = 0; index < blobData.blobs.length; ++index) {
-                writeRedTemporaryText("Importing blob \"" + blobData.blobs[index].blobID + "\"");
-                if (blobData.blobs[index].blobContent) {
-                    setValue(blobData.blobs[index].blobID, blobData.blobs[index].blobContent);
+                var blobID = blobData.blobs[index].blobID;
+                var blobContent = blobData.blobs[index].blobContent;
+                writeRedTemporaryText("Importing blob \"" + blobID + "\"");
+                if (blobContent) {
+                    setValue(blobID, blobContent);
                 }
-                else if (blobData.blobs[index].blobID) {
-                    writeRedTemporaryText("Save file imported had blob \"" + blobData.blobs[index].blobID + "\" with no blob data interpretable.");
+                else if (blobID) {
+                    writeRedTemporaryText("Save file imported had blob \"" + blobID + "\" with no blob data interpretable.");
                 }
                 else {
                     writeRedTemporaryText("Blob chunk information missing completely.");
@@ -121,7 +123,7 @@ function decodeBlob(blobData) {
      - 1 byte blob ID length
      - blob ID text (Used to say what the data is (SRAM/freeze state/etc...))
      - 4 byte blob length
-     - blob length of 32 bit size
+     - blob of 32 bit length size
      }
      */
     var length = blobData.length;
@@ -196,8 +198,8 @@ function getLocalStorageKeys() {
     while (index < storageLength) {
         nextKey = findKey(index++);
         if (nextKey !== null && nextKey.length > 0) {
-            if (nextKey.substring(0,5) == "SAVE_") {
-                keysFound.push(nextKey);
+            if (nextKey.substring(0,9) == "GBA_SAVE_") {
+                keysFound.push(nextKey.substring(9));
             }
         }
         else {
@@ -227,6 +229,7 @@ function to_byte(str) {
 }
 //Wrapper for localStorage getItem, so that data can be retrieved in various types.
 function findValue(key) {
+    key = "GBA_SAVE_" + key;
     try {
         if (window.localStorage.getItem(key) != null) {
             return JSON.parse(window.localStorage.getItem(key));
@@ -242,6 +245,7 @@ function findValue(key) {
 }
 //Wrapper for localStorage setItem, so that data can be set in various types.
 function setValue(key, value) {
+    key = "GBA_SAVE_" + key;
     try {
         window.localStorage.setItem(key, JSON.stringify(value));
     }
@@ -252,6 +256,7 @@ function setValue(key, value) {
 }
 //Wrapper for localStorage removeItem, so that data can be set in various types.
 function deleteValue(key) {
+    key = "GBA_SAVE_" + key;
     try {
         window.localStorage.removeItem(key);
     }
