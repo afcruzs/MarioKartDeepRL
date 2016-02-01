@@ -234,11 +234,11 @@ function addExistingSaveItem(menu, key) {
     menu.appendChild(listItem);
 }
 function decodeKeyType(key) {
-    if (key.substring(0, 15) == "SAVE_TYPE_GUID_") {
-        return "Game \"" + key.substring(15) + "\" Type Code";
+    if (key.substring(0, 10) == "TYPE_GUID_") {
+        return "Game \"" + key.substring(10) + "\" Type Code";
     }
-    else if (key.substring(0, 10) == "SAVE_GUID_") {
-        return "Game \"" + key.substring(10) + "\" Cartridge Data";
+    else if (key.substring(0, 5) == "GUID_") {
+        return "Game \"" + key.substring(5) + "\" Cartridge Data";
     }
     return key;
 }
