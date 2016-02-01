@@ -218,7 +218,7 @@ function addExistingSaveItem(menu, key) {
     submenuItem2.className = "nowrap";
     var link1 = document.createElement("a");
     link1.href = "data:application/octet-stream;base64," + base64(generateBlob(key, findValue(key)));
-    link1.download = "gameboy_advance_saves_" + ((new Date()).getTime()) + ".export";
+    link1.download = key + "_" + ((new Date()).getTime()) + ".export";
     link1.textContent = "Download as import compatible";
     submenuItem2.appendChild(link1);
     submenu.appendChild(submenuItem2);
@@ -226,7 +226,7 @@ function addExistingSaveItem(menu, key) {
     submenuItem3.className = "nowrap";
     var link2 = document.createElement("a");
     link2.href = "data:application/octet-stream;base64," + base64(findValue(key));
-    link2.download = "gameboy_advance_saves_" + ((new Date()).getTime()) + ".sav";
+    link2.download = key + "_" + ((new Date()).getTime()) + ".sav";
     link2.textContent = "Download as raw binary";
     submenuItem3.appendChild(link2);
     submenu.appendChild(submenuItem3);
