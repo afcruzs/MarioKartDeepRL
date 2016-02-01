@@ -46,7 +46,7 @@ function import_save(blobData) {
             for (var index = 0; index < blobData.blobs.length; ++index) {
                 writeRedTemporaryText("Importing blob \"" + blobData.blobs[index].blobID + "\"");
                 if (blobData.blobs[index].blobContent) {
-                    setValue(blobData.blobs[index].blobID, JSON.parse(blobData.blobs[index].blobContent));
+                    setValue(blobData.blobs[index].blobID, blobData.blobs[index].blobContent);
                 }
                 else if (blobData.blobs[index].blobID) {
                     writeRedTemporaryText("Save file imported had blob \"" + blobData.blobs[index].blobID + "\" with no blob data interpretable.");
@@ -171,11 +171,10 @@ function decodeBlob(blobData) {
     return blobProperties;
 }
 function refreshStorageListing() {
-    ExportSave();
     var keys = getLocalStorageKeys();
     var blobPairs = [];
     for (var index = 0; index < keys.length; ++index) {
-        blobPairs[index] = [keys[index], JSON.stringify(findValue(keys[index]))];
+        blobPairs[index] = [keys[index], findValue(keys[index])];
     }
     this.href = "data:application/octet-stream;base64," + base64(generateMultiBlob(blobPairs));
     this.download = "gameboy_advance_saves_" + ((new Date()).getTime()) + ".export";
