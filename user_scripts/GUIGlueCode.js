@@ -116,6 +116,7 @@ function registerGUIEvents() {
     addEvent("change", document.getElementById("volume"), volChangeFunc);
     addEvent("input", document.getElementById("volume"), volChangeFunc);
     addEvent("resize", window, resizeCanvasFunc);
+    addEvent("mouseover", document.getElementById("saves_menu"), rebuildSavesMenu);
     //Run on init as well:
     resizeCanvasFunc();
 }
@@ -178,7 +179,88 @@ function resizeCanvasFunc() {
         canvas.style.height = height + "px";
     }
 }
+function rebuildSavesMenu(e) {
+    if (didNotEnter(document.getElementById("saves_menu_container"), e)) {
+        ExportSave();
+        rebuildExistingSaves();
+        if (e.preventDefault) {
+           e.preventDefault();
+        }
+    }
+}
+function rebuildExistingSaves() {
+    var menu = document.getElementById("existing_saves_list");
+    ExportSave();
+    removeChildNodes(menu);
+    var keys = getLocalStorageKeys();
+    while (keys.length > 0) {
+        addExistingSaveItem(menu, keys.shift());
+    }
+}
+function addExistingSaveItem(menu, key) {
+    var listItem = document.createElement("li");
+    listItem.className = "nowrap";
+    var spanItem = document.createElement("span");
+    spanItem.textContent = decodeKeyType(key);
+    listItem.appendChild(spanItem);
+    var submenu = document.createElement("ul");
+    var submenuItem = document.createElement("li");
+    submenuItem.className = "nowrap";
+    addEvent("click", submenuItem, function () {
+        deleteValue(key);
+        rebuildExistingSaves();
+    });
+    var submenuSpan = document.createElement("span");
+    submenuSpan.textContent = "Delete";
+    submenuItem.appendChild(submenuSpan);
+    submenu.appendChild(submenuItem);
+    var submenuItem2 = document.createElement("li");
+    submenuItem2.className = "nowrap";
+    var link1 = document.createElement("a");
+    link1.href = "data:application/octet-stream;base64," + base64(generateBlob(key, findValue(key)));
+    link1.download = "gameboy_advance_saves_" + ((new Date()).getTime()) + ".export";
+    link1.textContent = "Download as import compatible";
+    submenuItem2.appendChild(link1);
+    submenu.appendChild(submenuItem2);
+    var submenuItem3 = document.createElement("li");
+    submenuItem3.className = "nowrap";
+    var link2 = document.createElement("a");
+    link2.href = "data:application/octet-stream;base64," + base64(findValue(key));
+    link2.download = "gameboy_advance_saves_" + ((new Date()).getTime()) + ".sav";
+    link2.textContent = "Download as raw binary";
+    submenuItem3.appendChild(link2);
+    submenu.appendChild(submenuItem3);
+    listItem.appendChild(submenu);
+    menu.appendChild(listItem);
+}
+function decodeKeyType(key) {
+    if (key.substring(0, 15) == "SAVE_TYPE_GUID_") {
+        return "Game \"" + key.substring(15) + "\" Type Code";
+    }
+    else if (key.substring(0, 10) == "SAVE_GUID_") {
+        return "Game \"" + key.substring(10) + "\" Cartridge Data";
+    }
+    return key;
+}
 //Some wrappers and extensions for non-DOM3 browsers:
+function removeChildNodes(node) {
+    while (node.firstChild) {
+        node.removeChild(node.firstChild);
+    }
+}
+function didNotEnter(oElement, event) {
+    var target = (typeof event.target != "undefined") ? event.target : event.srcElement;
+    while (target) {
+        if (isSameNode(target, oElement)) {
+            return false;
+        }
+        target = target.parentElement;
+    }
+	return true;
+}
+function isSameNode(oCheck1, oCheck2) {
+	return (typeof oCheck1.isSameNode == "function") ? oCheck1.isSameNode(oCheck2) : (oCheck1 === oCheck2);
+}
 function addEvent(sEvent, oElement, fListener) {
     try {
         oElement.addEventListener(sEvent, fListener, false);
