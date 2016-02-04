@@ -13,7 +13,13 @@
          return new GameBoyAdvanceGraphicsRenderer(coreExposed, skippingBIOS);
      }
      else {
-         return new GameBoyAdvanceGraphicsRendererShim(coreExposed, skippingBIOS);
+		 try {
+			 //Some browsers don't allow webworkers via file:///
+			 return new GameBoyAdvanceGraphicsRendererShim(coreExposed, skippingBIOS);
+		 }
+		 catch (error) {
+			 return new GameBoyAdvanceGraphicsRenderer(coreExposed, skippingBIOS);
+		 }
      }
  }
  function GameBoyAdvanceGraphicsRendererShim(coreExposed, skippingBIOS) {
