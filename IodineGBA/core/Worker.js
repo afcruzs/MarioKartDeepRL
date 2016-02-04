@@ -62,7 +62,12 @@ self.onmessage = function (event) {
     var data = event.data;
     switch (data.messageID | 0) {
         case 0:
-            Iodine.play();
+			try {
+				Iodine.play();
+			}
+            catch (e) {
+				postMessage({messageID:9});
+			}
             break;
         case 1:
             Iodine.pause();
