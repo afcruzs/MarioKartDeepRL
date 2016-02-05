@@ -139,7 +139,7 @@ GameBoyAdvanceGraphicsRenderer.prototype.requestDraw = function () {
         this.coreExposed.graphicsHandle.copyBuffer(this.swizzledFrame);
     }
 }
-if (typeof SharedArrayBuffer == "function" && typeof Atomics == "object") {
+if (typeof SharedArrayBuffer == "function" && typeof Atomics == "object" && typeof WorkerGlobalScope != 'undefined' && self instanceof WorkerGlobalScope) {
     GameBoyAdvanceGraphicsRenderer.prototype.graphicsJIT = function () {}
 }
 else {

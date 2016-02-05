@@ -13,7 +13,7 @@
          return new GameBoyAdvanceGraphicsRenderer(coreExposed, skippingBIOS);
      }
      else {
-		 try {
+         try {
 			 //Some browsers don't allow webworkers via file:///
 			 return new GameBoyAdvanceGraphicsRendererShim(coreExposed, skippingBIOS);
 		 }
