@@ -74,8 +74,8 @@ function registerIodineHandler() {
         else {
             //Try starting Iodine in a webworker:
             IodineGUI.Iodine = new IodineGBAWorkerShim();
-			//Have to manually capture the error if CPU thread is in a webworker:
-			IodineGUI.Iodine.attachPlayErrorHandler(resetPlayButton);
+            //Have to manually capture the error if CPU thread is in a webworker:
+            IodineGUI.Iodine.attachPlayErrorHandler(resetPlayButton);
             //In order for save on page unload, this needs to be done:
             addEvent("beforeunload", window, registerBeforeUnloadHandler);
         }
