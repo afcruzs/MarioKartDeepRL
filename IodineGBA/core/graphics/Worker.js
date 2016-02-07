@@ -44,26 +44,22 @@ self.onmessage = function (event) {
             waitForVSync();
     }
 }
-var coreExposed = {
-    graphicsHandle:{
-        copyBuffer:function (swizzledFrame) {
-            //Push a frame of graphics to the blitter handle:
-            //Load the counter values:
-            var start = Atomics.load(gfxCounters, 0) | 0;       //Written by the other thread.
-            var end = gfxCounters[1] | 0;                       //Written by this thread.
-            //Check if buffer is full:
-            if ((end | 0) == (((start | 0) + 2) | 0)) {
-                //Skip copying a frame out:
-                return;
-            }
-            //Copy samples into the ring buffer:
-            //Hardcoded for 2 buffers for a triple buffer effect:
-            gfxBuffers[end & 0x1].set(swizzledFrame);
-            //Increment the ending position counter by 1:
-            //Atomic to commit the counter to memory:
-            Atomics.store(gfxCounters, 1, ((end | 0) + 1) | 0);
-        }
+function copyBuffer(swizzledFrame) {
+    //Push a frame of graphics to the blitter handle:
+    //Load the counter values:
+    var start = Atomics.load(gfxCounters, 0) | 0;       //Written by the other thread.
+    var end = gfxCounters[1] | 0;                       //Written by this thread.
+    //Check if buffer is full:
+    if ((end | 0) == (((start | 0) + 2) | 0)) {
+        //Skip copying a frame out:
+        return;
     }
+    //Copy samples into the ring buffer:
+    //Hardcoded for 2 buffers for a triple buffer effect:
+    gfxBuffers[end & 0x1].set(swizzledFrame);
+    //Increment the ending position counter by 1:
+    //Atomic to commit the counter to memory:
+    Atomics.store(gfxCounters, 1, ((end | 0) + 1) | 0);
 }
 function waitForVSync() {
     //Only breaks if the buffer gets resized:
@@ -78,7 +74,7 @@ function waitForVSync() {
 }
 function initializeRenderer(skippingBIOS) {
     skippingBIOS = !!skippingBIOS;
-    renderer = new GameBoyAdvanceGraphicsRenderer(coreExposed, !!skippingBIOS);
+    renderer = new GameBoyAdvanceGraphicsRendererOffthread(!!skippingBIOS);
 }
 function assignStaticBuffers(gfxb, gfxc, cmdl) {
     gfxBuffers = gfxb;
