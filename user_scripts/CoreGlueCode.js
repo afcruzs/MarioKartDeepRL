@@ -67,7 +67,7 @@ function registerIodineHandler() {
         if (typeof SharedArrayBuffer != "function" || typeof Atomics != "object") {
             throw null;
         }
-        else if (navigator.userAgent.indexOf('AppleWebKit') != -1) {
+        else if (findValue("onthread-cpu") || (findValue("onthread-cpu") === null && navigator.userAgent.indexOf('AppleWebKit') != -1)) {
             //Try starting Iodine normally, but initialize offthread gfx:
             IodineGUI.Iodine = new IodineGBAWorkerGfxShim();
         }

@@ -47,6 +47,9 @@ function registerGUIEvents() {
     addEvent("click", document.getElementById("toggleDynamicSpeed"), function () {
              IodineGUI.Iodine.toggleDynamicSpeed(this.checked);
     });
+    addEvent("click", document.getElementById("onthread-cpu"), function () {
+             setValue("onthread-cpu", this.checked);
+    });
     addEvent("click", document.getElementById("speedup"), function () {
              IodineGUI.Iodine.incrementSpeed(0.05);
     });
@@ -140,6 +143,12 @@ function registerGUISettings() {
     IodineGUI.Blitter.setSmoothScaling(IodineGUI.defaults.toggleSmoothScaling);
     document.getElementById("toggleDynamicSpeed").checked = IodineGUI.defaults.toggleDynamicSpeed;
     IodineGUI.Iodine.toggleDynamicSpeed(IodineGUI.defaults.toggleDynamicSpeed);
+    if (findValue("onthread-cpu") === null) {
+        document.getElementById("onthread-cpu").checked = (navigator.userAgent.indexOf('AppleWebKit') != -1);
+    }
+    else {
+        document.getElementById("onthread-cpu").checked = !!findValue("onthread-cpu");
+    }
 }
 function resetPlayButton() {
     document.getElementById("pause").className = "hide";
