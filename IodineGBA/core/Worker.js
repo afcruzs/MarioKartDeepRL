@@ -143,6 +143,9 @@ self.onmessage = function (event) {
             break;
         case 21:
             processSaveImportFail();
+            break;
+        case 22:
+            Iodine.toggleOffthreadGraphics(!!data.payload);
     }
 }
 var graphicsFrameHandler = {
