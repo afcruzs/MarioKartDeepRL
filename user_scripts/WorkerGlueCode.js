@@ -105,6 +105,10 @@ IodineGBAWorkerShim.prototype.toggleDynamicSpeed = function (doEnable) {
     doEnable = doEnable | 0;
     this.sendMessageDouble(9, doEnable | 0);
 }
+IodineGBAWorkerShim.prototype.toggleOffthreadGraphics = function (doEnable) {
+    doEnable = doEnable | 0;
+    this.sendMessageDouble(22, doEnable | 0);
+}
 IodineGBAWorkerShim.prototype.attachSpeedHandler = function (speed) {
     this.speed = speed;
     this.sendMessageSingle(10);

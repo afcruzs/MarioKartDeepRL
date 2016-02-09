@@ -17,7 +17,8 @@ function GameBoyAdvanceEmulator() {
         emulatorSpeed:1.0,                //Speed multiplier of the emulator.
         metricCollectionMinimum:500,      //How many milliseconds of cycling to count before determining speed.
         dynamicSpeed:false,               //Whether to actively change the target speed for best user experience.
-        overclockBlockLimit:200           //Whether to throttle clocks in audio adjustment.
+        overclockBlockLimit:200,          //Whether to throttle clocks in audio adjustment.
+        offthreadGfxEnabled:true          //Whether to allow offthread graphics rendering if support is present.
     };
     this.audioFound = 0;                      //Do we have audio output sink found yet?
     this.emulatorStatus = 0x10;               //{paused, saves loaded, fault found, loaded}
@@ -51,6 +52,9 @@ GameBoyAdvanceEmulator.prototype.generateCoreExposed = function () {
         },
         appendTerminationSync:function (callback) {
             parentObj.terminationCallbacks.push(callback);
+        },
+        offthreadGfxEnabled:function () {
+            return !!parentObj.settings.offthreadGfxEnabled;
         }
     }
 }
@@ -431,4 +435,7 @@ GameBoyAdvanceEmulator.prototype.toggleSkipBootROM = function (SKIPBoot) {
 GameBoyAdvanceEmulator.prototype.toggleDynamicSpeed = function (dynamicSpeed) {
     this.settings.dynamicSpeed = !!dynamicSpeed;
     this.processNewSpeed(1);
+}
+GameBoyAdvanceEmulator.prototype.toggleOffthreadGraphics = function (offthreadGfxEnabled) {
+    this.settings.offthreadGfxEnabled = !!offthreadGfxEnabled;
 }

@@ -59,6 +59,10 @@ IodineGBAWorkerGfxShim.prototype.toggleDynamicSpeed = function (doEnable) {
     doEnable = doEnable | 0;
     this.Iodine.toggleDynamicSpeed(doEnable | 0);
 }
+IodineGBAWorkerGfxShim.prototype.toggleOffthreadGraphics = function (doEnable) {
+    doEnable = doEnable | 0;
+    this.Iodine.toggleOffthreadGraphics(doEnable | 0);
+}
 IodineGBAWorkerGfxShim.prototype.attachSpeedHandler = function (speed) {
     this.speed = speed;
     this.Iodine.attachSpeedHandler(speed);

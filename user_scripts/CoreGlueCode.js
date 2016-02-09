@@ -20,6 +20,7 @@ var IodineGUI = {
         skipBoot:false,
         toggleSmoothScaling:true,
         toggleDynamicSpeed:false,
+        toggleOffthreadGraphics:true,
         keyZones:[
             //Use this to control the key mapping:
             //A:

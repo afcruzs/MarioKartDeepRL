@@ -47,6 +47,9 @@ function registerGUIEvents() {
     addEvent("click", document.getElementById("toggleDynamicSpeed"), function () {
              IodineGUI.Iodine.toggleDynamicSpeed(this.checked);
     });
+    addEvent("click", document.getElementById("offthread-gpu"), function () {
+             IodineGUI.Iodine.toggleOffthreadGraphics(this.checked);
+    });
     addEvent("click", document.getElementById("onthread-cpu"), function () {
              setValue("onthread-cpu", this.checked);
     });
@@ -143,6 +146,8 @@ function registerGUISettings() {
     IodineGUI.Blitter.setSmoothScaling(IodineGUI.defaults.toggleSmoothScaling);
     document.getElementById("toggleDynamicSpeed").checked = IodineGUI.defaults.toggleDynamicSpeed;
     IodineGUI.Iodine.toggleDynamicSpeed(IodineGUI.defaults.toggleDynamicSpeed);
+    document.getElementById("offthread-gpu").checked = IodineGUI.defaults.toggleOffthreadGraphics;
+    IodineGUI.Iodine.toggleOffthreadGraphics(IodineGUI.defaults.toggleOffthreadGraphics);
     if (findValue("onthread-cpu") === null) {
         document.getElementById("onthread-cpu").checked = (navigator.userAgent.indexOf('AppleWebKit') != -1);
     }
