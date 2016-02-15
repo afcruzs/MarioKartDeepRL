@@ -124,6 +124,7 @@ function decodeBlob(blobData) {
      - blob ID text (Used to say what the data is (SRAM/freeze state/etc...))
      - 4 byte blob length
      - blob of 32 bit length size
+        - Blob itself is encoded in base64.
      }
      */
     var length = blobData.length;
