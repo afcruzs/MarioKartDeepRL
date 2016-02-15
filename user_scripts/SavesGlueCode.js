@@ -10,7 +10,7 @@
  */
 function ImportSaveCallback(name, callbackFunc, callbackFuncNoSave) {
     try {
-        var save = findValue(name);
+        var save = findValue("SAVE_" + name);
         if (save != null) {
             writeRedTemporaryText("Loaded save.");
             callbackFunc(base64ToArray(save));
@@ -28,7 +28,7 @@ function ExportSave() {
 function ExportSaveCallback(name, save) {
     if (name != "") {
         try {
-            setValue(name, arrayToBase64(save));
+            setValue("SAVE_" + name, arrayToBase64(save));
         }
         catch (error) {
             writeRedTemporaryText("Could not store save: " + error.message);
@@ -173,7 +173,7 @@ function decodeBlob(blobData) {
     return blobProperties;
 }
 function refreshStorageListing() {
-    var keys = getLocalStorageKeys();
+    var keys = getSavesKeys();
     var blobPairs = [];
     for (var index = 0; index < keys.length; ++index) {
         blobPairs[index] = [keys[index], findValue(keys[index])];
@@ -190,7 +190,7 @@ function checkStorageLength() {
         return window.globalStorage[location.hostname].length;
     }
 }
-function getLocalStorageKeys() {
+function getSavesKeys() {
     var storageLength = checkStorageLength();
     var keysFound = [];
     var index = 0;
@@ -198,8 +198,8 @@ function getLocalStorageKeys() {
     while (index < storageLength) {
         nextKey = findKey(index++);
         if (nextKey !== null && nextKey.length > 0) {
-            if (nextKey.substring(0,9) == "GBA_SAVE_") {
-                keysFound.push(nextKey.substring(9));
+            if (nextKey.substring(0, 15) == "IodineGBA_SAVE_") {
+                keysFound.push(nextKey.substring(10));
             }
         }
         else {
@@ -229,7 +229,7 @@ function to_byte(str) {
 }
 //Wrapper for localStorage getItem, so that data can be retrieved in various types.
 function findValue(key) {
-    key = "GBA_SAVE_" + key;
+    key = "IodineGBA_" + key;
     try {
         if (window.localStorage.getItem(key) != null) {
             return JSON.parse(window.localStorage.getItem(key));
@@ -245,7 +245,7 @@ function findValue(key) {
 }
 //Wrapper for localStorage setItem, so that data can be set in various types.
 function setValue(key, value) {
-    key = "GBA_SAVE_" + key;
+    key = "IodineGBA_" + key;
     try {
         window.localStorage.setItem(key, JSON.stringify(value));
     }
@@ -256,7 +256,7 @@ function setValue(key, value) {
 }
 //Wrapper for localStorage removeItem, so that data can be set in various types.
 function deleteValue(key) {
-    key = "GBA_SAVE_" + key;
+    key = "IodineGBA_" + key;
     try {
         window.localStorage.removeItem(key);
     }

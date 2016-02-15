@@ -21,6 +21,7 @@ var IodineGUI = {
         toggleSmoothScaling:true,
         toggleDynamicSpeed:false,
         toggleOffthreadGraphics:true,
+        toggleOffthreadCPU:(navigator.userAgent.indexOf('AppleWebKit') == -1),
         keyZones:[
             //Use this to control the key mapping:
             //A:
@@ -47,6 +48,8 @@ var IodineGUI = {
     }
 };
 window.onload = function () {
+    //Populate settings:
+    registerDefaultSettings();
     //Initialize Iodine:
     registerIodineHandler();
     //Initialize the timer:
@@ -64,11 +67,14 @@ window.onload = function () {
 }
 function registerIodineHandler() {
     try {
-        //Will run like shit if missing some of this for the webworker copy:
+        /*
+        We utilize SharedArrayBuffer and Atomics API,
+        which browsers prior to 2016 do not support:
+        */
         if (typeof SharedArrayBuffer != "function" || typeof Atomics != "object") {
             throw null;
         }
-        else if (findValue("onthread-cpu") || (findValue("onthread-cpu") === null && navigator.userAgent.indexOf('AppleWebKit') != -1)) {
+        else if (!IodineGUI.defaults.toggleOffthreadCPU) {
             //Try starting Iodine normally, but initialize offthread gfx:
             IodineGUI.Iodine = new IodineGBAWorkerGfxShim();
         }
