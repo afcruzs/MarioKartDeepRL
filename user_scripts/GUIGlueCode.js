@@ -29,6 +29,7 @@ function registerGUIEvents() {
         IodineGUI.Iodine.restart();
     });
     addEvent("click", document.getElementById("sound"), function () {
+        setValue("sound", !!this.checked);
         if (this.checked) {
             IodineGUI.Iodine.enableAudio();
         }
@@ -37,30 +38,35 @@ function registerGUIEvents() {
         }
     });
     addEvent("click", document.getElementById("skip_boot"), function () {
-             IodineGUI.Iodine.toggleSkipBootROM(this.checked);
+        setValue("sound", !!this.checked);
+        IodineGUI.Iodine.toggleSkipBootROM(this.checked);
     });
     addEvent("click", document.getElementById("toggleSmoothScaling"), function () {
-             if (IodineGUI.Blitter) {
-                IodineGUI.Blitter.setSmoothScaling(this.checked);
-             }
+        setValue("toggleSmoothScaling", !!this.checked);
+        if (IodineGUI.Blitter) {
+            IodineGUI.Blitter.setSmoothScaling(this.checked);
+        }
     });
     addEvent("click", document.getElementById("toggleDynamicSpeed"), function () {
-             IodineGUI.Iodine.toggleDynamicSpeed(this.checked);
+        setValue("toggleDynamicSpeed", !!this.checked);
+        IodineGUI.Iodine.toggleDynamicSpeed(this.checked);
     });
     addEvent("click", document.getElementById("offthread-gpu"), function () {
-             IodineGUI.Iodine.toggleOffthreadGraphics(this.checked);
+        setValue("toggleOffthreadGraphics", !!this.checked);
+        IodineGUI.Iodine.toggleOffthreadGraphics(this.checked);
     });
-    addEvent("click", document.getElementById("onthread-cpu"), function () {
-             setValue("onthread-cpu", this.checked);
+    addEvent("click", document.getElementById("offthread-cpu"), function () {
+        setValue("toggleOffthreadCPU", !!this.checked);
+        //Can't do anything until reload of page.
     });
     addEvent("click", document.getElementById("speedup"), function () {
-             IodineGUI.Iodine.incrementSpeed(0.05);
+        IodineGUI.Iodine.incrementSpeed(0.05);
     });
     addEvent("click", document.getElementById("speeddown"), function () {
-             IodineGUI.Iodine.incrementSpeed(-0.05);
+        IodineGUI.Iodine.incrementSpeed(-0.05);
     });
     addEvent("click", document.getElementById("speedreset"), function () {
-             IodineGUI.Iodine.setSpeed(1);
+        IodineGUI.Iodine.setSpeed(1);
     });
     addEvent("click", document.getElementById("fullscreen"), toggleFullScreen);
     addEvent("change", document.getElementById("import"), function (e) {
@@ -126,6 +132,50 @@ function registerGUIEvents() {
     //Run on init as well:
     resizeCanvasFunc();
 }
+function registerDefaultSettings() {
+    if (findValue("sound") === null) {
+        setValue("sound", !!IodineGUI.defaults.sound);
+    }
+    else {
+        IodineGUI.defaults.sound = !!findValue("sound");
+    }
+    if (findValue("volume") === null) {
+        setValue("volume", +IodineGUI.defaults.volume);
+    }
+    else {
+        IodineGUI.defaults.volume = +findValue("volume");
+    }
+    if (findValue("skipBoot") === null) {
+        setValue("skipBoot", !!IodineGUI.defaults.skipBoot);
+    }
+    else {
+        IodineGUI.defaults.skipBoot = !!findValue("skipBoot");
+    }
+    if (findValue("toggleSmoothScaling") === null) {
+        setValue("toggleSmoothScaling", !!IodineGUI.defaults.toggleSmoothScaling);
+    }
+    else {
+        IodineGUI.defaults.toggleSmoothScaling = !!findValue("toggleSmoothScaling");
+    }
+    if (findValue("toggleDynamicSpeed") === null) {
+        setValue("toggleDynamicSpeed", !!IodineGUI.defaults.toggleDynamicSpeed);
+    }
+    else {
+        IodineGUI.defaults.toggleDynamicSpeed = !!findValue("toggleDynamicSpeed");
+    }
+    if (findValue("toggleOffthreadGraphics") === null) {
+        setValue("toggleOffthreadGraphics", !!IodineGUI.defaults.toggleOffthreadGraphics);
+    }
+    else {
+        IodineGUI.defaults.toggleOffthreadGraphics = !!findValue("toggleOffthreadGraphics");
+    }
+    if (findValue("toggleOffthreadCPU") === null) {
+        setValue("toggleOffthreadCPU", !!IodineGUI.defaults.toggleOffthreadCPU);
+    }
+    else {
+        IodineGUI.defaults.toggleOffthreadCPU = !!findValue("toggleOffthreadCPU");
+    }
+}
 function registerGUISettings() {
     document.getElementById("sound").checked = IodineGUI.defaults.sound;
     if (IodineGUI.defaults.sound) {
@@ -148,11 +198,10 @@ function registerGUISettings() {
     IodineGUI.Iodine.toggleDynamicSpeed(IodineGUI.defaults.toggleDynamicSpeed);
     document.getElementById("offthread-gpu").checked = IodineGUI.defaults.toggleOffthreadGraphics;
     IodineGUI.Iodine.toggleOffthreadGraphics(IodineGUI.defaults.toggleOffthreadGraphics);
-    if (findValue("onthread-cpu") === null) {
-        document.getElementById("onthread-cpu").checked = (navigator.userAgent.indexOf('AppleWebKit') != -1);
-    }
-    else {
-        document.getElementById("onthread-cpu").checked = !!findValue("onthread-cpu");
+    document.getElementById("offthread-cpu").checked = IodineGUI.defaults.toggleOffthreadCPU;
+    if (typeof SharedArrayBuffer != "function" || typeof Atomics != "object") {
+        document.getElementById("offthread-gpu").disabled = true;
+        document.getElementById("offthread-cpu").disabled = true;
     }
 }
 function resetPlayButton() {
@@ -166,7 +215,9 @@ function stepVolume(delta) {
     document.getElementById("volume").value = Math.round(volume * 100);
 }
 function volChangeFunc() {
-    IodineGUI.mixerInput.setVolume(Math.min(Math.max(parseInt(this.value), 0), 100) * 0.01);
+    var volume = Math.min(Math.max(parseInt(this.value), 0), 100) * 0.01;
+    setValue("volume", +volume);
+    IodineGUI.mixerInput.setVolume(+volume);
 };
 function writeRedTemporaryText(textString) {
     if (IodineGUI.timerID) {
@@ -206,7 +257,7 @@ function rebuildExistingSaves() {
     var menu = document.getElementById("existing_saves_list");
     ExportSave();
     removeChildNodes(menu);
-    var keys = getLocalStorageKeys();
+    var keys = getSavesKeys();
     while (keys.length > 0) {
         addExistingSaveItem(menu, keys.shift());
     }
@@ -248,11 +299,14 @@ function addExistingSaveItem(menu, key) {
     menu.appendChild(listItem);
 }
 function decodeKeyType(key) {
-    if (key.substring(0, 10) == "TYPE_GUID_") {
-        return "Game \"" + key.substring(10) + "\" Type Code";
+    if (key.substring(0, 15) == "SAVE_TYPE_GUID_") {
+        return "Game \"" + key.substring(15) + "\" Type Code";
     }
-    else if (key.substring(0, 5) == "GUID_") {
-        return "Game \"" + key.substring(5) + "\" Cartridge Data";
+    else if (key.substring(0, 10) == "SAVE_GUID_") {
+        return "Game \"" + key.substring(10) + "\" Cartridge Data";
+    }
+    else if (key.substring(0, 15) == "SAVE_RTC_GUID_") {
+        return "Game \"" + key.substring(15) + "\" RTC Data";
     }
     return key;
 }
