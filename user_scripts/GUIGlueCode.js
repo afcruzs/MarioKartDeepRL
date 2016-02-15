@@ -290,7 +290,8 @@ function addExistingSaveItem(menu, key) {
     var submenuItem3 = document.createElement("li");
     submenuItem3.className = "nowrap";
     var link2 = document.createElement("a");
-    link2.href = "data:application/octet-stream;base64," + base64(findValue(key));
+    //Saves are already encoded in base64:
+    link2.href = "data:application/octet-stream;base64," + findValue(key);
     link2.download = key + "_" + ((new Date()).getTime()) + ".sav";
     link2.textContent = "Download as raw binary";
     submenuItem3.appendChild(link2);
