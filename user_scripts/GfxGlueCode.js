@@ -28,16 +28,6 @@ GfxGlueCode.prototype.initializeVSync = function () {
         }, 16);
     }
     else {
-        //To check if we're actually being drawn:
-        this.drawRateWatchDog = true;
-        setInterval(function () {
-            if (!parentObj.drawRateWatchDog) {
-                parentObj.vsync();
-            }
-            else {
-                parentObj.drawRateWatchDog = false;
-            }
-        }, 100);
         //Initialize the rAF eventing:
         window.requestAnimationFrame(
             function () {
@@ -48,8 +38,6 @@ GfxGlueCode.prototype.initializeVSync = function () {
     }
 }
 GfxGlueCode.prototype.rAFKeepAlive = function () {
-    //To check if we're actually being drawn:
-    this.drawRateWatchDog = true;
     //Keep the vsync event requested:
     var parentObj = this;
     window.requestAnimationFrame(function () {
@@ -71,7 +59,10 @@ GfxGlueCode.prototype.attachGfxCallback = function (gfxCallback) {
 }
 GfxGlueCode.prototype.vsync = function () {
     if (this.graphicsFound && typeof this.gfxCallback == "function") {
+        //Let the user supplied code prepare a frame or two:
         this.gfxCallback();
+        //Draw a frame, if ready:
+        this.requestDraw();
     }
 }
 GfxGlueCode.prototype.initializeBuffers = function () {
@@ -147,7 +138,6 @@ if (__VIEWS_SUPPORTED__) {
             var swizzledFrame = this.swizzledFrameFree.shift();
             swizzledFrame.set(buffer);
             this.swizzledFrameReady.push(swizzledFrame);
-            this.requestDraw();
         }
     }
 }
@@ -162,7 +152,6 @@ else {
                 swizzledFrame[bufferIndex] = buffer[bufferIndex];
             }
             this.swizzledFrameReady.push(swizzledFrame);
-            this.requestDraw();
         }
     }
 }
@@ -182,6 +171,7 @@ GfxGlueCode.prototype.requestDraw = function () {
 GfxGlueCode.prototype.graphicsBlit = function () {
     if (this.canvasLastWidth != this.canvas.clientWidth || this.canvasLastHeight != this.canvas.clientHeight) {
         this.recomputeDimension();
+        this.setSmoothScaling();
     }
     if (this.offscreenWidth == this.onscreenWidth && this.offscreenHeight == this.onscreenHeight) {
         //Canvas does not need to scale, draw directly to final:

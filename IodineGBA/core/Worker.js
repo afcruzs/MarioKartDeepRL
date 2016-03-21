@@ -52,6 +52,7 @@ importScripts("cartridge/SaveDeterminer.js");
 importScripts("cartridge/SRAM.js");
 importScripts("cartridge/FLASH.js");
 importScripts("cartridge/EEPROM.js");
+importScripts("cartridge/GPIO.js");
 var Iodine = new GameBoyAdvanceEmulator();
 //Save callbacks waiting to be satisfied:
 var saveImportPool = [];
