@@ -10,6 +10,7 @@
  */
 function GfxGlueCode(width, height) {
     this.graphicsFound = false;               //Do we have graphics output sink found yet?
+    this.gfxCallback = null;                  //Optional callback user-supplied for vsync eventing.
     this.offscreenWidth = width;              //Width of the screen.
     this.offscreenHeight = height;            //Height of the screen.
     this.offscreenRGBCount = this.offscreenWidth * this.offscreenHeight * 3;
@@ -58,9 +59,11 @@ GfxGlueCode.prototype.attachGfxCallback = function (gfxCallback) {
     }
 }
 GfxGlueCode.prototype.vsync = function () {
-    if (this.graphicsFound && typeof this.gfxCallback == "function") {
-        //Let the user supplied code prepare a frame or two:
-        this.gfxCallback();
+    if (this.graphicsFound) {
+        if (typeof this.gfxCallback == "function") {
+            //Let the user supplied code prepare a frame or two:
+            this.gfxCallback();
+        }
         //Draw a frame, if ready:
         this.requestDraw();
     }
