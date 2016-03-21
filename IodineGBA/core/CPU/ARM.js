@@ -1,11 +1,11 @@
 "use strict";
 /*
  Copyright (C) 2012-2015 Grant Galitz
- 
+
  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- 
+
  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
- 
+
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 function ARMInstructionSet(CPUCore) {
@@ -72,9 +72,9 @@ if (typeof Math.imul == "function") {
     //Math.imul found, insert the optimized path in:
     ARMInstructionSet.prototype.getPopCount = function () {
         var temp = this.execute & 0xFFFF;
-        temp = ((temp | 0) - ((temp >> 1) & 0x55555555)) | 0;
-        temp = ((temp & 0x33333333) + ((temp >> 2) & 0x33333333)) | 0;
-        temp = (((temp | 0) + (temp >> 4)) & 0xF0F0F0F) | 0;
+        temp = ((temp | 0) - ((temp >> 1) & 0x5555)) | 0;
+        temp = ((temp & 0x3333) + ((temp >> 2) & 0x3333)) | 0;
+        temp = (((temp | 0) + (temp >> 4)) & 0xF0F) | 0;
         temp = Math.imul(temp | 0, 0x1010101) >> 24;
         return temp | 0;
     }
@@ -83,9 +83,9 @@ else {
     //Math.imul not found, use the compatibility method:
     ARMInstructionSet.prototype.getPopCount = function () {
         var temp = this.execute & 0xFFFF;
-        temp = ((temp | 0) - ((temp >> 1) & 0x55555555)) | 0;
-        temp = ((temp & 0x33333333) + ((temp >> 2) & 0x33333333)) | 0;
-        temp = (((temp | 0) + (temp >> 4)) & 0xF0F0F0F) | 0;
+        temp = ((temp | 0) - ((temp >> 1) & 0x5555)) | 0;
+        temp = ((temp & 0x3333) + ((temp >> 2) & 0x3333)) | 0;
+        temp = (((temp | 0) + (temp >> 4)) & 0xF0F) | 0;
         temp = (temp * 0x1010101) >> 24;
         return temp | 0;
     }
@@ -151,7 +151,7 @@ ARMInstructionSet.prototype.performMUL32 = function () {
     if (((this.execute >> 16) & 0xF) != (this.execute & 0xF)) {
         /*
          http://www.chiark.greenend.org.uk/~theom/riscos/docs/ultimate/a252armc.txt
-         
+
          Due to the way that Booth's algorithm has been implemented, certain
          combinations of operand registers should be avoided. (The assembler will
          issue a warning if these restrictions are overlooked.)
@@ -169,7 +169,7 @@ ARMInstructionSet.prototype.performMUL32MLA = function () {
     if (((this.execute >> 16) & 0xF) != (this.execute & 0xF)) {
         /*
          http://www.chiark.greenend.org.uk/~theom/riscos/docs/ultimate/a252armc.txt
-         
+
          Due to the way that Booth's algorithm has been implemented, certain
          combinations of operand registers should be avoided. (The assembler will
          issue a warning if these restrictions are overlooked.)
@@ -888,14 +888,14 @@ ARMInstructionSet.prototype.MSR1 = function () {
     this.branchFlags.setNZCV(newcpsr | 0);
     if ((this.execute & 0x10000) != 0 && (this.CPUCore.modeFlags & 0x1F) != 0x10) {
         this.CPUCore.switchRegisterBank(newcpsr & 0x1F);
-        this.CPUCore.modeFlags = newcpsr & 0xdf;
+        this.CPUCore.modeFlags = newcpsr & 0xDF;
         this.CPUCore.assertIRQ();
     }
 }
 ARMInstructionSet.prototype.MSR2 = function () {
     var operand = this.read0OffsetRegister() | 0;
     var bank = 1;
-    switch (this.CPUCore.modeFlags & 0x1f) {
+    switch (this.CPUCore.modeFlags & 0x1F) {
         case 0x12:    //IRQ
             break;
         case 0x13:    //Supervisor
@@ -929,7 +929,7 @@ ARMInstructionSet.prototype.MSR3 = function () {
 ARMInstructionSet.prototype.MSR4 = function () {
     var operand = this.imm() >> 20;
     var bank = 1;
-    switch (this.CPUCore.modeFlags & 0x1f) {
+    switch (this.CPUCore.modeFlags & 0x1F) {
         case 0x12:    //IRQ
             break;
         case 0x13:    //Supervisor
