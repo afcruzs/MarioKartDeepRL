@@ -11,6 +11,7 @@
 function GfxGlueCode(width, height) {
     this.graphicsFound = false;               //Do we have graphics output sink found yet?
     this.gfxCallback = null;                  //Optional callback user-supplied for vsync eventing.
+    this.doSmoothing = true;                  //Texture filter the framebuffer?
     this.offscreenWidth = width;              //Width of the screen.
     this.offscreenHeight = height;            //Height of the screen.
     this.offscreenRGBCount = this.offscreenWidth * this.offscreenHeight * 3;
@@ -99,8 +100,6 @@ GfxGlueCode.prototype.initializeCanvasTarget = function () {
         this.drawContextOnscreen = this.canvas.getContext("2d");
         //Initialize the canvas backing buffer:
         this.initializeCanvasBuffer();
-        //Set texture filter:
-        this.setSmoothScaling();
         //Success:
         return true;
     }
@@ -174,7 +173,7 @@ GfxGlueCode.prototype.requestDraw = function () {
 GfxGlueCode.prototype.graphicsBlit = function () {
     if (this.canvasLastWidth != this.canvas.clientWidth || this.canvasLastHeight != this.canvas.clientHeight) {
         this.recomputeDimension();
-        this.setSmoothScaling();
+        this.processSmoothing();
     }
     if (this.offscreenWidth == this.onscreenWidth && this.offscreenHeight == this.onscreenHeight) {
         //Canvas does not need to scale, draw directly to final:
@@ -188,10 +187,14 @@ GfxGlueCode.prototype.graphicsBlit = function () {
     }
 }
 GfxGlueCode.prototype.setSmoothScaling = function (doSmoothing) {
+    this.doSmoothing = !!doSmoothing;
+    this.processSmoothing();
+}
+GfxGlueCode.prototype.processSmoothing = function () {
     if (this.graphicsFound) {
-        this.canvas.className = (doSmoothing) ? "textureSmooth" : "texturePixelated";
-        this.drawContextOnscreen.mozImageSmoothingEnabled = doSmoothing;
-        this.drawContextOnscreen.webkitImageSmoothingEnabled = doSmoothing;
-        this.drawContextOnscreen.imageSmoothingEnabled = doSmoothing;
+        this.canvas.className = (this.doSmoothing) ? "textureSmooth" : "texturePixelated";
+        this.drawContextOnscreen.mozImageSmoothingEnabled = this.doSmoothing;
+        this.drawContextOnscreen.webkitImageSmoothingEnabled = this.doSmoothing;
+        this.drawContextOnscreen.imageSmoothingEnabled = this.doSmoothing;
     }
 }
