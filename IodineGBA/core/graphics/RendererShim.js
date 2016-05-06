@@ -125,7 +125,7 @@ GameBoyAdvanceGraphicsRendererShim.prototype.shareDynamicBuffers = function () {
          this.gfxCommandCounters.buffer
      ]);
      //Wake up the producer "GPU" thread:
-     Atomics.futexWake(gfxCounters, 2, 1);
+     Atomics.wake(gfxCounters, 2, 1);
 }
 GameBoyAdvanceGraphicsRendererShim.prototype.pushCommand = function (command, data) {
     command = command | 0;

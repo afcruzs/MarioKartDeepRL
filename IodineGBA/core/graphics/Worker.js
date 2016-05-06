@@ -66,8 +66,8 @@ function waitForVSync() {
     while ((Atomics.load(gfxCommandCounters, 2) | 0) == 0) {
         //Process the current buffer:
         processCommands();
-        //Main thread calls futexWake to unblock us here:
-        Atomics.futexWait(gfxCounters, 2, 0);
+        //Main thread calls wake to unblock us here:
+        Atomics.wait(gfxCounters, 2, 0);
     }
     //Empty old buffer before getting a new buffer to refer to:
     processCommands();
