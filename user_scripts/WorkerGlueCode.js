@@ -9,7 +9,7 @@
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 function IodineGBAWorkerShim() {
-	this.playError = null;
+	this.playStatus = null;
     this.gfx = null;
     this.audio = null;
     this.speed = null;
@@ -67,12 +67,14 @@ IodineGBAWorkerShim.prototype.timerCallback = function (timestamp) {
         Atomics.store(this.timestamp, 0, timestamp >>> 0);
     }
 }
-IodineGBAWorkerShim.prototype.attachPlayErrorHandler = function (playError) {
-	this.playError = playError;
+IodineGBAWorkerShim.prototype.attachPlayStatusHandler = function (playStatus) {
+	this.playStatus = playStatus;
+    this.sendMessageSingle(23);
 }
-IodineGBAWorkerShim.prototype.issuePlayError = function () {
-	if (this.playError) {
-		this.playError();
+IodineGBAWorkerShim.prototype.issuePlayStatus = function (isPlaying) {
+    isPlaying = isPlaying | 0;
+	if (this.playStatus) {
+		this.playStatus(isPlaying | 0);
 	}
 }
 IodineGBAWorkerShim.prototype.attachGraphicsFrameHandler = function (gfx) {
@@ -176,7 +178,7 @@ IodineGBAWorkerShim.prototype.decodeMessage = function (data) {
             this.speedPush(+data.speed);
 			break;
 		default:
-			this.issuePlayError();
+			this.issuePlayStatus(data.playing | 0);
     }
 }
 IodineGBAWorkerShim.prototype.audioInitialize = function (channels, sampleRate, bufferLimit) {

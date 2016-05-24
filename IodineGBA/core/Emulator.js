@@ -28,6 +28,7 @@ function GameBoyAdvanceEmulator() {
     this.saveExportHandler = null;            //Save export handler attached by GUI.
     this.saveImportHandler = null;            //Save import handler attached by GUI.
     this.speedCallback = null;                //Speed report handler attached by GUI.
+    this.playStatusCallback = null;           //Play status change handler attached by GUI.
     this.startCallbacks = [];                 //Some jobs to run at iteration head.
     this.endCallbacks = [];                   //Some jobs to run at iteration end.
     this.terminationCallbacks = [];           //Some jobs to run if the emulation core is killed.
@@ -62,18 +63,25 @@ GameBoyAdvanceEmulator.prototype.play = function () {
     if ((this.emulatorStatus | 0) >= 0x10) {
         this.emulatorStatus = this.emulatorStatus & 0xF;
         if ((this.emulatorStatus & 0x1) == 0 && this.BIOS && this.ROM) {
-            this.initializeCore();
-            this.emulatorStatus = this.emulatorStatus | 0x1;
+            if ((this.initializeCore() | 0) == 0) {
+                //Failure to initialize:
+                this.pause();
+                return;
+            }
             this.importSave();
         }
         this.invalidateMetrics();
         this.setBufferSpace();
+        //Report new status back:
+        this.playStatusCallback(1);
     }
 }
 GameBoyAdvanceEmulator.prototype.pause = function () {
     if ((this.emulatorStatus | 0) < 0x10) {
         this.exportSave();
         this.emulatorStatus = this.emulatorStatus | 0x10;
+        //Report new status back:
+        this.playStatusCallback(0);
     }
 }
 GameBoyAdvanceEmulator.prototype.stop = function () {
@@ -85,7 +93,11 @@ GameBoyAdvanceEmulator.prototype.restart = function () {
     if ((this.emulatorStatus & 0x1) == 0x1) {
         this.emulatorStatus = this.emulatorStatus & 0x1D;
         this.exportSave();
-        this.initializeCore();
+        if ((this.initializeCore() | 0) == 0) {
+            //Failure to initialize:
+            this.pause();
+            return;
+        }
         this.importSave();
         this.audioUpdateState = 1;
         this.processNewSpeed(1);
@@ -95,13 +107,19 @@ GameBoyAdvanceEmulator.prototype.restart = function () {
 GameBoyAdvanceEmulator.prototype.timerCallback = function (lastTimestamp) {
     //Callback passes us a reference timestamp:
     this.lastTimestamp = lastTimestamp >>> 0;
-    if ((this.emulatorStatus | 0) == 0x5) {                         //Any error pending or no ROM loaded is a show-stopper!
-        this.iterationStartSequence();                              //Run start of iteration stuff.
-        this.IOCore.enter(this.CPUCyclesTotal | 0);                 //Step through the emulation core loop.
-        this.iterationEndSequence();                                //Run end of iteration stuff.
-    }
-    else {
-        this.pause();                                                //Some pending error is preventing execution, so pause.
+    switch (this.emulatorStatus | 0) {
+        //Core initialized and saves loaded:
+        case 5:
+            this.iterationStartSequence();                              //Run start of iteration stuff.
+            this.IOCore.enter(this.CPUCyclesTotal | 0);                 //Step through the emulation core loop.
+            this.iterationEndSequence();                                //Run end of iteration stuff.
+            break;
+        //Core initialized, but saves still loading:
+        case 1:
+            break;
+        default:
+            //Some pending error is preventing execution, so pause:
+            this.pause();
     }
 }
 GameBoyAdvanceEmulator.prototype.iterationStartSequence = function () {
@@ -174,6 +192,11 @@ GameBoyAdvanceEmulator.prototype.attachSaveImportHandler = function (handler) {
 GameBoyAdvanceEmulator.prototype.attachSpeedHandler = function (handler) {
     if (typeof handler == "function") {
         this.speedCallback = handler;
+    }
+}
+GameBoyAdvanceEmulator.prototype.attachPlayStatusHandler = function (handler) {
+    if (typeof handler == "function") {
+        this.playStatusCallback = handler;
     }
 }
 GameBoyAdvanceEmulator.prototype.importSave = function () {
@@ -299,6 +322,11 @@ GameBoyAdvanceEmulator.prototype.initializeCore = function () {
     this.runTerminationJobs();
     //Setup a new instance of the i/o core:
     this.IOCore = new GameBoyAdvanceIO(this.settings.SKIPBoot, this.coreExposed, this.BIOS, this.ROM);
+    //Call the initalization procedure and get status code:
+    var allowInit = this.IOCore.initialize() | 0;
+    //Append status code as play status flag for emulator runtime:
+    this.emulatorStatus = this.emulatorStatus | allowInit;
+    return allowInit | 0;
 }
 GameBoyAdvanceEmulator.prototype.keyDown = function (keyPressed) {
     keyPressed = keyPressed | 0;

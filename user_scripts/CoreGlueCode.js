@@ -81,8 +81,6 @@ function registerIodineHandler() {
         else {
             //Try starting Iodine in a webworker:
             IodineGUI.Iodine = new IodineGBAWorkerShim();
-            //Have to manually capture the error if CPU thread is in a webworker:
-            IodineGUI.Iodine.attachPlayErrorHandler(resetPlayButton);
             //In order for save on page unload, this needs to be done:
             addEvent("beforeunload", window, registerBeforeUnloadHandler);
         }
@@ -94,8 +92,6 @@ function registerIodineHandler() {
 }
 function registerBeforeUnloadHandler(e) {
     IodineGUI.Iodine.pause();
-    document.getElementById("pause").className = "hide";
-    document.getElementById("play").className = "show";
     if (e.preventDefault) {
         e.preventDefault();
     }
@@ -105,16 +101,7 @@ function registerTimerHandler() {
     var rate = 16;
     IodineGUI.Iodine.setIntervalRate(rate | 0);
     setInterval(function () {
-        //Check to see if web view is not hidden, if hidden don't run due to JS timers being inaccurate on page hide:
-        if (!document.hidden && !document.msHidden && !document.mozHidden && !document.webkitHidden) {
-            if (document.getElementById("play").className == "hide") {
-                IodineGUI.Iodine.play();
-            }
-            IodineGUI.Iodine.timerCallback(((+(new Date()).getTime()) - (+IodineGUI.startTime)) >>> 0);
-        }
-        else {
-            IodineGUI.Iodine.pause();
-        }
+        IodineGUI.Iodine.timerCallback(((+(new Date()).getTime()) - (+IodineGUI.startTime)) >>> 0);
     }, rate | 0);
 }
 function registerBlitterHandler() {

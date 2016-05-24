@@ -74,12 +74,7 @@ self.onmessage = function (event) {
     var data = event.data;
     switch (data.messageID | 0) {
         case 0:
-            try {
-                Iodine.play();
-            }
-            catch (e) {
-                postMessage({messageID:9});
-            }
+            Iodine.play();
             break;
         case 1:
             Iodine.pause();
@@ -147,6 +142,9 @@ self.onmessage = function (event) {
             break;
         case 22:
             Iodine.toggleOffthreadGraphics(!!data.payload);
+            break;
+        case 23:
+            Iodine.attachPlayStatusHandler(playStatusHandler);
     }
 }
 var graphicsFrameHandler = {
@@ -257,4 +255,8 @@ function processSaveImportSuccess(saveData) {
 }
 function processSaveImportFail() {
     saveImportPool.shift()[1]();
+}
+function playStatusHandler(isPlaying) {
+    isPlaying = isPlaying | 0;
+    postMessage({messageID:9, playing:(isPlaying | 0)});
 }

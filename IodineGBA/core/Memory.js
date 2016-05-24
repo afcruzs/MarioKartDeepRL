@@ -1,6 +1,6 @@
 "use strict";
 /*
- Copyright (C) 2012-2015 Grant Galitz
+ Copyright (C) 2012-2016 Grant Galitz
 
  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -13,13 +13,22 @@ function GameBoyAdvanceMemory(IOCore) {
     this.IOCore = IOCore;
 }
 GameBoyAdvanceMemory.prototype.initialize = function () {
-    //WRAM Map Control Stuff:
-    this.WRAMControlFlags = 0x20;
+    var allowInit = 1;
     //Load the BIOS:
     this.BIOS = getUint8Array(0x4000);
     this.BIOS16 = getUint16View(this.BIOS);
     this.BIOS32 = getInt32View(this.BIOS);
-    this.loadBIOS();
+    if ((this.loadBIOS() | 0) == 1) {
+        this.initializeRAM();
+    }
+    else {
+        allowInit = 0;
+    }
+    return allowInit | 0;
+}
+GameBoyAdvanceMemory.prototype.initializeRAM = function () {
+    //WRAM Map Control Stuff:
+    this.WRAMControlFlags = 0x20;
     //Initialize Some RAM:
     this.externalRAM = getUint8Array(0x40000);
     this.externalRAM16 = getUint16View(this.externalRAM);
@@ -4071,6 +4080,7 @@ GameBoyAdvanceMemory.prototype.readUnused32MultiBase = function () {
     return this.IOCore.getCurrentFetchValue() | 0;
 }
 GameBoyAdvanceMemory.prototype.loadBIOS = function () {
+    var allowInit = 1;
     //Ensure BIOS is of correct length:
     if ((this.IOCore.BIOS.length | 0) == 0x4000) {
         //this.IOCore.BIOSFound = true;
@@ -4081,8 +4091,10 @@ GameBoyAdvanceMemory.prototype.loadBIOS = function () {
     else {
         //this.IOCore.BIOSFound = false;
         this.IOCore.SKIPBoot = true;
-        throw(new Error("BIOS invalid."));
+        //Kill init, rather than allow HLE for now:
+        allowInit = 0;
     }
+    return allowInit | 0;
 }
 function generateMemoryTopLevelDispatch() {
     //Generic memory read dispatch generator:

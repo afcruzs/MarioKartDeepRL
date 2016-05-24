@@ -64,8 +64,10 @@ IodineGBAWorkerGfxShim.prototype.toggleOffthreadGraphics = function (doEnable) {
     this.Iodine.toggleOffthreadGraphics(doEnable | 0);
 }
 IodineGBAWorkerGfxShim.prototype.attachSpeedHandler = function (speed) {
-    this.speed = speed;
     this.Iodine.attachSpeedHandler(speed);
+}
+IodineGBAWorkerGfxShim.prototype.attachPlayStatusHandler = function (playStatus) {
+    this.Iodine.attachPlayStatusHandler(playStatus);
 }
 IodineGBAWorkerGfxShim.prototype.keyDown = function (keyCode) {
     keyCode = keyCode | 0;
@@ -93,10 +95,10 @@ IodineGBAWorkerGfxShim.prototype.exportSave = function () {
     this.Iodine.exportSave();
 }
 IodineGBAWorkerGfxShim.prototype.attachSaveExportHandler = function (saveExport) {
-    this.Iodine.attachSaveExportHandler();
+    this.Iodine.attachSaveExportHandler(saveExport);
 }
 IodineGBAWorkerGfxShim.prototype.attachSaveImportHandler = function (saveImport) {
-    this.Iodine.attachSaveImportHandler();
+    this.Iodine.attachSaveImportHandler(saveImport);
 }
 IodineGBAWorkerGfxShim.prototype.graphicsHeartBeat = function () {
     //If graphics callback handle provided and we got a buffer reference:

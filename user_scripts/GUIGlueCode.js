@@ -9,21 +9,18 @@
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 function registerGUIEvents() {
+    //Catch any play status changes:
+    IodineGUI.Iodine.attachPlayStatusHandler(updatePlayButton);
+    //Add DOM events:
     addEvent("keydown", document, keyDown);
     addEvent("keyup", document, keyUpPreprocess);
     addEvent("change", document.getElementById("rom_load"), fileLoadROM);
     addEvent("change", document.getElementById("bios_load"), fileLoadBIOS);
     addEvent("click", document.getElementById("play"), function (e) {
         IodineGUI.Iodine.play();
-        this.className = "hide";
-        document.getElementById("pause").className = "show";
-        document.getElementById("menu").className = "playing";
     });
     addEvent("click", document.getElementById("pause"), function (e) {
         IodineGUI.Iodine.pause();
-        this.className = "hide";
-        document.getElementById("play").className = "show";
-        document.getElementById("menu").className = "paused";
     });
     addEvent("click", document.getElementById("restart"), function (e) {
         IodineGUI.Iodine.restart();
@@ -38,7 +35,7 @@ function registerGUIEvents() {
         }
     });
     addEvent("click", document.getElementById("skip_boot"), function () {
-        setValue("sound", !!this.checked);
+        setValue("skipBoot", !!this.checked);
         IodineGUI.Iodine.toggleSkipBootROM(this.checked);
     });
     addEvent("click", document.getElementById("toggleSmoothScaling"), function () {
@@ -129,6 +126,18 @@ function registerGUIEvents() {
     addEvent("input", document.getElementById("volume"), volChangeFunc);
     addEvent("resize", window, resizeCanvasFunc);
     addEvent("mouseover", document.getElementById("saves_menu"), rebuildSavesMenu);
+    if (typeof document.hidden !== "undefined") {
+        addEvent("visibilitychange", document, visibilityChangeHandle);
+    }
+    else if (typeof document.mozHidden !== "undefined") {
+        addEvent("mozvisibilitychange", document, mozVisibilityChangeHandle);
+    }
+    else if (typeof document.msHidden !== "undefined") {
+        addEvent("msvisibilitychange", document, msVisibilityChangeHandle);
+    }
+    else if (typeof document.webkitHidden !== "undefined") {
+        addEvent("webkitvisibilitychange", document, webkitVisibilityChangeHandle);
+    }
     //Run on init as well:
     resizeCanvasFunc();
 }
@@ -204,9 +213,44 @@ function registerGUISettings() {
         document.getElementById("offthread-cpu").disabled = true;
     }
 }
-function resetPlayButton() {
-    document.getElementById("pause").className = "hide";
-    document.getElementById("play").className = "show";
+function updatePlayButton(isPlaying) {
+    isPlaying = isPlaying | 0;
+    if ((isPlaying | 0) == 1) {
+        document.getElementById("play").className = "hide";
+        document.getElementById("pause").className = "show";
+        document.getElementById("menu").className = "playing";
+    }
+    else {
+        document.getElementById("pause").className = "hide";
+        document.getElementById("play").className = "show";
+        document.getElementById("menu").className = "paused";
+    }
+}
+function visibilityChangeHandle() {
+    processVisibilityChange(document.hidden);
+}
+function mozVisibilityChangeHandle() {
+    processVisibilityChange(document.mozHidden);
+}
+function msVisibilityChangeHandle() {
+    processVisibilityChange(document.msHidden);
+}
+function webkitVisibilityChangeHandle() {
+    processVisibilityChange(document.webkitHidden);
+}
+function processVisibilityChange(isHidden) {
+    if (!isHidden) {
+        if (IodineGUI.suspended) {
+            IodineGUI.suspended = false;
+            IodineGUI.Iodine.play();
+        }
+    }
+    else {
+        if (document.getElementById("play").className == "hide") {
+            IodineGUI.Iodine.pause();
+            IodineGUI.suspended = true;
+        }
+    }
 }
 function stepVolume(delta) {
     var volume = document.getElementById("volume").value / 100;
