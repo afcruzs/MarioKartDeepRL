@@ -11,10 +11,12 @@
 var IodineGUI = {
     Iodine:null,
     Blitter:null,
-    timerID: null,
+    coreTimerID:null,
+    GUITimerID: null,
     startTime:(+(new Date()).getTime()),
     mixerInput:null,
     defaults:{
+        timerRate:16,
         sound:true,
         volume:1,
         skipBoot:false,
@@ -98,11 +100,13 @@ function registerBeforeUnloadHandler(e) {
     return "IodineGBA needs to process your save data, leaving now may result in not saving current data.";
 }
 function registerTimerHandler() {
-    var rate = 16;
-    IodineGUI.Iodine.setIntervalRate(rate | 0);
-    setInterval(function () {
+    IodineGUI.defaults.timerRate = 16;
+    IodineGUI.Iodine.setIntervalRate(IodineGUI.defaults.timerRate | 0);
+}
+function initTimer() {
+    IodineGUI.coreTimerID = setInterval(function () {
         IodineGUI.Iodine.timerCallback(((+(new Date()).getTime()) - (+IodineGUI.startTime)) >>> 0);
-    }, rate | 0);
+    }, IodineGUI.defaults.timerRate | 0);
 }
 function registerBlitterHandler() {
     IodineGUI.Blitter = new GfxGlueCode(240, 160);

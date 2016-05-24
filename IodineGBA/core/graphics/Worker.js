@@ -29,7 +29,6 @@ var gfxCommandBufferMask = 1;
 var gfxLineCounter = null;
 var gfxLinesCPU = 0;
 var gfxLinesGPU = 0;
-var timerHandle = null;
 self.onmessage = function (event) {
     var data = event.data;
     switch (data.messageID | 0) {

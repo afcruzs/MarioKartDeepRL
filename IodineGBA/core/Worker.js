@@ -67,6 +67,9 @@ var audioBufferSizeMask = 0;
 var audioCounters = getSharedInt32Array(3);
 //Time Stamp tracking:
 var timestamp = getSharedUint32Array(1);
+//Interval Timer handle:
+var timerHandle = null;
+var timerRate = 0;
 //Pass the shared array buffers:
 postMessage({messageID:0, gfxBuffer1:gfxBuffers[0], gfxBuffer2:gfxBuffers[1], gfxCounters:gfxCounters, audioCounters:audioCounters, timestamp:timestamp}, [gfxBuffers[0].buffer, gfxBuffers[1].buffer, gfxCounters.buffer, audioCounters.buffer, timestamp.buffer]);
 //Event decoding:
@@ -84,7 +87,7 @@ self.onmessage = function (event) {
             break;
         case 3:
             Iodine.setIntervalRate(data.payload | 0);
-            setInterval(function() {Iodine.timerCallback(timestamp[0] >>> 0);}, data.payload | 0);
+            changeTimer(data.payload | 0);
             break;
         case 4:
             Iodine.attachGraphicsFrameHandler(graphicsFrameHandler);
@@ -259,4 +262,31 @@ function processSaveImportFail() {
 function playStatusHandler(isPlaying) {
     isPlaying = isPlaying | 0;
     postMessage({messageID:9, playing:(isPlaying | 0)});
+    if ((isPlaying | 0) == 0) {
+        if (timerHandle) {
+            clearInterval(timerHandle);
+            timerHandle = null;
+        }
+    }
+    else {
+        if (!timerHandle) {
+            initTimer(timerRate | 0);
+        }
+    }
+}
+function changeTimer(rate) {
+    rate = rate | 0;
+    if (timerHandle) {
+        clearInterval(timerHandle);
+        initTimer(rate | 0);
+    }
+    timerRate = rate | 0;
+}
+function initTimer(rate) {
+    rate = rate | 0;
+    if ((rate | 0) > 0) {
+        timerHandle = setInterval(function() {
+            Iodine.timerCallback(timestamp[0] >>> 0);
+        }, rate | 0);
+    }
 }

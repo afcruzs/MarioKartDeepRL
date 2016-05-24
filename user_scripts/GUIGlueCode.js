@@ -219,11 +219,18 @@ function updatePlayButton(isPlaying) {
         document.getElementById("play").className = "hide";
         document.getElementById("pause").className = "show";
         document.getElementById("menu").className = "playing";
+        if (!IodineGUI.coreTimerID) {
+            initTimer();
+        }
     }
     else {
         document.getElementById("pause").className = "hide";
         document.getElementById("play").className = "show";
         document.getElementById("menu").className = "paused";
+        if (IodineGUI.coreTimerID) {
+            clearInterval(IodineGUI.coreTimerID);
+            IodineGUI.coreTimerID = null;
+        }
     }
 }
 function visibilityChangeHandle() {
@@ -264,12 +271,12 @@ function volChangeFunc() {
     IodineGUI.mixerInput.setVolume(+volume);
 };
 function writeRedTemporaryText(textString) {
-    if (IodineGUI.timerID) {
-        clearTimeout(IodineGUI.timerID);
+    if (IodineGUI.GUITimerID) {
+        clearTimeout(IodineGUI.GUITimerID);
     }
     document.getElementById("tempMessage").style.display = "block";
     document.getElementById("tempMessage").textContent = textString;
-    IodineGUI.timerID = setTimeout(clearTempString, 5000);
+    IodineGUI.GUITimerID = setTimeout(clearTempString, 5000);
 }
 function clearTempString() {
     document.getElementById("tempMessage").style.display = "none";
