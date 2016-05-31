@@ -13,6 +13,9 @@ var IodineGUI = {
     Blitter:null,
     coreTimerID:null,
     GUITimerID: null,
+    toMap:null,
+    toMapIndice:0,
+    suspended:false,
     startTime:(+(new Date()).getTime()),
     mixerInput:null,
     defaults:{
@@ -24,28 +27,43 @@ var IodineGUI = {
         toggleDynamicSpeed:false,
         toggleOffthreadGraphics:true,
         toggleOffthreadCPU:(navigator.userAgent.indexOf('AppleWebKit') == -1),
-        keyZones:[
-            //Use this to control the key mapping:
+        keyZonesGBA:[
+            //Use this to control the GBA key mapping:
             //A:
-            [88, 74],
+            88,
             //B:
-            [90, 81, 89],
+            90,
             //Select:
-            [16],
+            16,
             //Start:
-            [13],
+            13,
             //Right:
-            [39],
+            39,
             //Left:
-            [37],
+            37,
             //Up:
-            [38],
+            38,
             //Down:
-            [40],
+            40,
             //R:
-            [50],
+            50,
             //L:
-            [49]
+            49
+        ],
+        keyZonesControl:[
+            //Use this to control the emulator function key mapping:
+            //Volume Down:
+            56,
+            //Volume Up:
+            55,
+            //Speed Up:
+            51,
+            //Slow Down:
+            52,
+            //Reset Speed:
+            53,
+            //Toggle Fullscreen:
+            54
         ]
     }
 };

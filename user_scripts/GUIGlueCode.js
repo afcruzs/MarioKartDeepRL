@@ -66,6 +66,70 @@ function registerGUIEvents() {
         IodineGUI.Iodine.setSpeed(1);
     });
     addEvent("click", document.getElementById("fullscreen"), toggleFullScreen);
+    addEvent("click", document.getElementById("key_a"), function () {
+        IodineGUI.toMap = IodineGUI.defaults.keyZonesGBA;
+        IodineGUI.toMapIndice = 0;
+    });
+    addEvent("click", document.getElementById("key_b"), function () {
+        IodineGUI.toMap = IodineGUI.defaults.keyZonesGBA;
+        IodineGUI.toMapIndice = 1;
+    });
+    addEvent("click", document.getElementById("key_select"), function () {
+        IodineGUI.toMap = IodineGUI.defaults.keyZonesGBA;
+        IodineGUI.toMapIndice = 2;
+    });
+    addEvent("click", document.getElementById("key_start"), function () {
+        IodineGUI.toMap = IodineGUI.defaults.keyZonesGBA;
+        IodineGUI.toMapIndice = 3;
+    });
+    addEvent("click", document.getElementById("key_right"), function () {
+        IodineGUI.toMap = IodineGUI.defaults.keyZonesGBA;
+        IodineGUI.toMapIndice = 4;
+    });
+    addEvent("click", document.getElementById("key_left"), function () {
+        IodineGUI.toMap = IodineGUI.defaults.keyZonesGBA;
+        IodineGUI.toMapIndice = 5;
+    });
+    addEvent("click", document.getElementById("key_up"), function () {
+        IodineGUI.toMap = IodineGUI.defaults.keyZonesGBA;
+        IodineGUI.toMapIndice = 6;
+    });
+    addEvent("click", document.getElementById("key_down"), function () {
+        IodineGUI.toMap = IodineGUI.defaults.keyZonesGBA;
+        IodineGUI.toMapIndice = 7;
+    });
+    addEvent("click", document.getElementById("key_r"), function () {
+        IodineGUI.toMap = IodineGUI.defaults.keyZonesGBA;
+        IodineGUI.toMapIndice = 8;
+    });
+    addEvent("click", document.getElementById("key_l"), function () {
+        IodineGUI.toMap = IodineGUI.defaults.keyZonesGBA;
+        IodineGUI.toMapIndice = 9;
+    });
+    addEvent("click", document.getElementById("key_volumedown"), function () {
+        IodineGUI.toMap = IodineGUI.defaults.keyZonesControl;
+        IodineGUI.toMapIndice = 0;
+    });
+    addEvent("click", document.getElementById("key_volumeup"), function () {
+        IodineGUI.toMap = IodineGUI.defaults.keyZonesControl;
+        IodineGUI.toMapIndice = 1;
+    });
+    addEvent("click", document.getElementById("key_speedup"), function () {
+        IodineGUI.toMap = IodineGUI.defaults.keyZonesControl;
+        IodineGUI.toMapIndice = 2;
+    });
+    addEvent("click", document.getElementById("key_slowdown"), function () {
+        IodineGUI.toMap = IodineGUI.defaults.keyZonesControl;
+        IodineGUI.toMapIndice = 3;
+    });
+    addEvent("click", document.getElementById("key_speedreset"), function () {
+        IodineGUI.toMap = IodineGUI.defaults.keyZonesControl;
+        IodineGUI.toMapIndice = 4;
+    });
+    addEvent("click", document.getElementById("key_fullscreen"), function () {
+        IodineGUI.toMap = IodineGUI.defaults.keyZonesControl;
+        IodineGUI.toMapIndice = 5;
+    });
     addEvent("change", document.getElementById("import"), function (e) {
              if (typeof this.files != "undefined") {
                 try {
@@ -184,6 +248,120 @@ function registerDefaultSettings() {
     else {
         IodineGUI.defaults.toggleOffthreadCPU = !!findValue("toggleOffthreadCPU");
     }
+    if (findValue("key_a") === null) {
+        setValue("key_a", IodineGUI.defaults.keyZonesGBA[0] | 0);
+    }
+    else {
+        IodineGUI.defaults.keyZonesGBA[0] = findValue("key_a");
+    }
+    if (findValue("key_b") === null) {
+        setValue("key_b", IodineGUI.defaults.keyZonesGBA[1] | 0);
+    }
+    else {
+        IodineGUI.defaults.keyZonesGBA[1] = findValue("key_b");
+    }
+    if (findValue("key_select") === null) {
+        setValue("key_select", IodineGUI.defaults.keyZonesGBA[2] | 0);
+    }
+    else {
+        IodineGUI.defaults.keyZonesGBA[2] = findValue("key_select");
+    }
+    if (findValue("key_start") === null) {
+        setValue("key_start", IodineGUI.defaults.keyZonesGBA[3] | 0);
+    }
+    else {
+        IodineGUI.defaults.keyZonesGBA[3] = findValue("key_start");
+    }
+    if (findValue("key_right") === null) {
+        setValue("key_right", IodineGUI.defaults.keyZonesGBA[4] | 0);
+    }
+    else {
+        IodineGUI.defaults.keyZonesGBA[4] = findValue("key_right");
+    }
+    if (findValue("key_left") === null) {
+        setValue("key_left", IodineGUI.defaults.keyZonesGBA[5] | 0);
+    }
+    else {
+        IodineGUI.defaults.keyZonesGBA[5] = findValue("key_left");
+    }
+    if (findValue("key_up") === null) {
+        setValue("key_up", IodineGUI.defaults.keyZonesGBA[6] | 0);
+    }
+    else {
+        IodineGUI.defaults.keyZonesGBA[6] = findValue("key_up");
+    }
+    if (findValue("key_down") === null) {
+        setValue("key_down", IodineGUI.defaults.keyZonesGBA[7] | 0);
+    }
+    else {
+        IodineGUI.defaults.keyZonesGBA[7] = findValue("key_down");
+    }
+    if (findValue("key_r") === null) {
+        setValue("key_r", IodineGUI.defaults.keyZonesGBA[8] | 0);
+    }
+    else {
+        IodineGUI.defaults.keyZonesGBA[8] = findValue("key_r");
+    }
+    if (findValue("key_l") === null) {
+        setValue("key_l", IodineGUI.defaults.keyZonesGBA[9] | 0);
+    }
+    else {
+        IodineGUI.defaults.keyZonesGBA[9] = findValue("key_l");
+    }
+    if (findValue("key_volumedown") === null) {
+        setValue("key_volumedown", IodineGUI.defaults.keyZonesControl[0] | 0);
+    }
+    else {
+        IodineGUI.defaults.keyZonesControl[0] = findValue("key_volumedown");
+    }
+    if (findValue("key_volumeup") === null) {
+        setValue("key_volumeup", IodineGUI.defaults.keyZonesControl[1] | 0);
+    }
+    else {
+        IodineGUI.defaults.keyZonesControl[1] = findValue("key_volumeup");
+    }
+    if (findValue("key_speedup") === null) {
+        setValue("key_speedup", IodineGUI.defaults.keyZonesControl[2] | 0);
+    }
+    else {
+        IodineGUI.defaults.keyZonesControl[2] = findValue("key_speedup");
+    }
+    if (findValue("key_slowdown") === null) {
+        setValue("key_slowdown", IodineGUI.defaults.keyZonesControl[3] | 0);
+    }
+    else {
+        IodineGUI.defaults.keyZonesControl[3] = findValue("key_slowdown");
+    }
+    if (findValue("key_speedreset") === null) {
+        setValue("key_speedreset", IodineGUI.defaults.keyZonesControl[4] | 0);
+    }
+    else {
+        IodineGUI.defaults.keyZonesControl[4] = findValue("key_speedreset");
+    }
+    if (findValue("key_fullscreen") === null) {
+        setValue("key_fullscreen", IodineGUI.defaults.keyZonesControl[5] | 0);
+    }
+    else {
+        IodineGUI.defaults.keyZonesControl[5] = findValue("key_fullscreen");
+    }
+}
+function saveKeyBindings() {
+    setValue("key_a", IodineGUI.defaults.keyZonesGBA[0] | 0);
+    setValue("key_b", IodineGUI.defaults.keyZonesGBA[1] | 0);
+    setValue("key_select", IodineGUI.defaults.keyZonesGBA[2] | 0);
+    setValue("key_start", IodineGUI.defaults.keyZonesGBA[3] | 0);
+    setValue("key_right", IodineGUI.defaults.keyZonesGBA[4] | 0);
+    setValue("key_left", IodineGUI.defaults.keyZonesGBA[5] | 0);
+    setValue("key_up", IodineGUI.defaults.keyZonesGBA[6] | 0);
+    setValue("key_down", IodineGUI.defaults.keyZonesGBA[7] | 0);
+    setValue("key_r", IodineGUI.defaults.keyZonesGBA[8] | 0);
+    setValue("key_l", IodineGUI.defaults.keyZonesGBA[9] | 0);
+    setValue("key_volumedown", IodineGUI.defaults.keyZonesControl[0] | 0);
+    setValue("key_volumeup", IodineGUI.defaults.keyZonesControl[1] | 0);
+    setValue("key_speedup", IodineGUI.defaults.keyZonesControl[2] | 0);
+    setValue("key_slowdown", IodineGUI.defaults.keyZonesControl[3] | 0);
+    setValue("key_speedreset", IodineGUI.defaults.keyZonesControl[4] | 0);
+    setValue("key_fullscreen", IodineGUI.defaults.keyZonesControl[5] | 0);
 }
 function registerGUISettings() {
     document.getElementById("sound").checked = IodineGUI.defaults.sound;
