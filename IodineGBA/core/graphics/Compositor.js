@@ -1,11 +1,11 @@
 "use strict";
 /*
- Copyright (C) 2012-2015 Grant Galitz
- 
+ Copyright (C) 2012-2016 Grant Galitz
+
  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- 
+
  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
- 
+
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 function GameBoyAdvanceCompositor(gfx) {
@@ -457,158 +457,545 @@ GameBoyAdvanceWindowCompositor.prototype.renderScanLineWithEffects = function (x
             this.special31(xStart | 0, xEnd | 0);
     }
 }
-function generateCompositor() {
-    function generateLocalScopeInit(count) {
-        var code = "";
-        switch (count | 0) {
-            case 0:
-                break;
-            default:
-                code = "var workingPixel = 0;";
-            case 1:
-                code += "var currentPixel = 0;";
-                code += "var lowerPixel = 0;";
-        }
-        return code;
-    }
-    function generateLoopHead(compositeType, count, bodyCode) {
-        var code = generateLocalScopeInit(count);
-        switch (compositeType) {
-            case 0:
-                code += "for (var xStart = 0; (xStart | 0) < 240; xStart = ((xStart | 0) + 1) | 0) {" + bodyCode + "}";
-                break;
-            case 1:
-                code = "xStart = xStart | 0; xEnd = xEnd | 0;" + code;
-                code += "while ((xStart | 0) < (xEnd | 0)) {" + bodyCode + "xStart = ((xStart | 0) + 1) | 0;}";
-                break;
-            case 2:
-                code += "for (var xStart = 0; (xStart | 0) < 240; xStart = ((xStart | 0) + 1) | 0) {" +
-                "if ((this.OBJWindowBuffer[xStart | 0] | 0) < 0x3800000) {" +
-                bodyCode +
-                "}"+
-                "}";
-        }
-        return code;
-    }
-    function generateLayerCompare(layerOffset) {
-        var code = "workingPixel = this.buffer[xStart | " + layerOffset + "] | 0;" +
-        "if ((workingPixel & 0x3800000) <= (currentPixel & 0x1800000)) {" +
-            "lowerPixel = currentPixel | 0;" +
-            "currentPixel = workingPixel | 0;" +
-        "}" +
-        "else if ((workingPixel & 0x3800000) <= (lowerPixel & 0x1800000)) {" +
-            "lowerPixel = workingPixel | 0;" +
-        "}";
-        return code;
-    }
-    function generateLayerCompareSingle(layerOffset) {
-        var code = "currentPixel = this.buffer[xStart | " + layerOffset + "] | 0;";
-        code += "if ((currentPixel & 0x2000000) != 0) {";
-        code += "currentPixel = lowerPixel | 0;";
-        code += "}";
-        return code;
-    }
-    function generateColorEffects(doEffects, layerCount) {
-        if (layerCount > 0) {
-            var code = "if ((currentPixel & 0x400000) == 0) {";
-            if (doEffects) {
-                code += "this.buffer[xStart | 0] = this.colorEffectsRenderer.process(lowerPixel | 0, currentPixel | 0) | 0;";
+function generateIodineGBAGFXCompositors() {
+    function generateLoop(compositeType, doEffects, layers) {
+        function generateLocalScopeInit(layers) {
+            //Declare the necessary temporary variables:
+            var code = "";
+            switch (layers) {
+                case 0:
+                    //Don't need any if no layers to process:
+                    break;
+                default:
+                    //Need this temp for more than one layer:
+                    code +=
+                    "var workingPixel = 0;";
+                case 0x1:
+                case 0x2:
+                case 0x4:
+                case 0x8:
+                case 0x10:
+                    //Need these temps for one or more layers:
+                    code +=
+                    "var currentPixel = 0;" +
+                    "var lowerPixel = 0;";
             }
-            else {
-                code += "this.buffer[xStart | 0] = currentPixel | 0;";
-            }
-            code += "}"
-            code += "else {"
-            code += "this.buffer[xStart | 0] = this.colorEffectsRenderer.processOAMSemiTransparent(lowerPixel | 0, currentPixel | 0) | 0;"
-            code += "}";
             return code;
         }
-        else {
-            if (doEffects) {
-                return "this.buffer[xStart | 0] = this.colorEffectsRenderer.process(0, this.gfx.backdrop | 0) | 0;";
+        function generateLoopBody(doEffects, layers) {
+            function getSingleLayerPrefix() {
+                //Pass initialization if processing only 1 layer:
+                return "lowerPixel = this.gfx.backdrop | 0;";
             }
-            else {
-                return "this.buffer[xStart | 0] = this.gfx.backdrop | 0;"
+            function getMultiLayerPrefix() {
+                //Pass initialization if processing more than 1 layer:
+                return "lowerPixel = this.gfx.backdrop | 0; currentPixel = lowerPixel | 0;";
             }
+            function generateLayerCompareSingle(layerOffset) {
+                //Only 1 layer specified to be rendered:
+                var code =
+                "currentPixel = this.buffer[xStart | " + layerOffset + "] | 0;" +
+                "if ((currentPixel & 0x2000000) != 0) {" +
+                    "currentPixel = lowerPixel | 0;" +
+                "}";
+                return code;
+            }
+            function generateLayerCompare(layerOffset) {
+                //Code unit to be used when rendering more than 1 layer:
+                var code =
+                "workingPixel = this.buffer[xStart | " + layerOffset + "] | 0;" +
+                "if ((workingPixel & 0x3800000) <= (currentPixel & 0x1800000)) {" +
+                    "lowerPixel = currentPixel | 0;" +
+                    "currentPixel = workingPixel | 0;" +
+                "}" +
+                "else if ((workingPixel & 0x3800000) <= (lowerPixel & 0x1800000)) {" +
+                    "lowerPixel = workingPixel | 0;" +
+                "}";
+                return code;
+            }
+            function getColorEffects0Layers(doEffects) {
+                //Handle checks for color effects here:
+                var code = "";
+                //No layers:
+                if (doEffects) {
+                    //Color effects enabled:
+                    code +=
+                    "this.buffer[xStart | 0] = this.colorEffectsRenderer.process(0, this.gfx.backdrop | 0) | 0;";
+                }
+                else {
+                    //No effects enabled:
+                    code +=
+                    "this.buffer[xStart | 0] = this.gfx.backdrop | 0;"
+                }
+                return code;
+            }
+            function getColorEffectsNoSprites(doEffects) {
+                //Handle checks for color effects here:
+                var code = "";
+                //Rendering with no sprite layer:
+                if (doEffects) {
+                    //Color effects enabled:
+                    code +=
+                    "this.buffer[xStart | 0] = this.colorEffectsRenderer.process(lowerPixel | 0, currentPixel | 0) | 0;";
+                }
+                else {
+                    //No effects enabled:
+                    code +=
+                    "this.buffer[xStart | 0] = currentPixel | 0;";
+                }
+                return code;
+            }
+            function getColorEffectsWithSprites(doEffects) {
+                //Handle checks for color effects here:
+                var code = "";
+                //Rendering with a sprite layer:
+                code +=
+                "if ((currentPixel & 0x400000) == 0) {";
+                if (doEffects) {
+                    //Color effects enabled:
+                    code +=
+                    "this.buffer[xStart | 0] = this.colorEffectsRenderer.process(lowerPixel | 0, currentPixel | 0) | 0;";
+                }
+                else {
+                    //No effects enabled:
+                    code +=
+                    "this.buffer[xStart | 0] = currentPixel | 0;";
+                }
+                code +=
+                "}" +
+                "else {" +
+                    "this.buffer[xStart | 0] = this.colorEffectsRenderer.processOAMSemiTransparent(lowerPixel | 0, currentPixel | 0) | 0;" +
+                "}";
+                return code;
+            }
+            function generatePass(doEffects, layers) {
+                var code = "";
+                //Special case each possible layer combination:
+                switch (layers) {
+                    case 0:
+                        //Backdrop only:
+                        //Color Effects Post Processing:
+                        code += getColorEffects0Layers(doEffects);
+                        break;
+                    case 1:
+                        //Generate temps:
+                        code += getSingleLayerPrefix();
+                        //BG0:
+                        code += generateLayerCompareSingle(0x100);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsNoSprites(doEffects);
+                        break;
+                    case 2:
+                        //Generate temps:
+                        code += getSingleLayerPrefix();
+                        //BG1:
+                        code += generateLayerCompareSingle(0x200);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsNoSprites(doEffects);
+                        break;
+                    case 3:
+                        //Generate temps:
+                        code += getMultiLayerPrefix();
+                        //BG1:
+                        code += generateLayerCompare(0x200);
+                        //BG0:
+                        code += generateLayerCompare(0x100);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsNoSprites(doEffects);
+                        break;
+                    case 4:
+                        //Generate temps:
+                        code += getSingleLayerPrefix();
+                        //BG2:
+                        code += generateLayerCompareSingle(0x300);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsNoSprites(doEffects);
+                        break;
+                    case 5:
+                        //Generate temps:
+                        code += getMultiLayerPrefix();
+                        //BG2:
+                        code += generateLayerCompare(0x300);
+                        //BG0:
+                        code += generateLayerCompare(0x100);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsNoSprites(doEffects);
+                        break;
+                    case 6:
+                        //Generate temps:
+                        code += getMultiLayerPrefix();
+                        //BG2:
+                        code += generateLayerCompare(0x300);
+                        //BG1:
+                        code += generateLayerCompare(0x200);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsNoSprites(doEffects);
+                        break;
+                    case 7:
+                        //Generate temps:
+                        code += getMultiLayerPrefix();
+                        //BG2:
+                        code += generateLayerCompare(0x300);
+                        //BG1:
+                        code += generateLayerCompare(0x200);
+                        //BG0:
+                        code += generateLayerCompare(0x100);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsNoSprites(doEffects);
+                        break;
+                    case 8:
+                        //Generate temps:
+                        code += getSingleLayerPrefix();
+                        //BG2:
+                        code += generateLayerCompareSingle(0x400);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsNoSprites(doEffects);
+                        break;
+                    case 9:
+                        //Generate temps:
+                        code += getMultiLayerPrefix();
+                        //BG3:
+                        code += generateLayerCompare(0x400);
+                        //BG0:
+                        code += generateLayerCompare(0x100);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsNoSprites(doEffects);
+                        break;
+                    case 0xA:
+                        //Generate temps:
+                        code += getMultiLayerPrefix();
+                        //BG3:
+                        code += generateLayerCompare(0x400);
+                        //BG1:
+                        code += generateLayerCompare(0x200);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsNoSprites(doEffects);
+                        break;
+                    case 0xB:
+                        //Generate temps:
+                        code += getMultiLayerPrefix();
+                        //BG3:
+                        code += generateLayerCompare(0x400);
+                        //BG1:
+                        code += generateLayerCompare(0x200);
+                        //BG0:
+                        code += generateLayerCompare(0x100);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsNoSprites(doEffects);
+                        break;
+                    case 0xC:
+                        //Generate temps:
+                        code += getMultiLayerPrefix();
+                        //BG3:
+                        code += generateLayerCompare(0x400);
+                        //BG2:
+                        code += generateLayerCompare(0x300);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsNoSprites(doEffects);
+                        break;
+                    case 0xD:
+                        //Generate temps:
+                        code += getMultiLayerPrefix();
+                        //BG3:
+                        code += generateLayerCompare(0x400);
+                        //BG2:
+                        code += generateLayerCompare(0x300);
+                        //BG0:
+                        code += generateLayerCompare(0x100);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsNoSprites(doEffects);
+                        break;
+                    case 0xE:
+                        //Generate temps:
+                        code += getMultiLayerPrefix();
+                        //BG3:
+                        code += generateLayerCompare(0x400);
+                        //BG2:
+                        code += generateLayerCompare(0x300);
+                        //BG1:
+                        code += generateLayerCompare(0x200);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsNoSprites(doEffects);
+                        break;
+                    case 0xF:
+                        //Generate temps:
+                        code += getMultiLayerPrefix();
+                        //BG3:
+                        code += generateLayerCompare(0x400);
+                        //BG2:
+                        code += generateLayerCompare(0x300);
+                        //BG1:
+                        code += generateLayerCompare(0x200);
+                        //BG0:
+                        code += generateLayerCompare(0x100);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsNoSprites(doEffects);
+                        break;
+                    case 0x10:
+                        //Generate temps:
+                        code += getSingleLayerPrefix();
+                        //OBJ:
+                        code += generateLayerCompareSingle(0x500);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsWithSprites(doEffects);
+                        break;
+                    case 0x11:
+                        //Generate temps:
+                        code += getMultiLayerPrefix();
+                        //BG0:
+                        code += generateLayerCompare(0x100);
+                        //OBJ:
+                        code += generateLayerCompare(0x500);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsWithSprites(doEffects);
+                        break;
+                    case 0x12:
+                        //Generate temps:
+                        code += getMultiLayerPrefix();
+                        //BG1:
+                        code += generateLayerCompare(0x200);
+                        //OBJ:
+                        code += generateLayerCompare(0x500);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsWithSprites(doEffects);
+                        break;
+                    case 0x13:
+                        //Generate temps:
+                        code += getMultiLayerPrefix();
+                        //BG1:
+                        code += generateLayerCompare(0x200);
+                        //BG0:
+                        code += generateLayerCompare(0x100);
+                        //OBJ:
+                        code += generateLayerCompare(0x500);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsWithSprites(doEffects);
+                        break;
+                    case 0x14:
+                        //Generate temps:
+                        code += getMultiLayerPrefix();
+                        //BG2:
+                        code += generateLayerCompare(0x300);
+                        //OBJ:
+                        code += generateLayerCompare(0x500);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsWithSprites(doEffects);
+                        break;
+                    case 0x15:
+                        //Generate temps:
+                        code += getMultiLayerPrefix();
+                        //BG2:
+                        code += generateLayerCompare(0x300);
+                        //BG0:
+                        code += generateLayerCompare(0x100);
+                        //OBJ:
+                        code += generateLayerCompare(0x500);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsWithSprites(doEffects);
+                        break;
+                    case 0x16:
+                        //Generate temps:
+                        code += getMultiLayerPrefix();
+                        //BG2:
+                        code += generateLayerCompare(0x300);
+                        //BG1:
+                        code += generateLayerCompare(0x200);
+                        //OBJ:
+                        code += generateLayerCompare(0x500);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsWithSprites(doEffects);
+                        break;
+                    case 0x17:
+                        //Generate temps:
+                        code += getMultiLayerPrefix();
+                        //BG2:
+                        code += generateLayerCompare(0x300);
+                        //BG1:
+                        code += generateLayerCompare(0x200);
+                        //BG0:
+                        code += generateLayerCompare(0x100);
+                        //OBJ:
+                        code += generateLayerCompare(0x500);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsWithSprites(doEffects);
+                        break;
+                    case 0x18:
+                        //Generate temps:
+                        code += getMultiLayerPrefix();
+                        //BG3:
+                        code += generateLayerCompare(0x400);
+                        //OBJ:
+                        code += generateLayerCompare(0x500);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsWithSprites(doEffects);
+                        break;
+                    case 0x19:
+                        //Generate temps:
+                        code += getMultiLayerPrefix();
+                        //BG3:
+                        code += generateLayerCompare(0x400);
+                        //BG0:
+                        code += generateLayerCompare(0x100);
+                        //OBJ:
+                        code += generateLayerCompare(0x500);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsWithSprites(doEffects);
+                        break;
+                    case 0x1A:
+                        //Generate temps:
+                        code += getMultiLayerPrefix();
+                        //BG3:
+                        code += generateLayerCompare(0x400);
+                        //BG1:
+                        code += generateLayerCompare(0x200);
+                        //OBJ:
+                        code += generateLayerCompare(0x500);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsWithSprites(doEffects);
+                        break;
+                    case 0x1B:
+                        //Generate temps:
+                        code += getMultiLayerPrefix();
+                        //BG3:
+                        code += generateLayerCompare(0x400);
+                        //BG1:
+                        code += generateLayerCompare(0x200);
+                        //BG0:
+                        code += generateLayerCompare(0x100);
+                        //OBJ:
+                        code += generateLayerCompare(0x500);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsWithSprites(doEffects);
+                        break;
+                    case 0x1C:
+                        //Generate temps:
+                        code += getMultiLayerPrefix();
+                        //BG3:
+                        code += generateLayerCompare(0x400);
+                        //BG2:
+                        code += generateLayerCompare(0x300);
+                        //OBJ:
+                        code += generateLayerCompare(0x500);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsWithSprites(doEffects);
+                        break;
+                    case 0x1D:
+                        //Generate temps:
+                        code += getMultiLayerPrefix();
+                        //BG3:
+                        code += generateLayerCompare(0x400);
+                        //BG2:
+                        code += generateLayerCompare(0x300);
+                        //BG0:
+                        code += generateLayerCompare(0x100);
+                        //OBJ:
+                        code += generateLayerCompare(0x500);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsWithSprites(doEffects);
+                        break;
+                    case 0x1E:
+                        //Generate temps:
+                        code += getMultiLayerPrefix();
+                        //BG3:
+                        code += generateLayerCompare(0x400);
+                        //BG2:
+                        code += generateLayerCompare(0x300);
+                        //BG1:
+                        code += generateLayerCompare(0x200);
+                        //OBJ:
+                        code += generateLayerCompare(0x500);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsWithSprites(doEffects);
+                        break;
+                    default:
+                        //Generate temps:
+                        code += getMultiLayerPrefix();
+                        //BG3:
+                        code += generateLayerCompare(0x400);
+                        //BG2:
+                        code += generateLayerCompare(0x300);
+                        //BG1:
+                        code += generateLayerCompare(0x200);
+                        //BG0:
+                        code += generateLayerCompare(0x100);
+                        //OBJ:
+                        code += generateLayerCompare(0x500);
+                        //Color Effects Post Processing:
+                        code += getColorEffectsWithSprites(doEffects);
+                }
+                return code;
+            }
+            //Build the code to put inside a loop:
+            return generatePass(doEffects, layers);
         }
+        function generateLoopHead(compositeType, initCode, bodyCode) {
+            var code = "";
+            switch (compositeType) {
+                //Loop for normal compositor:
+                case 0:
+                    code +=
+                    initCode +
+                    "for (var xStart = 0; (xStart | 0) < 240; xStart = ((xStart | 0) + 1) | 0) {" +
+                        bodyCode +
+                    "}";
+                    break;
+                //Loop for window compositor:
+                case 1:
+                    code += "xStart = xStart | 0;" +
+                    "xEnd = xEnd | 0;" +
+                    initCode +
+                    "while ((xStart | 0) < (xEnd | 0)) {" +
+                        bodyCode +
+                        "xStart = ((xStart | 0) + 1) | 0;" +
+                    "}";
+                    break;
+                //Loop for OBJ window compositor:
+                case 2:
+                    code += initCode +
+                    "for (var xStart = 0; (xStart | 0) < 240; xStart = ((xStart | 0) + 1) | 0) {" +
+                        "if ((this.OBJWindowBuffer[xStart | 0] | 0) < 0x3800000) {" +
+                            bodyCode +
+                        "}" +
+                    "}";
+            }
+            return code;
+        }
+        //Build the loop:
+        return generateLoopHead(compositeType, generateLocalScopeInit(layers), generateLoopBody(doEffects, layers));
     }
-    function generateLoopBody(compositeType, doEffects, layers) {
-        var code = "";
-        var count = 0;
-        if ((layers & 0x1F) == 0x8) {
-            count++;
-            code += generateLayerCompareSingle(0x400);
-        }
-        else if ((layers & 0x8) != 0) {
-            count++;
-            code += generateLayerCompare(0x400);
-        }
-        if ((layers & 0x1F) == 0x4) {
-            count++;
-            code += generateLayerCompareSingle(0x300);
-        }
-        else if ((layers & 0x4) != 0) {
-            count++;
-            code += generateLayerCompare(0x300);
-        }
-        if ((layers & 0x1F) == 0x2) {
-            count++;
-            code += generateLayerCompareSingle(0x200);
-        }
-        else if ((layers & 0x2) != 0) {
-            count++;
-            code += generateLayerCompare(0x200);
-        }
-        if ((layers & 0x1F) == 0x1) {
-            count++;
-            code += generateLayerCompareSingle(0x100);
-        }
-        else if ((layers & 0x1) != 0) {
-            count++;
-            code += generateLayerCompare(0x100);
-        }
-        if ((layers & 0x1F) == 0x10) {
-            count++;
-            code += generateLayerCompareSingle(0x500);
-        }
-        else if ((layers & 0x10) != 0) {
-            count++;
-            code += generateLayerCompare(0x500);
-        }
-        switch (count) {
-            case 0:
-                break;
-            case 1:
-                code = "lowerPixel = this.gfx.backdrop | 0;" + code;
-                break;
-            default:
-                code = "lowerPixel = this.gfx.backdrop | 0; currentPixel = lowerPixel | 0;" + code;
-        }
-        code += generateColorEffects(doEffects, count);
-        return generateLoopHead(compositeType, count, code);
-    }
-    function generateBlock(compositeType, doEffects) {
+    function generateCompositor(compositeType, doEffects) {
+        //Get function suffix we'll use depending on color effects usage:
         var effectsPrefix = (doEffects) ? "special" : "normal";
+        //Loop through all possible combinations of layers:
         for (var layers = 0; layers < 0x20; layers++) {
-            var code = generateLoopBody(compositeType, doEffects, layers);
+            //Codegen the loop:
+            var code = generateLoop(compositeType, doEffects, layers);
+            //Compile the code and assign to appropriate compositor object:
             switch (compositeType) {
                 case 0:
+                    //Normal compositor:
                     GameBoyAdvanceCompositor.prototype[effectsPrefix + layers] = Function(code);
                     break;
                 case 1:
+                    //Window compositor:
                     GameBoyAdvanceWindowCompositor.prototype[effectsPrefix + layers] = Function("xStart", "xEnd", code);
                     break;
                 default:
+                    //OBJ window compositor:
                     GameBoyAdvanceOBJWindowCompositor.prototype[effectsPrefix + layers] = Function(code);
             }
         }
     }
-    function generateAll() {
+    function generateCompositors() {
+        //Build the functions for each of the three compositors:
         for (var compositeType = 0; compositeType < 3; compositeType++) {
-            generateBlock(compositeType, false);
-            generateBlock(compositeType, true);
+            //Build for the no special effects processing case:
+            generateCompositor(compositeType, false);
+            //Build for the special effects processing case:
+            generateCompositor(compositeType, true);
         }
     }
-    generateAll();
+    //Build and compile all the compositor for every possible layer/effect combination:
+    generateCompositors();
 }
-generateCompositor();
+generateIodineGBAGFXCompositors();
