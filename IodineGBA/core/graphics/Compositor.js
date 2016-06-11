@@ -485,11 +485,16 @@ function generateIodineGBAGFXCompositors() {
         function generateLoopBody(doEffects, layers) {
             function getSingleLayerPrefix() {
                 //Pass initialization if processing only 1 layer:
-                return "lowerPixel = this.gfx.backdrop | 0;";
+                var code =
+                "lowerPixel = this.gfx.backdrop | 0;";
+                return code;
             }
             function getMultiLayerPrefix() {
                 //Pass initialization if processing more than 1 layer:
-                return "lowerPixel = this.gfx.backdrop | 0; currentPixel = lowerPixel | 0;";
+                var code =
+                "lowerPixel = this.gfx.backdrop | 0;" +
+                "currentPixel = lowerPixel | 0;";
+                return code;
             }
             function generateLayerCompareSingle(layerOffset) {
                 //Only 1 layer specified to be rendered:
