@@ -564,6 +564,7 @@ function generateIodineGBAGFXCompositors() {
                 code +=
                 "}" +
                 "else {" +
+                    //Must handle for semi-transparent sprite case:
                     "this.buffer[xStart | 0] = this.colorEffectsRenderer.processOAMSemiTransparent(lowerPixel | 0, currentPixel | 0) | 0;" +
                 "}";
                 return code;
@@ -941,7 +942,8 @@ function generateIodineGBAGFXCompositors() {
                     break;
                 //Loop for window compositor:
                 case 1:
-                    code += "xStart = xStart | 0;" +
+                    code +=
+                    "xStart = xStart | 0;" +
                     "xEnd = xEnd | 0;" +
                     initCode +
                     "while ((xStart | 0) < (xEnd | 0)) {" +
@@ -951,7 +953,8 @@ function generateIodineGBAGFXCompositors() {
                     break;
                 //Loop for OBJ window compositor:
                 case 2:
-                    code += initCode +
+                    code +=
+                    initCode +
                     "for (var xStart = 0; (xStart | 0) < 240; xStart = ((xStart | 0) + 1) | 0) {" +
                         "if ((this.OBJWindowBuffer[xStart | 0] | 0) < 0x3800000) {" +
                             bodyCode +
@@ -995,7 +998,7 @@ function generateIodineGBAGFXCompositors() {
             generateCompositor(compositeType, true);
         }
     }
-    //Build and compile all the compositor for every possible layer/effect combination:
+    //Build and compile the compositors for every possible layer/effect combination:
     generateCompositors();
 }
 generateIodineGBAGFXCompositors();
