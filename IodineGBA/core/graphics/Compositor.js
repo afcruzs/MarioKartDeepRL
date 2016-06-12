@@ -59,6 +59,7 @@ if (typeof SIMD == "object" && typeof SIMD.Int32x4 == "function") {
     GameBoyAdvanceCompositor.prototype.mask1 = SIMD.Int32x4.splat(0x2000000);
     GameBoyAdvanceCompositor.prototype.mask2 = SIMD.Int32x4.splat(0x3800000);
     GameBoyAdvanceCompositor.prototype.mask3 = SIMD.Int32x4.splat(0x1800000);
+    GameBoyAdvanceCompositor.prototype.mask4 = SIMD.Bool32x4.splat(true);
 }
 function generateIodineGBAGFXCompositors() {
     function generateCompositors() {
@@ -66,7 +67,8 @@ function generateIodineGBAGFXCompositors() {
             function generateLoopSIMD(compositeType, doEffects, layers) {
                 function generateLocalScopeInit(layers) {
                     //Declare the necessary temporary variables:
-                    var code = "";
+                    var code =
+                            "var backdrop = SIMD.Int32x4.splat(this.gfx.backdrop | 0);";
                     switch (layers) {
                         case 0:
                             //Don't need any if no layers to process:
@@ -75,8 +77,8 @@ function generateIodineGBAGFXCompositors() {
                             //Need this temp for more than one layer:
                             code +=
                             "var workingPixel = this.mask0;" +
-                            "var test1 = SIMD.Bool32x4.splat(true);" +
-                            "var test2 = SIMD.Bool32x4.splat(true);";
+                            "var test1 = this.mask4;" +
+                            "var test2 = this.mask4;";
                         case 0x1:
                         case 0x2:
                         case 0x4:
@@ -93,13 +95,13 @@ function generateIodineGBAGFXCompositors() {
                     function getSingleLayerPrefix() {
                         //Pass initialization if processing only 1 layer:
                         var code =
-                        "lowerPixel = SIMD.Int32x4.splat(this.gfx.backdrop | 0);";
+                        "lowerPixel = backdrop;";
                         return code;
                     }
                     function getMultiLayerPrefix() {
                         //Pass initialization if processing more than 1 layer:
                         var code =
-                        "lowerPixel = SIMD.Int32x4.splat(this.gfx.backdrop | 0);" +
+                        "lowerPixel = backdrop;" +
                         "currentPixel = lowerPixel;";
                         return code;
                     }
@@ -148,14 +150,14 @@ function generateIodineGBAGFXCompositors() {
                             "SIMD.Int32x4.store(this.buffer, xStart | 0," +
                                 "this.colorEffectsRenderer.processSIMD(" +
                                     "this.mask0," +
-                                    "SIMD.Int32x4.splat(this.gfx.backdrop | 0)" +
+                                    "backdrop" +
                                 ")" +
                             ");";
                         }
                         else {
                             //No effects enabled:
                             code +=
-                            "SIMD.Int32x4.store(this.buffer, xStart | 0, SIMD.Int32x4.splat(this.gfx.backdrop | 0));";
+                            "SIMD.Int32x4.store(this.buffer, xStart | 0, backdrop);";
                         }
                         return code;
                     }
