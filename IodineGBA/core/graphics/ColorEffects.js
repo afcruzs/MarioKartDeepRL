@@ -23,7 +23,57 @@ if (typeof SIMD == "object" && typeof SIMD.Int32x4 == "function") {
         this.brightnessEffectAmountReverse = SIMD.Int32x4.splat(0x10);
     }
     GameBoyAdvanceColorEffectsRenderer.prototype.pixelMask = SIMD.Int32x4.splat(0x1F);
-    GameBoyAdvanceColorEffectsRenderer.prototype.temporaryPixelBuffer = new Int32Array(4);
+    GameBoyAdvanceColorEffectsRenderer.prototype.temporaryPixelBuffer = new Int32Array(12);
+    GameBoyAdvanceColorEffectsRenderer.prototype.processSIMD = function (lowerPixel, currentPixel) {
+        SIMD.Int32x4.store(this.temporaryPixelBuffer, 4, lowerPixel);
+        SIMD.Int32x4.store(this.temporaryPixelBuffer, 8, currentPixel);
+        return SIMD.Int32x4(
+            this.process(this.temporaryPixelBuffer[4] | 0, this.temporaryPixelBuffer[8] | 0),
+            this.process(this.temporaryPixelBuffer[5] | 0, this.temporaryPixelBuffer[9] | 0),
+            this.process(this.temporaryPixelBuffer[6] | 0, this.temporaryPixelBuffer[10] | 0),
+            this.process(this.temporaryPixelBuffer[7] | 0, this.temporaryPixelBuffer[11] | 0)
+        );
+    }
+    GameBoyAdvanceColorEffectsRenderer.prototype.processSIMD2 = function (lowerPixel, currentPixel) {
+        SIMD.Int32x4.store(this.temporaryPixelBuffer, 4, lowerPixel);
+        SIMD.Int32x4.store(this.temporaryPixelBuffer, 8, currentPixel);
+        return SIMD.Int32x4(
+            this.processSIMD2Pixel(this.temporaryPixelBuffer[4] | 0, this.temporaryPixelBuffer[8] | 0),
+            this.processSIMD2Pixel(this.temporaryPixelBuffer[5] | 0, this.temporaryPixelBuffer[9] | 0),
+            this.processSIMD2Pixel(this.temporaryPixelBuffer[6] | 0, this.temporaryPixelBuffer[10] | 0),
+            this.processSIMD2Pixel(this.temporaryPixelBuffer[7] | 0, this.temporaryPixelBuffer[11] | 0)
+        );
+    }
+    GameBoyAdvanceColorEffectsRenderer.prototype.processSIMD2Pixel = function (lowerPixel, currentPixel) {
+        lowerPixel = lowerPixel | 0;
+        currentPixel = currentPixel | 0;
+        if ((currentPixel & 0x400000) == 0) {
+            return this.process(lowerPixel | 0, currentPixel | 0) | 0;
+        }
+        else {
+            return this.processOAMSemiTransparent(lowerPixel | 0, currentPixel | 0) | 0;
+        }
+    }
+    GameBoyAdvanceColorEffectsRenderer.prototype.processSIMD3 = function (lowerPixel, currentPixel) {
+        SIMD.Int32x4.store(this.temporaryPixelBuffer, 4, lowerPixel);
+        SIMD.Int32x4.store(this.temporaryPixelBuffer, 8, currentPixel);
+        return SIMD.Int32x4(
+            this.processSIMD3Pixel(this.temporaryPixelBuffer[4] | 0, this.temporaryPixelBuffer[8] | 0),
+            this.processSIMD3Pixel(this.temporaryPixelBuffer[5] | 0, this.temporaryPixelBuffer[9] | 0),
+            this.processSIMD3Pixel(this.temporaryPixelBuffer[6] | 0, this.temporaryPixelBuffer[10] | 0),
+            this.processSIMD3Pixel(this.temporaryPixelBuffer[7] | 0, this.temporaryPixelBuffer[11] | 0)
+        );
+    }
+    GameBoyAdvanceColorEffectsRenderer.prototype.processSIMD3Pixel = function (lowerPixel, currentPixel) {
+        lowerPixel = lowerPixel | 0;
+        currentPixel = currentPixel | 0;
+        if ((currentPixel & 0x400000) == 0) {
+            return currentPixel | 0;
+        }
+        else {
+            return this.processOAMSemiTransparent(lowerPixel | 0, currentPixel | 0) | 0;
+        }
+    }
     GameBoyAdvanceColorEffectsRenderer.prototype.alphaBlend = function (topPixel, lowerPixel) {
         topPixel = topPixel | 0;
         lowerPixel = lowerPixel | 0;
