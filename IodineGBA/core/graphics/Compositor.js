@@ -147,12 +147,8 @@ function generateIodineGBAGFXCompositors() {
                         if (doEffects) {
                             //Color effects enabled:
                             code +=
-                            "SIMD.Int32x4.store(this.buffer, xStart | 0," +
-                                "this.colorEffectsRenderer.processSIMD(" +
-                                    "this.mask0," +
-                                    "backdrop" +
-                                ")" +
-                            ");";
+                            "SIMD.Int32x4.store(this.buffer, xStart | 0x700, this.mask0);" +
+                            "SIMD.Int32x4.store(this.buffer, xStart | 0x800, backdrop);";
                         }
                         else {
                             //No effects enabled:
@@ -168,12 +164,8 @@ function generateIodineGBAGFXCompositors() {
                         if (doEffects) {
                             //Color effects enabled:
                             code +=
-                            "SIMD.Int32x4.store(this.buffer, xStart | 0," +
-                                "this.colorEffectsRenderer.processSIMD(" +
-                                    "lowerPixel," +
-                                    "currentPixel" +
-                                ")" +
-                            ");";
+                            "SIMD.Int32x4.store(this.buffer, xStart | 0x700, lowerPixel);" +
+                            "SIMD.Int32x4.store(this.buffer, xStart | 0x800, currentPixel);";
                         }
                         else {
                             //No effects enabled:
@@ -186,26 +178,9 @@ function generateIodineGBAGFXCompositors() {
                         //Handle checks for color effects here:
                         var code = "";
                         //Rendering with a sprite layer:
-                        if (doEffects) {
-                            //Color effects enabled:
-                            code +=
-                            "SIMD.Int32x4.store(this.buffer, xStart | 0," +
-                                "this.colorEffectsRenderer.processSIMD2(" +
-                                    "lowerPixel," +
-                                    "currentPixel" +
-                                ")" +
-                            ");";
-                        }
-                        else {
-                            //No effects enabled:
-                            code +=
-                            "SIMD.Int32x4.store(this.buffer, xStart | 0," +
-                                "this.colorEffectsRenderer.processSIMD3(" +
-                                    "lowerPixel," +
-                                    "currentPixel" +
-                                ")" +
-                            ");";
-                        }
+                        code +=
+                        "SIMD.Int32x4.store(this.buffer, xStart | 0x700, lowerPixel);" +
+                        "SIMD.Int32x4.store(this.buffer, xStart | 0x800, currentPixel);";
                         return code;
                     }
                     function generatePass(doEffects, layers) {
@@ -568,21 +543,38 @@ function generateIodineGBAGFXCompositors() {
                     //Build the code to put inside a loop:
                     return generatePass(doEffects, layers);
                 }
-                function generateLoopHead(compositeType, initCode, bodyCode) {
+                function generateLoopHead(compositeType, doEffects, layers, initCode, bodyCode) {
                     var code = "";
-                    switch (compositeType) {
-                        //Loop for normal compositor:
-                        case 0:
+                    code +=
+                    initCode +
+                    "for (var xStart = 0; (xStart | 0) < 240; xStart = ((xStart | 0) + 4) | 0) {" +
+                        bodyCode +
+                    "}";
+                    //Check if we're processing the sprite layer:
+                    if (layers < 0x10) {
+                        //Don't need color effects processing for the else case:
+                        if (doEffects) {
+                            //Effects handling:
                             code +=
-                            initCode +
-                            "for (var xStart = 0; (xStart | 0) < 240; xStart = ((xStart | 0) + 4) | 0) {" +
-                                bodyCode +
-                            "}";
+                            ";this.colorEffectsRenderer.processSIMD()";
+                        }
+                    }
+                    else {
+                        if (doEffects) {
+                            //Effects + semi-transparency handling:
+                            code +=
+                            ";this.colorEffectsRenderer.processSIMD2()";
+                        }
+                        else {
+                            //Sprite semi-transparency handling:
+                            code +=
+                            ";this.colorEffectsRenderer.processSIMD3()";
+                        }
                     }
                     return code;
                 }
                 //Build the loop:
-                return generateLoopHead(compositeType, generateLocalScopeInit(layers), generateLoopBody(doEffects, layers));
+                return generateLoopHead(compositeType, doEffects, layers, generateLocalScopeInit(layers), generateLoopBody(doEffects, layers));
             }
             function generateLoopScalar(compositeType, doEffects, layers) {
                 function generateLocalScopeInit(layers) {

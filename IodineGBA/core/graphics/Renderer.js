@@ -34,7 +34,14 @@ if (__VIEWS_SUPPORTED__) {
         this.VRAM32 = getInt32View(this.VRAM);
         this.paletteRAM16 = getUint16View(this.paletteRAM);
         this.paletteRAM32 = getInt32View(this.paletteRAM);
-        this.buffer = getInt32Array(0x680);
+        //Check for SIMD support:
+        if (typeof SIMD == "object" && typeof SIMD.Int32x4 == "function") {
+            //We bounce effects logic through some copies:
+            this.buffer = getInt32Array(0x900);
+        }
+        else {
+            this.buffer = getInt32Array(0x680);
+        }
         this.lineBuffer = getInt32ViewCustom(this.buffer, 0, 240);
         this.frameBuffer = getInt32Array(38400);        //The internal buffer to composite to.
         this.swizzledFrame = getUint8Array(115200);     //The swizzled output buffer that syncs to the internal framebuffer on v-blank.
@@ -90,7 +97,7 @@ GameBoyAdvanceGraphicsRendererOffthread.prototype.generateRenderers = GameBoyAdv
     this.window1Renderer = new GameBoyAdvanceWindowRenderer(new GameBoyAdvanceWindowCompositor(this));
     this.objWindowRenderer = new GameBoyAdvanceOBJWindowRenderer(new GameBoyAdvanceOBJWindowCompositor(this));
     this.mosaicRenderer = new GameBoyAdvanceMosaicRenderer(this.buffer);
-    this.colorEffectsRenderer = new GameBoyAdvanceColorEffectsRenderer();
+    this.colorEffectsRenderer = new GameBoyAdvanceColorEffectsRenderer(this.buffer);
 }
 GameBoyAdvanceGraphicsRendererOffthread.prototype.initializeRenderers = GameBoyAdvanceGraphicsRenderer.prototype.initializeRenderers = function () {
     this.compositor.initialize();
