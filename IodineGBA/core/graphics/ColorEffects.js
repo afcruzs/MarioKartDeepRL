@@ -24,7 +24,7 @@ if (typeof SIMD == "object" && typeof SIMD.Int32x4 == "function") {
         this.buffer = buffer;
     }
     GameBoyAdvanceColorEffectsRenderer.prototype.pixelMask = SIMD.Int32x4.splat(0x1F);
-    GameBoyAdvanceColorEffectsRenderer.prototype.temporaryPixelBuffer = new Int32Array(12);
+    GameBoyAdvanceColorEffectsRenderer.prototype.temporaryPixelBuffer = new Int32Array(4);
     GameBoyAdvanceColorEffectsRenderer.prototype.alphaBlend = function (topPixel, lowerPixel) {
         topPixel = topPixel | 0;
         lowerPixel = lowerPixel | 0;
