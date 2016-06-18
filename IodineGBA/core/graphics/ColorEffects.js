@@ -25,50 +25,6 @@ if (typeof SIMD == "object" && typeof SIMD.Int32x4 == "function") {
     }
     GameBoyAdvanceColorEffectsRenderer.prototype.pixelMask = SIMD.Int32x4.splat(0x1F);
     GameBoyAdvanceColorEffectsRenderer.prototype.temporaryPixelBuffer = new Int32Array(12);
-    GameBoyAdvanceColorEffectsRenderer.prototype.processSIMD = function () {
-        for (var index = 0; (index | 0) < 240; index = ((index | 0) + 4) | 0) {
-            this.buffer[index | 0] = this.process(this.buffer[index | 0x700] | 0, this.buffer[index | 0x800] | 0);
-            this.buffer[index | 1] = this.process(this.buffer[index | 0x701] | 0, this.buffer[index | 0x801] | 0);
-            this.buffer[index | 2] = this.process(this.buffer[index | 0x702] | 0, this.buffer[index | 0x802] | 0);
-            this.buffer[index | 3] = this.process(this.buffer[index | 0x703] | 0, this.buffer[index | 0x803] | 0);
-        }
-    }
-    GameBoyAdvanceColorEffectsRenderer.prototype.processSIMD2 = function () {
-        for (var index = 0; (index | 0) < 240; index = ((index | 0) + 4) | 0) {
-            this.buffer[index | 0] = this.processSIMD2Pixel(this.buffer[index | 0x700] | 0, this.buffer[index | 0x800] | 0);
-            this.buffer[index | 1] = this.processSIMD2Pixel(this.buffer[index | 0x701] | 0, this.buffer[index | 0x801] | 0);
-            this.buffer[index | 2] = this.processSIMD2Pixel(this.buffer[index | 0x702] | 0, this.buffer[index | 0x802] | 0);
-            this.buffer[index | 3] = this.processSIMD2Pixel(this.buffer[index | 0x703] | 0, this.buffer[index | 0x803] | 0);
-        }
-    }
-    GameBoyAdvanceColorEffectsRenderer.prototype.processSIMD2Pixel = function (lowerPixel, currentPixel) {
-        lowerPixel = lowerPixel | 0;
-        currentPixel = currentPixel | 0;
-        if ((currentPixel & 0x400000) == 0) {
-            return this.process(lowerPixel | 0, currentPixel | 0) | 0;
-        }
-        else {
-            return this.processOAMSemiTransparent(lowerPixel | 0, currentPixel | 0) | 0;
-        }
-    }
-    GameBoyAdvanceColorEffectsRenderer.prototype.processSIMD3 = function () {
-        for (var index = 0; (index | 0) < 240; index = ((index | 0) + 4) | 0) {
-            this.buffer[index | 0] = this.processSIMD3Pixel(this.buffer[index | 0x700] | 0, this.buffer[index | 0x800] | 0);
-            this.buffer[index | 1] = this.processSIMD3Pixel(this.buffer[index | 0x701] | 0, this.buffer[index | 0x801] | 0);
-            this.buffer[index | 2] = this.processSIMD3Pixel(this.buffer[index | 0x702] | 0, this.buffer[index | 0x802] | 0);
-            this.buffer[index | 3] = this.processSIMD3Pixel(this.buffer[index | 0x703] | 0, this.buffer[index | 0x803] | 0);
-        }
-    }
-    GameBoyAdvanceColorEffectsRenderer.prototype.processSIMD3Pixel = function (lowerPixel, currentPixel) {
-        lowerPixel = lowerPixel | 0;
-        currentPixel = currentPixel | 0;
-        if ((currentPixel & 0x400000) == 0) {
-            return currentPixel | 0;
-        }
-        else {
-            return this.processOAMSemiTransparent(lowerPixel | 0, currentPixel | 0) | 0;
-        }
-    }
     GameBoyAdvanceColorEffectsRenderer.prototype.alphaBlend = function (topPixel, lowerPixel) {
         topPixel = topPixel | 0;
         lowerPixel = lowerPixel | 0;
@@ -139,6 +95,74 @@ if (typeof SIMD == "object" && typeof SIMD.Int32x4 == "function") {
         var data = Math.min(data & 0x1F, 0x10) | 0;
         this.brightnessEffectAmount = SIMD.Int32x4.splat(data | 0);
         this.brightnessEffectAmountReverse = SIMD.Int32x4.splat((0x10 - (data | 0)) | 0);
+    }
+    GameBoyAdvanceColorEffectsRenderer.prototype.processFullNormalEffectsNoSprites = function () {
+        for (var index = 0; (index | 0) < 240; index = ((index | 0) + 4) | 0) {
+            this.buffer[index | 0] = this.processPixelNormal(this.buffer[index | 0x700] | 0, this.buffer[index | 0x800] | 0);
+            this.buffer[index | 1] = this.processPixelNormal(this.buffer[index | 0x701] | 0, this.buffer[index | 0x801] | 0);
+            this.buffer[index | 2] = this.processPixelNormal(this.buffer[index | 0x702] | 0, this.buffer[index | 0x802] | 0);
+            this.buffer[index | 3] = this.processPixelNormal(this.buffer[index | 0x703] | 0, this.buffer[index | 0x803] | 0);
+        }
+    }
+    GameBoyAdvanceColorEffectsRenderer.prototype.processWindowNormalEffectsNoSprites = function (xStart, xEnd) {
+        xStart = xStart | 0;
+        xEnd = xEnd | 0;
+        while ((xStart | 0) < (xEnd | 0)) {
+            this.buffer[xStart | 0] = this.processPixelNormal(this.buffer[xStart | 0x700] | 0, this.buffer[xStart | 0x800] | 0);
+            xStart = ((xStart | 0) + 1) | 0;
+        }
+    }
+    GameBoyAdvanceColorEffectsRenderer.prototype.processFullNormalEffectsWithSprites = function () {
+        for (var index = 0; (index | 0) < 240; index = ((index | 0) + 4) | 0) {
+            this.buffer[index | 0] = this.processPixelTestFull(this.buffer[index | 0x700] | 0, this.buffer[index | 0x800] | 0);
+            this.buffer[index | 1] = this.processPixelTestFull(this.buffer[index | 0x701] | 0, this.buffer[index | 0x801] | 0);
+            this.buffer[index | 2] = this.processPixelTestFull(this.buffer[index | 0x702] | 0, this.buffer[index | 0x802] | 0);
+            this.buffer[index | 3] = this.processPixelTestFull(this.buffer[index | 0x703] | 0, this.buffer[index | 0x803] | 0);
+        }
+    }
+    GameBoyAdvanceColorEffectsRenderer.prototype.processWindowNormalEffectsWithSprites = function (xStart, xEnd) {
+        xStart = xStart | 0;
+        xEnd = xEnd | 0;
+        while ((xStart | 0) < (xEnd | 0)) {
+            this.buffer[xStart | 0] = this.processPixelTestFull(this.buffer[xStart | 0x700] | 0, this.buffer[xStart | 0x800] | 0);
+            xStart = ((xStart | 0) + 1) | 0;
+        }
+    }
+    GameBoyAdvanceColorEffectsRenderer.prototype.processFullNoEffectsWithSprites = function () {
+        for (var index = 0; (index | 0) < 240; index = ((index | 0) + 4) | 0) {
+            this.buffer[index | 0] = this.processPixelTestSprite(this.buffer[index | 0x700] | 0, this.buffer[index | 0x800] | 0);
+            this.buffer[index | 1] = this.processPixelTestSprite(this.buffer[index | 0x701] | 0, this.buffer[index | 0x801] | 0);
+            this.buffer[index | 2] = this.processPixelTestSprite(this.buffer[index | 0x702] | 0, this.buffer[index | 0x802] | 0);
+            this.buffer[index | 3] = this.processPixelTestSprite(this.buffer[index | 0x703] | 0, this.buffer[index | 0x803] | 0);
+        }
+    }
+    GameBoyAdvanceColorEffectsRenderer.prototype.processWindowNoEffectsWithSprites = function (xStart, xEnd) {
+        xStart = xStart | 0;
+        xEnd = xEnd | 0;
+        while ((xStart | 0) < (xEnd | 0)) {
+            this.buffer[xStart | 0] = this.processPixelTestSprite(this.buffer[xStart | 0x700] | 0, this.buffer[xStart | 0x800] | 0);
+            xStart = ((xStart | 0) + 1) | 0;
+        }
+    }
+    GameBoyAdvanceColorEffectsRenderer.prototype.processPixelTestFull = function (lowerPixel, currentPixel) {
+        lowerPixel = lowerPixel | 0;
+        currentPixel = currentPixel | 0;
+        if ((currentPixel & 0x400000) == 0) {
+            return this.processPixelNormal(lowerPixel | 0, currentPixel | 0) | 0;
+        }
+        else {
+            return this.processPixelSprite(lowerPixel | 0, currentPixel | 0) | 0;
+        }
+    }
+    GameBoyAdvanceColorEffectsRenderer.prototype.processPixelTestSprite = function (lowerPixel, currentPixel) {
+        lowerPixel = lowerPixel | 0;
+        currentPixel = currentPixel | 0;
+        if ((currentPixel & 0x400000) == 0) {
+            return currentPixel | 0;
+        }
+        else {
+            return this.processPixelSprite(lowerPixel | 0, currentPixel | 0) | 0;
+        }
     }
 }
 else {
@@ -268,23 +292,7 @@ else {
         this.brightnessEffectAmount = Math.min(data & 0x1F, 0x10) | 0;
     }
 }
-GameBoyAdvanceColorEffectsRenderer.prototype.processOAMSemiTransparent = function (lowerPixel, topPixel) {
-    lowerPixel = lowerPixel | 0;
-    topPixel = topPixel | 0;
-    if (((lowerPixel | 0) & (this.effectsTarget2 | 0)) != 0) {
-        return this.alphaBlend(topPixel | 0, lowerPixel | 0) | 0;
-    }
-    else if (((topPixel | 0) & (this.effectsTarget1 | 0)) != 0) {
-        switch (this.colorEffectsType | 0) {
-            case 2:
-                return this.brightnessIncrease(topPixel | 0) | 0;
-            case 3:
-                return this.brightnessDecrease(topPixel | 0) | 0;
-        }
-    }
-    return topPixel | 0;
-}
-GameBoyAdvanceColorEffectsRenderer.prototype.process = function (lowerPixel, topPixel) {
+GameBoyAdvanceColorEffectsRenderer.prototype.processPixelNormal = function (lowerPixel, topPixel) {
     lowerPixel = lowerPixel | 0;
     topPixel = topPixel | 0;
     if (((topPixel | 0) & (this.effectsTarget1 | 0)) != 0) {
@@ -294,6 +302,22 @@ GameBoyAdvanceColorEffectsRenderer.prototype.process = function (lowerPixel, top
                     return this.alphaBlend(topPixel | 0, lowerPixel | 0) | 0;
                 }
                 break;
+            case 2:
+                return this.brightnessIncrease(topPixel | 0) | 0;
+            case 3:
+                return this.brightnessDecrease(topPixel | 0) | 0;
+        }
+    }
+    return topPixel | 0;
+}
+GameBoyAdvanceColorEffectsRenderer.prototype.processPixelSprite = function (lowerPixel, topPixel) {
+    lowerPixel = lowerPixel | 0;
+    topPixel = topPixel | 0;
+    if (((lowerPixel | 0) & (this.effectsTarget2 | 0)) != 0) {
+        return this.alphaBlend(topPixel | 0, lowerPixel | 0) | 0;
+    }
+    else if (((topPixel | 0) & (this.effectsTarget1 | 0)) != 0) {
+        switch (this.colorEffectsType | 0) {
             case 2:
                 return this.brightnessIncrease(topPixel | 0) | 0;
             case 3:
