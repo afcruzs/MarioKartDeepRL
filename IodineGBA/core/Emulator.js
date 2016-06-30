@@ -329,12 +329,19 @@ GameBoyAdvanceEmulator.prototype.initializeCore = function () {
     return allowInit | 0;
 }
 GameBoyAdvanceEmulator.prototype.keyDown = function (keyPressed) {
+    console.log("keydown emulator");
+    console.log(keyPressed);
+
     keyPressed = keyPressed | 0;
     if ((this.emulatorStatus | 0) < 0x10 && (keyPressed | 0) >= 0 && (keyPressed | 0) <= 9) {
         this.IOCore.joypad.keyPress(keyPressed | 0);
     }
 }
 GameBoyAdvanceEmulator.prototype.keyUp = function (keyReleased) {
+    console.log("keyup emulator");
+    console.log(keyReleased);
+
+    
     keyReleased = keyReleased | 0;
     if ((this.emulatorStatus | 0) < 0x10 && (keyReleased | 0) >= 0 && (keyReleased | 0) <= 9) {
         this.IOCore.joypad.keyRelease(keyReleased | 0);

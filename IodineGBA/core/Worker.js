@@ -112,9 +112,11 @@ self.onmessage = function (event) {
             break;
         case 11:
             Iodine.keyDown(data.payload | 0);
+            console.log("keydown");
             break;
         case 12:
             Iodine.keyUp(data.payload | 0);
+            console.log("keyUp");
             break;
         case 13:
             Iodine.incrementSpeed(+data.payload);
