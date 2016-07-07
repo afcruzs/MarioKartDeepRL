@@ -2,7 +2,7 @@ var mapButtontoIndex = {"a":0, "b":1, "select":2, "start":3, "right":4, "left": 
 
 function pressButton(button, time) {
 
-	if(button in mapButtontoIndex ){
+	if( button in mapButtontoIndex ){
 
 		index = mapButtontoIndex[button]	
 		IodineGUI.Iodine.keyDown(index);
