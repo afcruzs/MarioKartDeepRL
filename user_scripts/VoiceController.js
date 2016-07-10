@@ -11,9 +11,10 @@
 
 
 (function(){
+    var mapButtontoIndex = {"a":0, "b":1, "select":2, "start":3, "right":4, "left": 5, "up":6 ,"down":7, "r":8, "l":9}
     var pressButton = function(button, time) {
-        if( button in IodineGUI.mapButtontoIndex ){
-            var index = IodineGUI.mapButtontoIndex[button]  
+        if( button in mapButtontoIndex ){
+            var index = mapButtontoIndex[button]
             IodineGUI.Iodine.keyDown(index);
 
             setTimeout(function() {
@@ -24,7 +25,7 @@
     }
 
     var SpeechRecognition = null;
-    var checks = ['SpeechRecognition', 'webkitSpeechRecognition', 
+    var checks = ['SpeechRecognition', 'webkitSpeechRecognition',
     'mozSpeechRecognition', 'msSpeechRecognition', 'oSpeechRecognition'];
 
 
@@ -34,7 +35,7 @@
         if(check in window){
             SpeechRecognition = window[check];
             break;
-        }       
+        }
     }
 
 
@@ -155,6 +156,3 @@
         recognition.start();
     }
 })();
-
-
-
