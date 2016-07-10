@@ -14,6 +14,28 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
+Voice Interface
+--------------------------------------------------------------------
+Voice Interface added by Jeff Zhang@JeffZhang02747
+To control GameBoy through voice, You have to allow this page to access microphone first.
+
+voice command to press a button:
+    press/push (the) button/key [button_name]
+    word in the bracket is optional
+
+    example:
+        push key left
+
+voice command to control speed/volume:
+    increase/up/decrease/down (the) volume/speed
+    increase/up/decrease/down (the) volume/speed by [amount]
+    set/move/get (the) volume/speed to [amount]
+
+    example:
+        up the volume
+
+
+
 Screenshots
 --------------------------------------------------------------------
 
