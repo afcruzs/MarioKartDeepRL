@@ -1,0 +1,28 @@
+=============
+Loss
+=============
+Tiempo: 3005C80, 16 bits
+Monedas: 3003D10, 8 bits
+Posición: 30023B4, 8 bits
+Frames en los que no se presiona el acelerador: 3003ADC, 16 bits
+Overflow anterior: 3003ADE, 8bits
+Frames en los que frena: 3003AE0, 16 bits
+Overflow anterior: 3003AE2, 8 bits
+Rescates por Lakitu: 3003AE7, 8 bits
+Golpes a conductores o criaturas: 3003AE8, 8 bits
+Golpes a muros: 3003AE9, 8 bits
+Número de veces que hace spin: 3003AEA, 8 bits
+Frames por fuera de la pista: 3003AF0, 16 bits
+Overflow: 3003AF2, 8 bits
+=============
+Features
+=============
+Poder: 3003D12, 16 bits
+Posición: 30023B4, 8 bits
+Daniel Castro Alvarado
+9/13, 10:53pm
+Daniel Castro Alvarado
+-----------
+Finaliza el juego cuando 3003BE0 (1 byte) es 34
+
+Al parecer, 3003BE0 se vuelve 40 temporalmente al iniciar
