@@ -78,7 +78,8 @@ savestate.load(state_file)
 
 local frames_to_stack = 4
 local frame_number = 0
-local update_frequency = 15
+local update_frequency = 10
+local action = {}
 
 console.log(game_id)
 
@@ -105,14 +106,19 @@ while true do
 		end
 
 		local result = {}
-		make_json_request(base_url .. "frame-data", "POST", {
+		make_json_request(base_url .. "request-action", "POST", {
 			game_id=game_id,
 			reward=reward,
 			screenshots=last_screenshots
 		}, result)
+
+		result = json:decode(result[1])
+		action = result.action
 	end
 
 	frame_number = frame_number + 1
+
+	joypad.set(action)
 
 	if race_ended() then
 		savestate.load(state_file)
