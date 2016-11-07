@@ -2,7 +2,6 @@ local http = require("socket.http")
 local mime = require("mime")
 local json = require("json")
 local ltn12 = require("ltn12")
-local base64 = require("base64")
 
 function compute_reward()
 	local position = memory.read_u8(0x23B4)
@@ -79,7 +78,7 @@ savestate.load(state_file)
 
 local frames_to_stack = 4
 local frame_number = 0
-local update_frequency = 30
+local update_frequency = 15
 
 console.log(game_id)
 
@@ -100,7 +99,7 @@ while true do
 
 			if screenshot_file then
 				local data = screenshot_file:read("*all")
-				last_screenshots[i + 1] = (base64.enc(data))
+				last_screenshots[i + 1] = (mime.b64(data))
 				screenshot_file:close()
 			end
 		end

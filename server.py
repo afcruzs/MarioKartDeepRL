@@ -42,11 +42,9 @@ def post_frame_data():
     now = datetime.now()
 
     for i, screenshot in enumerate(screenshots):
-        while len(screenshot) % 4 != 0:
-            screenshot += '='
         file_name = "results/%s_%s_%d.png" % (game_id, now.strftime("%Y%m%d_%H%M%S"), i)
         with open(file_name, 'w') as f:
-            f.write(base64.decodestring(screenshot.encode('ascii', 'ignore')))
+            f.write(base64.decodestring(screenshot))
 
     return make_response(jsonify({'status': 200}))
 
