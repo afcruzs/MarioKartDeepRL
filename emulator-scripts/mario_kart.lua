@@ -95,7 +95,7 @@ while true do
 	if (frame_number % update_frequency) == 0 then
 		local last_screenshots = {}
 		for i=0,frames_to_stack-1 do
-			local screenshot_index = ((frame_number - i) % frames_to_stack)
+			local screenshot_index = ((frame_number + frames_to_stack - i) % frames_to_stack)
 			local screenshot_file = io.open(screenshot_folder .. "screenshot" .. screenshot_index ..  ".png", "rb")
 
 			if screenshot_file then

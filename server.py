@@ -6,21 +6,15 @@ from flask import send_from_directory
 import base64
 from datetime import datetime
 import uuid
-import itertools
 import random
+import numpy as np
+
+from PIL import Image
+from cStringIO import StringIO
+from qlearning import QLearning, possible_actions
 
 app = Flask(__name__)
-
-
-back_button_actions = [ [], ['L'], ['R'], ['L', 'R'] ]
-main_button_actions = [ [], ['A'], ['B'] ]
-arrow_button_actions = [ [], ['Up'], ['Right'], ['Down'], ['Left'] ]
-
-possible_actions = [
-    { button: 1 for buttons in action for button in buttons  }
-    for action in
-        itertools.product(back_button_actions, main_button_actions, arrow_button_actions)
-]
+agent = QLearning()
 
 @app.route('/game-id', methods = ['POST'])
 def generate_game_id():
@@ -35,16 +29,18 @@ def request_action():
     game_id, reward, screenshots = params["game_id"], float(params["reward"]), params["screenshots"]
     now = datetime.now()
 
+    images = []
     for i, screenshot in enumerate(screenshots):
-        file_name = "results/%s_%s_%d.png" % (game_id, now.strftime("%Y%m%d_%H%M%S"), i)
-        with open(file_name, 'wb') as f:
-            f.write(base64.decodestring(screenshot))
+        #file_name = "results/%s_%s_%d.png" % (game_id, now.strftime("%Y%m%d_%H%M%S"), i)
+        #with open(file_name, 'wb') as f:
+        #    f.write(base64.decodestring(screenshot))
+        s = StringIO(base64.decodestring(screenshot))
+        images.append(np.array(Image.open(s)))
+        s.close()
 
-    return make_response(jsonify({'action': random.choice(possible_actions)}))
-
-@app.route('/emulator')
-def emulator():
-    return current_app.send_static_file('index.html')
+    processed_images = agent.preprocess_images(images)
+    action = agent.choose_action(np.array([processed_images]))[0]
+    return make_response(jsonify({'action': action}))
 
 if __name__ == '__main__':
     app.run(host='localhost', debug=True)

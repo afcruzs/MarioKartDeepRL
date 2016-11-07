@@ -3,3 +3,4 @@ game/*.gba
 game/*.bin
 game/*.sav
 emulator/
+*.pyc
