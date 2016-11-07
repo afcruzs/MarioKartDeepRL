@@ -1,2 +1,5 @@
 results/
-game/
+game/*.gba
+game/*.bin
+game/*.sav
+emulator/
