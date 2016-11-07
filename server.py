@@ -37,11 +37,16 @@ def generate_game_id():
 @app.route('/frame-data', methods = ['POST'])
 def post_frame_data():
     params = request.get_json()
-    game_id, memory, image_base64 = params["game_id"], params["memory"], params["image_base64"]
+
+    game_id, reward, screenshots = params["game_id"], float(params["reward"]), params["screenshots"]
     now = datetime.now()
-    file_name = "results/%s_%s.png" %(game_id, now.strftime("%Y%m%d_%H%M%S"))
-    with open(file_name, 'wb') as f:
-        f.write(base64.decodestring(image_base64))
+
+    for i, screenshot in enumerate(screenshots):
+        while len(screenshot) % 4 != 0:
+            screenshot += '='
+        file_name = "results/%s_%s_%d.png" % (game_id, now.strftime("%Y%m%d_%H%M%S"), i)
+        with open(file_name, 'w') as f:
+            f.write(base64.decodestring(screenshot.encode('ascii', 'ignore')))
 
     return make_response(jsonify({'status': 200}))
 
