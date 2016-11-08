@@ -71,6 +71,7 @@ function renew_game_id()
 	return result.id
 end
 
+
 local game_id = renew_game_id()
 local screenshot_folder = "../results/"
 local state_file = "../game/mario_kart.State"
@@ -80,57 +81,61 @@ local frames_to_stack = 4
 local frame_number = 0
 local update_frequency = 10
 local action = {}
+local max_time_without_finish = 18000
+local train = true
 
 console.log(game_id)
 
 while true do
 	local reward = compute_reward()
-  local table = joypad.get()
+	local table = joypad.get()
 
 	gui.text(0, 0, "Reward: " .. reward)
 	gui.text(0, 20, "Ended: " .. tostring(race_ended()))
+
+	client.screenshot(screenshot_folder .. "screenshot" .. (frame_number % frames_to_stack) ..  ".png")
+
     local time = memory.read_u16_le(0x5C80)
-    if time >= 30000 then
-        savestate.load(state_file)
+    local out_of_time = (time >= max_time_without_finish)
+
+    if out_of_time then
+    	reward = -9999999999
     end
 
-    client.screenshot(screenshot_folder .. "screenshot" .. (frame_number % frames_to_stack) ..  ".png")
+    if out_of_time or (frame_number % update_frequency) == 0 then
+    	local last_screenshots = {}
+	    for i=0,frames_to_stack-1 do
+	        local screenshot_index = ((frame_number + frames_to_stack - i) % frames_to_stack)
+	        local screenshot_file = io.open(screenshot_folder .. "screenshot" .. screenshot_index ..  ".png", "rb")
 
-    if (frame_number % update_frequency) == 0 then
-        local last_screenshots = {}
-        for i=0,frames_to_stack-1 do
-            local screenshot_index = ((frame_number + frames_to_stack - i) % frames_to_stack)
-            local screenshot_file = io.open(screenshot_folder .. "screenshot" .. screenshot_index ..  ".png", "rb")
-
-            if screenshot_file then
-                local data = screenshot_file:read("*all")
-                last_screenshots[i + 1] = (mime.b64(data))
-                screenshot_file:close()
-            end
-        end
-
+	        if screenshot_file then
+	            local data = screenshot_file:read("*all")
+	            last_screenshots[i + 1] = (mime.b64(data))
+	            screenshot_file:close()
+	        end
+	    end
+	    
         local result = {}
         make_json_request(base_url .. "request-action", "POST", {
             game_id=game_id,
             reward=reward,
             screenshots=last_screenshots,
-            train=false
+            train=train,
+            race_ended=race_ended()
         }, result)
 
         result = json:decode(result[1])
         action = result.action
+        joypad.set(action)
         console.log(action)
-    end
+	end
 
-    frame_number = frame_number + 1
-
-    joypad.set(action)
-
-    if race_ended() then
+    if out_of_time or race_ended() then
+    	frame_number = 0
+    	game_id = renew_game_id()
         savestate.load(state_file)
     end
 
-	
-
+    frame_number = frame_number + 1
 	emu.frameadvance()
 end

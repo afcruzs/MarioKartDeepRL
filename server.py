@@ -24,7 +24,7 @@ def generate_game_id():
 
 
 app.route('/save-model', methods = ['POST'])
-def generate_game_id():
+def save_model():
     params = request.get_json()
     file_name = params["file_name"]
     agent.save_model(file_name)
@@ -34,7 +34,7 @@ def generate_game_id():
 def request_action():
     params = request.get_json()
 
-    game_id, reward, screenshots, train = params["game_id"], float(params["reward"]), params["screenshots"], params["train"]
+    game_id, reward, screenshots, train, is_terminal_state = params["game_id"], float(params["reward"]), params["screenshots"], params["train"], params["race_ended"]
     reward = float(reward)
     
     now = datetime.now()
@@ -50,8 +50,8 @@ def request_action():
 
     processed_images = agent.preprocess_images(images)
     if train and agent.prev_state != None and agent.prev_action != None:
-        agent.store_in_replay_memory(agent.prev_state, agent.prev_action, reward, processed_images)
-        agent.train_step()
+        agent.store_in_replay_memory(agent.prev_state, agent.prev_action, reward, processed_images, is_terminal_state)
+        agent.train_step(is_terminal_state)
 
 
     action_index = agent.choose_action(np.array([processed_images]), train)[0]

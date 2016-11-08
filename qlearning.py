@@ -28,7 +28,7 @@ class QLearning(object):
         replay_memory_size=1000, discount_factor=0.99, learning_rate=0.00025,
         gradient_momentum=0.95, squared_momentum=0.95, min_squared_gradient=0.01,
         initial_exploration=1, final_exploration=0.1, final_exploration_frame=10000,
-        replay_start_size=100, max_no_op=30, epsilon_decay=0.99, pretrained_model=None):
+        replay_start_size=100, max_no_op=30, epsilon_decay=0.00001, pretrained_model=None):
         self.frame_size = frame_size
         self.history_length = history_length
         self.minibatch_size = minibatch_size
@@ -71,7 +71,7 @@ class QLearning(object):
     def save_model(self, file_name):
         self.model.save(file_name + ".h5")
 
-    def train_step(self):
+    def train_step(self, is_terminal):
         Y = np.zeros((self.minibatch_size, len(possible_actions)))
         X = np.zeros((self.minibatch_size, self.history_length, self.frame_size[0], self.frame_size[1]))
         for i in xrange(self.minibatch_size):
@@ -87,6 +87,7 @@ class QLearning(object):
 
         loss = self.model.train_on_batch(X, Y) 
         print "Loss in iteration",self.steps, "is", loss
+        print "Epsilon in iteration",self.steps, "is", self.epsilon
 
         self.steps += 1
         if self.steps % 1000 == 0:
@@ -95,7 +96,7 @@ class QLearning(object):
             
 
 
-    def store_in_replay_memory(self, state, action, reward, new_state, is_terminal=False):
+    def store_in_replay_memory(self, state, action, reward, new_state, is_terminal):
         if len(self.replay_memory) == self.replay_memory_size:
             self.replay_memory.popleft()
         else:
@@ -123,9 +124,9 @@ class QLearning(object):
 
     def choose_action(self, processed_images, train):
         if train and random.uniform(0,1) <= self.epsilon:
-            self.epsilon = max(self.final_exploration, self.epsilon_decay * self.epsilon)
+            self.epsilon = max(self.final_exploration, self.epsilon - self.epsilon_decay)
             return [random.choice(xrange(len(possible_actions))) for _ in xrange(processed_images.shape[0])]
         else:
-            self.epsilon = max(self.final_exploration, self.epsilon_decay * self.epsilon)
+            self.epsilon = max(self.final_exploration, self.epsilon - self.epsilon_decay)
             predictions = self.model.predict(processed_images)
             return [np.argmax(i) for i in predictions]
