@@ -1,12 +1,14 @@
 from scipy.misc import imresize
 import numpy as np
 import itertools
-
+import random
 from keras.models import Sequential
 from keras.layers import Convolution2D, Dense, Flatten
 from keras.optimizers import RMSprop
 from keras.backend import image_dim_ordering, set_image_dim_ordering
 from keras.initializations import normal
+from collections import deque
+
 
 back_button_actions = [ [], ['L'], ['R'], ['L', 'R'] ]
 main_button_actions = [ [], ['A'], ['B'] ]
@@ -26,7 +28,7 @@ class QLearning(object):
         replay_memory_size=1000, discount_factor=0.99, learning_rate=0.00025,
         gradient_momentum=0.95, squared_momentum=0.95, min_squared_gradient=0.01,
         initial_exploration=1, final_exploration=0.1, final_exploration_frame=10000,
-        replay_start_size=100, max_no_op=30):
+        replay_start_size=100, max_no_op=30, epsilon_decay=0.99):
         self.frame_size = frame_size
         self.history_length = history_length
         self.minibatch_size = minibatch_size
@@ -42,7 +44,7 @@ class QLearning(object):
         self.replay_start_size = replay_start_size
         self.max_no_op = max_no_op
 
-        init = lambda shape, name: normal(shape, scale=1.0, name=name)
+        init = lambda shape, name: normal(shape, scale=0.01, name=name)
         model = Sequential()
         model.add(Convolution2D(32, 8, 8, subsample=(4, 4), activation='relu', init=init,
             input_shape=(self.history_length, self.frame_size[0], self.frame_size[1])))
@@ -50,11 +52,55 @@ class QLearning(object):
         model.add(Convolution2D(64, 3, 3, subsample=(1, 1), activation='relu', init=init))
         model.add(Flatten())
         model.add(Dense(512, activation='relu', init=init))
-        model.add(Dense(len(possible_actions), activation='softmax', init=init))
+        model.add(Dense(len(possible_actions), activation='linear', init=init))
 
         model.compile(RMSprop(lr=self.learning_rate), 'mse')
 
         self.model = model
+        self.replay_memory = deque([])
+        self.prev_action = None
+        self.prev_state = None
+        self.steps = 0
+        self.epsilon = self.initial_exploration
+        self.epsilon_decay = epsilon_decay
+
+    def save_model(self, file_name):
+        self.model.save(file_name + ".h5")
+
+    def train_step(self):
+        Y = np.zeros((self.minibatch_size, len(possible_actions)))
+        X = np.zeros((self.minibatch_size, self.history_length, self.frame_size[0], self.frame_size[1]))
+        for i in xrange(self.minibatch_size):
+            state, action, reward, new_state, is_terminal = self.sample_replay_memory()
+
+            X[i:i + 1] = state
+
+            if is_terminal:
+                Y[i, action] = reward
+            else:
+                predictions = self.model.predict(np.array([new_state]))
+                Y[i, action] = reward + self.discount_factor * np.max(predictions)
+
+        loss = self.model.train_on_batch(X, Y) 
+        print "Loss in the current iteration", loss
+
+        self.steps += 1
+        if self.steps % 1000 == 0:
+            print "Saving weights"
+            self.save_model("weights")
+            
+
+
+    def store_in_replay_memory(self, state, action, reward, new_state, is_terminal=False):
+        if len(self.replay_memory) == self.replay_memory_size:
+            self.replay_memory.popleft()
+        else:
+            self.replay_memory.append((state, action, reward, new_state, is_terminal))
+
+    def sample_replay_memory(self):
+        if len(self.replay_memory) == 0:
+            raise Exception("Replay Memory is empty")
+        return random.choice(self.replay_memory)
 
     def preprocess_images(self, images):
         if len(images) != self.history_length:
@@ -72,6 +118,10 @@ class QLearning(object):
         return result
 
     def choose_action(self, processed_images):
-        predictions = self.model.predict(processed_images)
-        print predictions
-        return [possible_actions[np.argmax(i)] for i in predictions]
+        if random.uniform(0,1) <= self.epsilon:
+            self.epsilon = max(self.final_exploration, self.epsilon_decay * self.epsilon)
+            return [random.choice(xrange(len(possible_actions))) for _ in xrange(processed_images.shape[0])]
+        else:
+            self.epsilon = max(self.final_exploration, self.epsilon_decay * self.epsilon)
+            predictions = self.model.predict(processed_images)
+            return [np.argmax(i) for i in predictions]

@@ -22,11 +22,20 @@ def generate_game_id():
         'id': uuid.uuid4()
     }))
 
+
+app.route('/save-model', methods = ['POST'])
+def generate_game_id():
+    params = request.get_json()
+    file_name = params["file_name"]
+    agent.save_model(file_name)
+    return make_response(jsonify({}))
+
 @app.route('/request-action', methods = ['POST'])
 def request_action():
     params = request.get_json()
 
     game_id, reward, screenshots = params["game_id"], float(params["reward"]), params["screenshots"]
+    reward = float(reward)
     now = datetime.now()
 
     images = []
@@ -39,7 +48,16 @@ def request_action():
         s.close()
 
     processed_images = agent.preprocess_images(images)
-    action = agent.choose_action(np.array([processed_images]))[0]
+    if agent.prev_state != None and agent.prev_action != None:
+        agent.store_in_replay_memory(agent.prev_state, agent.prev_action, reward, processed_images)
+        agent.train_step()
+
+
+    action_index = agent.choose_action(np.array([processed_images]))[0]
+    agent.prev_action = action_index
+    agent.prev_state = processed_images
+    action = possible_actions[action_index]
+
     return make_response(jsonify({'action': action}))
 
 if __name__ == '__main__':

@@ -114,6 +114,7 @@ while true do
 
 		result = json:decode(result[1])
 		action = result.action
+        console.log(action)
 	end
 
 	frame_number = frame_number + 1
