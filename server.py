@@ -14,7 +14,7 @@ from cStringIO import StringIO
 from qlearning import QLearning, possible_actions
 
 app = Flask(__name__)
-agent = QLearning(pretrained_model="weights.h5")
+agent = QLearning(epsilon_decay=0.0001)
 
 @app.route('/game-id', methods = ['POST'])
 def generate_game_id():

@@ -114,7 +114,7 @@ while true do
 	            screenshot_file:close()
 	        end
 	    end
-	    
+
         local result = {}
         make_json_request(base_url .. "request-action", "POST", {
             game_id=game_id,
@@ -126,9 +126,10 @@ while true do
 
         result = json:decode(result[1])
         action = result.action
-        joypad.set(action)
         console.log(action)
 	end
+
+	joypad.set(action)
 
     if out_of_time or race_ended() then
     	frame_number = 0

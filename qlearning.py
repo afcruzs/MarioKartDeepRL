@@ -124,9 +124,11 @@ class QLearning(object):
 
     def choose_action(self, processed_images, train):
         if train and random.uniform(0,1) <= self.epsilon:
+            print "The action is randomly chosen"
             self.epsilon = max(self.final_exploration, self.epsilon - self.epsilon_decay)
             return [random.choice(xrange(len(possible_actions))) for _ in xrange(processed_images.shape[0])]
         else:
+            print "The action is NOT randomly chosen"
             self.epsilon = max(self.final_exploration, self.epsilon - self.epsilon_decay)
             predictions = self.model.predict(processed_images)
             return [np.argmax(i) for i in predictions]
