@@ -89,41 +89,48 @@ while true do
 
 	gui.text(0, 0, "Reward: " .. reward)
 	gui.text(0, 20, "Ended: " .. tostring(race_ended()))
+    local time = memory.read_u16_le(0x5C80)
+    if time >= 30000 then
+        savestate.load(state_file)
+    end
 
-	client.screenshot(screenshot_folder .. "screenshot" .. (frame_number % frames_to_stack) ..  ".png")
+    client.screenshot(screenshot_folder .. "screenshot" .. (frame_number % frames_to_stack) ..  ".png")
 
-	if (frame_number % update_frequency) == 0 then
-		local last_screenshots = {}
-		for i=0,frames_to_stack-1 do
-			local screenshot_index = ((frame_number + frames_to_stack - i) % frames_to_stack)
-			local screenshot_file = io.open(screenshot_folder .. "screenshot" .. screenshot_index ..  ".png", "rb")
+    if (frame_number % update_frequency) == 0 then
+        local last_screenshots = {}
+        for i=0,frames_to_stack-1 do
+            local screenshot_index = ((frame_number + frames_to_stack - i) % frames_to_stack)
+            local screenshot_file = io.open(screenshot_folder .. "screenshot" .. screenshot_index ..  ".png", "rb")
 
-			if screenshot_file then
-				local data = screenshot_file:read("*all")
-				last_screenshots[i + 1] = (mime.b64(data))
-				screenshot_file:close()
-			end
-		end
+            if screenshot_file then
+                local data = screenshot_file:read("*all")
+                last_screenshots[i + 1] = (mime.b64(data))
+                screenshot_file:close()
+            end
+        end
 
-		local result = {}
-		make_json_request(base_url .. "request-action", "POST", {
-			game_id=game_id,
-			reward=reward,
-			screenshots=last_screenshots
-		}, result)
+        local result = {}
+        make_json_request(base_url .. "request-action", "POST", {
+            game_id=game_id,
+            reward=reward,
+            screenshots=last_screenshots,
+            train=false
+        }, result)
 
-		result = json:decode(result[1])
-		action = result.action
+        result = json:decode(result[1])
+        action = result.action
         console.log(action)
-	end
+    end
 
-	frame_number = frame_number + 1
+    frame_number = frame_number + 1
 
-	joypad.set(action)
+    joypad.set(action)
 
-	if race_ended() then
-		savestate.load(state_file)
-	end
+    if race_ended() then
+        savestate.load(state_file)
+    end
+
+	
 
 	emu.frameadvance()
 end

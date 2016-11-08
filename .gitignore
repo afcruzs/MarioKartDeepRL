@@ -4,3 +4,4 @@ game/*.bin
 game/*.sav
 emulator/
 *.pyc
+*.h5
