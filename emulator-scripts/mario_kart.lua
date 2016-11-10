@@ -4,6 +4,7 @@ local json = require("json")
 local ltn12 = require("ltn12")
 
 local last_lap_percentage = 0
+local last_updated_lap = -1
 local lap_reward = {0, 0, 0}
 local global_lap = 1
 local minimap_offset_x = 240 - 64
@@ -45,7 +46,6 @@ function compute_reward(track_info)
   local y = track_position[2] - minimap_offset_y + 1
 
   local lap_percentage = last_lap_percentage
-  local lap = get_lap()
   
   if (track_info['matrix'][x][y] ~= -1) then
     lap_percentage = (track_info['matrix'][x][y] * 1.0) / track_info['max_steps']
@@ -58,14 +58,14 @@ function compute_reward(track_info)
     lap_percentage = last_lap_percentage
   end
 
-  if math.abs(lap_percentage - 1) <= 1e-7 and math.abs(last_lap_percentage - 1) > 1e-7 then
+  if lap_percentage >= 0 and last_updated_lap then
     global_lap = global_lap + 1
   end
 
   last_lap_percentage = lap_percentage
   local average_time = track_info['average_time']
   local relative_time = average_time * lap_percentage - current_lap_time
-  lap_reward[lap] = relative_time
+  lap_reward[global_lap] = relative_time
 
   return lap_reward[1] + lap_reward[2] + lap_reward[3]
   -- local relative_time = ((average_time - first_lap_time) + (average_time - second_lap_time) +
@@ -172,6 +172,7 @@ function reset( ... )
   last_lap_percentage = 0
   lap_reward = {0, 0, 0}
   global_lap = 1
+  last_updated_lap = -1
 end
 
 reset()
