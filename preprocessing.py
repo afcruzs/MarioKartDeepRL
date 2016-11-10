@@ -18,7 +18,7 @@ def preprocess_map(filepath):
   matrix = [[-1 for j in xrange(height)] for i in xrange(width)]
 
   q = deque()
-  
+
   for x in xrange(width):
     for y in xrange(height):
       if img.getpixel((x, y)) == INIT_COLOR:
@@ -43,10 +43,6 @@ def preprocess_map(filepath):
   for x in xrange(width):
     for y in xrange(height):
       if img.getpixel((x, y)) == START_LINE_COLOR:
-        matrix[x][y] = max_cost
+        matrix[x][y] = 0
 
   return matrix
-
-#matrix = preprocess_map('tracks/peach_circuit.png')
-#for row in matrix:
-#  print ' '.join(map(str, row))

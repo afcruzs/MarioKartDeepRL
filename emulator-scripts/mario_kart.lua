@@ -3,13 +3,16 @@ local mime = require("mime")
 local json = require("json")
 local ltn12 = require("ltn12")
 
-local last_lap_percentage = 0
+local current_lap_percentage = 0
+local last_lap_percentage = 0.9
 local last_updated_lap = -1
 local lap_reward = {0, 0, 0}
+local actual_global_lap = 0
 local global_lap = 1
 local minimap_offset_x = 240 - 64
 local minimap_offset_y = 160 - 64
-local lap_percentage_threshold = 0.10
+local end_of_lap_threshold = 0.9
+local start_of_lap_threshold = 0.1
 
 function get_lap()
   local status = memory.read_u8(0x3BE0)
@@ -46,28 +49,36 @@ function compute_reward(track_info)
   local y = track_position[2] - minimap_offset_y + 1
 
   local lap_percentage = last_lap_percentage
-  
+
   if (track_info['matrix'][x][y] ~= -1) then
     lap_percentage = (track_info['matrix'][x][y] * 1.0) / track_info['max_steps']
   end
 
-  -- Look for suspicious increases
-  if (lap_percentage - last_lap_percentage > lap_percentage_threshold) then
-    -- Reject the increase
-    console.log("Cheat detected :v")
-    lap_percentage = last_lap_percentage
-  end
-
-  if lap_percentage >= 0 and last_updated_lap then
-    global_lap = global_lap + 1
+  -- Check if the lap counter is still valid
+  if last_lap_percentage >= end_of_lap_threshold and lap_percentage <= start_of_lap_threshold then
+    actual_global_lap = actual_global_lap + 1
+  else
+    if lap_percentage >= end_of_lap_threshold and last_lap_percentage <= start_of_lap_threshold then
+      actual_global_lap = actual_global_lap - 1
+    end
   end
 
   last_lap_percentage = lap_percentage
+  global_lap = math.max(global_lap, actual_global_lap)
+
+  if global_lap == actual_global_lap then
+    current_lap_percentage = lap_percentage
+  end
+
   local average_time = track_info['average_time']
-  local relative_time = average_time * lap_percentage - current_lap_time
+  local relative_time = average_time * current_lap_percentage - current_lap_time
   lap_reward[global_lap] = relative_time
 
-  return lap_reward[1] + lap_reward[2] + lap_reward[3]
+  gui.text(0, 80, "Time reward lap 1: " .. lap_reward[1])
+  gui.text(0, 100, "Time reward lap 2: " .. lap_reward[2])
+  gui.text(0, 120, "Time reward lap 3: " .. lap_reward[3])
+
+  -- return lap_reward[1] + lap_reward[2] + lap_reward[3]
   -- local relative_time = ((average_time - first_lap_time) + (average_time - second_lap_time) +
      -- average_time * lap_percentage - current_lap_time)
 
@@ -86,15 +97,15 @@ function compute_reward(track_info)
     gui.text(0, i * 20, key .. ": " .. value)
     i = i + 1
   end
- 
+--]]
 
-  return (7 - position) * 8 + coins * 4 - time / 80 -
+  return (lap_reward[1] + lap_reward[2] + lap_reward[3]) / 80 +
+    (7 - position) * 8 + coins * 4 -
     frames_not_hitting_gas / 4 - frames_hitting_brake * 2 -
     lakitu_rescue_count * 30 - entity_hit_count * 15 -
     wall_hit_count * 20 - spin_count * 15 + start_turbo_count * 25 +
     drift_turbo_count * 15 + item_box_hit_full * 15 -
     frames_outside / 4
- --]]
 end
 
 function get_minimap_position()
@@ -157,7 +168,7 @@ local frame_number = 0
 local update_frequency = 10
 local action = {}
 local max_time_without_finish = 18000
-local train = false
+local train = true
 
 console.log(game_id)
 
@@ -169,8 +180,10 @@ function reset( ... )
   frame_number = 0
   game_id = renew_game_id()
   savestate.load(state_file)
-  last_lap_percentage = 0
+  current_lap_percentage = 0
+  last_lap_percentage = 0.9
   lap_reward = {0, 0, 0}
+  actual_global_lap = 0
   global_lap = 1
   last_updated_lap = -1
 end
@@ -179,11 +192,10 @@ reset()
 
 while true do
   local reward = compute_reward(track_info)
-  local table = joypad.get()
 
   gui.text(0, 0, "Reward: " .. reward)
   gui.text(0, 20, "Ended: " .. tostring(race_ended()))
-  gui.text(0, 40, "Lap percentage: " .. (last_lap_percentage * 100) .. '%')
+  gui.text(0, 40, "Lap percentage: " .. (current_lap_percentage * 100) .. '%')
   gui.text(0, 60, "Lap: " .. (global_lap) .. ' / 3')
 
   client.screenshot(screenshot_folder .. "screenshot" .. (frame_number % frames_to_stack) ..  ".png")
@@ -198,14 +210,17 @@ while true do
   if out_of_time or (frame_number % update_frequency) == 0 then
     local last_screenshots = {}
     for i=0,frames_to_stack-1 do
-        local screenshot_index = ((frame_number + frames_to_stack - i) % frames_to_stack)
-        local screenshot_file = io.open(screenshot_folder .. "screenshot" .. screenshot_index ..  ".png", "rb")
+      if i >= frame_number then
+        break
+      end
+      local screenshot_index = ((frame_number + frames_to_stack - i) % frames_to_stack)
+      local screenshot_file = io.open(screenshot_folder .. "screenshot" .. screenshot_index ..  ".png", "rb")
 
-        if screenshot_file then
-            local data = screenshot_file:read("*all")
-            last_screenshots[i + 1] = (mime.b64(data))
-            screenshot_file:close()
-        end
+      if screenshot_file then
+        local data = screenshot_file:read("*all")
+        last_screenshots[i + 1] = (mime.b64(data))
+        screenshot_file:close()
+      end
     end
 
     local result = {}
@@ -221,7 +236,7 @@ while true do
     action = result.action
   end
 
-  -- joypad.set(action)
+  joypad.set(action)
 
   if out_of_time or race_ended() then
     reset()
