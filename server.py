@@ -14,11 +14,13 @@ from cStringIO import StringIO
 from qlearning import QLearning, possible_actions
 
 app = Flask(__name__)
-agent = QLearning(final_exploration_frame=100, learning_rate=0.00000025)
+agent = QLearning()
 last_action_request = None
-minimaps = {name : (preprocess_map(filename), average_time) for name, filename, average_time in 
+minimaps = {name : (preprocess_map(filename), average_time) for name, filename, average_time in
                         [('peach_circuit', 'tracks/peach_circuit.png', 30 * 100)]
             }
+
+EMPTY_FRAME = np.zeros((240, 160, 3))
 
 @app.route('/get-minimap', methods = ['POST'])
 def get_minimap():
@@ -64,6 +66,9 @@ def request_action():
         s = StringIO(base64.decodestring(screenshot))
         images.append(np.array(Image.open(s)))
         s.close()
+
+    if len(images) != agent.history_length:
+        images = [EMPTY_FRAME] * (agent.history_length - len(images)) + images
 
     processed_images = agent.preprocess_images(images)
     if train and last_action_request is not None and not is_terminal_state:
