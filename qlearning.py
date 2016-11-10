@@ -85,7 +85,7 @@ class QLearning(object):
                 predictions = self.model.predict(np.array([new_state]))
                 Y[i, action] = reward + self.discount_factor * np.max(predictions)
 
-        loss = self.model.train_on_batch(X, Y) 
+        loss = self.model.train_on_batch(X, Y)
         print "Loss in iteration",self.steps, "is", loss
         print "Epsilon in iteration",self.steps, "is", self.epsilon
 
@@ -94,8 +94,6 @@ class QLearning(object):
             print "Saving weights"
             self.save_model("weights")
             
-
-
     def store_in_replay_memory(self, state, action, reward, new_state, is_terminal):
         if len(self.replay_memory) == self.replay_memory_size:
             self.replay_memory.popleft()

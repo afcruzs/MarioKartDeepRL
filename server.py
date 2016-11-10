@@ -36,7 +36,7 @@ def request_action():
 
     game_id, reward, screenshots, train, is_terminal_state = params["game_id"], float(params["reward"]), params["screenshots"], params["train"], params["race_ended"]
     reward = float(reward)
-    
+
     now = datetime.now()
 
     images = []
@@ -49,7 +49,7 @@ def request_action():
         s.close()
 
     processed_images = agent.preprocess_images(images)
-    if train and agent.prev_state != None and agent.prev_action != None:
+    if train and agent.prev_state is not None and agent.prev_action is not None:
         agent.store_in_replay_memory(agent.prev_state, agent.prev_action, reward, processed_images, is_terminal_state)
         agent.train_step(is_terminal_state)
 
