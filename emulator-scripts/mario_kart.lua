@@ -43,6 +43,17 @@ function compute_reward()
     frames_outside / 4
 end
 
+function get_minimap_position()
+	local old_domain = memory.getcurrentmemorydomain()
+	memory.usememorydomain("OAM")
+	local y = memory.read_u8(0) + 4
+	local x = bit.band(memory.read_u16_le(2), 0x1FF) + 4
+
+	memory.usememorydomain(old_domain)
+
+	return {x, y}
+end
+
 function race_ended()
   return memory.read_u8(0x3BE0) == 0x34
 end
@@ -71,7 +82,6 @@ function renew_game_id()
   return result.id
 end
 
-
 local game_id = renew_game_id()
 local screenshot_folder = "../results/"
 local state_file = "../game/mario_kart.State"
@@ -86,6 +96,8 @@ local train = true
 
 console.log(game_id)
 
+memory.usememorydomain("IWRAM")
+
 while true do
   local reward = compute_reward()
   local table = joypad.get()
@@ -99,7 +111,7 @@ while true do
   local out_of_time = (time >= max_time_without_finish)
 
   if out_of_time then
-    reward = -9999999999
+    reward = -30000
   end
 
   if out_of_time or (frame_number % update_frequency) == 0 then
@@ -115,18 +127,21 @@ while true do
         end
     end
 
-      local result = {}
-      make_json_request(base_url .. "request-action", "POST", {
-          game_id=game_id,
-          reward=reward,
-          screenshots=last_screenshots,
-          train=train,
-          race_ended=race_ended()
-      }, result)
+    local result = {}
+    make_json_request(base_url .. "request-action", "POST", {
+        game_id=game_id,
+        reward=reward,
+        screenshots=last_screenshots,
+        train=train,
+        race_ended=race_ended()
+    }, result)
 
-      result = json:decode(result[1])
-      action = result.action
-      console.log(action)
+		if out_of_time then
+			game_id = renew_game_id()
+		end
+
+    result = json:decode(result[1])
+    action = result.action
   end
 
   joypad.set(action)
@@ -134,8 +149,10 @@ while true do
   if out_of_time or race_ended() then
     frame_number = 0
     game_id = renew_game_id()
-      savestate.load(state_file)
+    savestate.load(state_file)
   end
+
+	local position = get_minimap_position()
 
   frame_number = frame_number + 1
   emu.frameadvance()
