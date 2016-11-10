@@ -9,7 +9,6 @@ from keras.backend import image_dim_ordering, set_image_dim_ordering
 from keras.initializations import normal
 from collections import deque
 
-
 back_button_actions = [ [], ['L'], ['R'], ['L', 'R'] ]
 main_button_actions = [ [], ['A'], ['B'] ]
 arrow_button_actions = [ [], ['Up'], ['Right'], ['Down'], ['Left'] ]
@@ -28,7 +27,7 @@ class QLearning(object):
         replay_memory_size=1000, discount_factor=0.99, learning_rate=0.00025,
         gradient_momentum=0.95, squared_momentum=0.95, min_squared_gradient=0.01,
         initial_exploration=1, final_exploration=0.1, final_exploration_frame=10000,
-        replay_start_size=100, max_no_op=30, epsilon_decay=0.00001, pretrained_model=None):
+        replay_start_size=100, max_no_op=30, pretrained_model=None):
         self.frame_size = frame_size
         self.history_length = history_length
         self.minibatch_size = minibatch_size
@@ -43,6 +42,10 @@ class QLearning(object):
         self.final_exploration_frame = final_exploration_frame
         self.replay_start_size = replay_start_size
         self.max_no_op = max_no_op
+        self.replay_memory = deque()
+        self.steps = 0
+        self.exploration_rate = self.initial_exploration
+        self.exploration_decay = (1.0 * self.initial_exploration - self.final_exploration) / self.final_exploration_frame
 
         init = lambda shape, name: normal(shape, scale=0.01, name=name)
         model = Sequential()
@@ -57,25 +60,22 @@ class QLearning(object):
         model.compile(RMSprop(lr=self.learning_rate), 'mse')
 
         self.model = model
-        self.replay_memory = deque([])
-        self.prev_action = None
-        self.prev_state = None
-        self.steps = 0
-        self.epsilon = self.initial_exploration
-        self.epsilon_decay = epsilon_decay
 
         if pretrained_model:
             print "Loading weights..."
             self.model.load_weights(pretrained_model)
 
     def save_model(self, file_name):
-        self.model.save(file_name + ".h5")
+        self.model.save_weights(file_name + ".h5")
 
-    def train_step(self, is_terminal):
-        Y = np.zeros((self.minibatch_size, len(possible_actions)))
-        X = np.zeros((self.minibatch_size, self.history_length, self.frame_size[0], self.frame_size[1]))
-        for i in xrange(self.minibatch_size):
-            state, action, reward, new_state, is_terminal = self.sample_replay_memory()
+    def train_step(self):
+        sample = self.sample_replay_memory(self.minibatch_size)
+        Y = np.zeros((len(sample), len(possible_actions)))
+        X = np.zeros((len(sample), self.history_length,
+            self.frame_size[0], self.frame_size[1]))
+
+        for i in xrange(len(sample)):
+            state, action, reward, new_state, is_terminal = sample[i]
 
             X[i:i + 1] = state
 
@@ -86,24 +86,24 @@ class QLearning(object):
                 Y[i, action] = reward + self.discount_factor * np.max(predictions)
 
         loss = self.model.train_on_batch(X, Y)
-        print "Loss in iteration",self.steps, "is", loss
-        print "Epsilon in iteration",self.steps, "is", self.epsilon
+        print "Loss in iteration %d is %f" % (self.steps, loss)
+        print "Exploration rate in iteration %d is %f" % (self.steps, self.exploration_rate)
 
         self.steps += 1
         if self.steps % 1000 == 0:
             print "Saving weights"
             self.save_model("weights")
-            
+
     def store_in_replay_memory(self, state, action, reward, new_state, is_terminal):
         if len(self.replay_memory) == self.replay_memory_size:
             self.replay_memory.popleft()
         else:
             self.replay_memory.append((state, action, reward, new_state, is_terminal))
 
-    def sample_replay_memory(self):
-        if len(self.replay_memory) == 0:
-            raise Exception("Replay Memory is empty")
-        return random.choice(self.replay_memory)
+    def sample_replay_memory(self, size):
+        sample = np.random.choice(xrange(len(self.replay_memory)),
+            min(len(self.replay_memory), size), replace=False)
+        return [self.replay_memory[i] for i in sample]
 
     def preprocess_images(self, images):
         if len(images) != self.history_length:
@@ -121,12 +121,12 @@ class QLearning(object):
         return result
 
     def choose_action(self, processed_images, train):
-        if train and random.uniform(0,1) <= self.epsilon:
+        if train and random.uniform(0,1) <= self.exploration_rate:
             print "The action is randomly chosen"
-            self.epsilon = max(self.final_exploration, self.epsilon - self.epsilon_decay)
-            return [random.choice(xrange(len(possible_actions))) for _ in xrange(processed_images.shape[0])]
+            result = [random.choice(xrange(len(possible_actions))) for _ in xrange(processed_images.shape[0])]
         else:
             print "The action is NOT randomly chosen"
-            self.epsilon = max(self.final_exploration, self.epsilon - self.epsilon_decay)
-            predictions = self.model.predict(processed_images)
-            return [np.argmax(i) for i in predictions]
+            result = [np.argmax(i) for i in self.model.predict(processed_images)]
+
+        self.exploration_rate = max(self.final_exploration, self.exploration_rate - self.exploration_decay)
+        return result
