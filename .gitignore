@@ -3,5 +3,5 @@ game/*.gba
 game/*.bin
 game/*.sav
 emulator/
+weights/*.h5
 *.pyc
-*.h5

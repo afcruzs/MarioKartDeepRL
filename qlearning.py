@@ -47,7 +47,7 @@ class QLearning(object):
         self.exploration_rate = self.initial_exploration
         self.exploration_decay = (1.0 * self.initial_exploration - self.final_exploration) / self.final_exploration_frame
 
-        init = lambda shape, name: normal(shape, scale=0.01, name=name)
+        init = lambda shape, name: normal(shape, scale=0.0001, name=name)
         model = Sequential()
         model.add(Convolution2D(32, 8, 8, subsample=(4, 4), activation='relu', init=init,
             input_shape=(self.history_length, self.frame_size[0], self.frame_size[1])))
@@ -71,28 +71,38 @@ class QLearning(object):
     def train_step(self):
         sample = self.sample_replay_memory(self.minibatch_size)
         Y = np.zeros((len(sample), len(possible_actions)))
-        X = np.zeros((len(sample), self.history_length,
+        X_old_states = np.zeros((len(sample), self.history_length,
+            self.frame_size[0], self.frame_size[1]))
+        X_new_states = np.zeros((len(sample), self.history_length,
             self.frame_size[0], self.frame_size[1]))
 
         for i in xrange(len(sample)):
             state, action, reward, new_state, is_terminal = sample[i]
 
-            X[i:i + 1] = state
+            X_old_states[i:i + 1] = state
+            X_new_states[i:i + 1] = new_state
+
+        old_predictions = self.model.predict(X_old_states)
+        new_predictions = self.model.predict(X_new_states)
+
+        for i in xrange(len(sample)):
+            state, action, reward, new_state, is_terminal = sample[i]
+
+            Y[i] = old_predictions[i]
 
             if is_terminal:
                 Y[i, action] = reward
             else:
-                predictions = self.model.predict(np.array([new_state]))
-                Y[i, action] = reward + self.discount_factor * np.max(predictions)
+                Y[i, action] = reward + self.discount_factor * np.max(new_predictions[i])
 
-        loss = self.model.train_on_batch(X, Y)
+        loss = self.model.train_on_batch(X_old_states, Y)
         print "Loss in iteration %d is %f" % (self.steps, loss)
         print "Exploration rate in iteration %d is %f" % (self.steps, self.exploration_rate)
 
         self.steps += 1
         if self.steps % 1000 == 0:
             print "Saving weights"
-            self.save_model("weights")
+            self.save_model("weights/weights_%d" % (self.steps,))
 
     def store_in_replay_memory(self, state, action, reward, new_state, is_terminal):
         if len(self.replay_memory) == self.replay_memory_size:
