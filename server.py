@@ -8,15 +8,29 @@ from datetime import datetime
 import uuid
 import random
 import numpy as np
-
+from preprocessing import preprocess_map
 from PIL import Image
 from cStringIO import StringIO
 from qlearning import QLearning, possible_actions
 
 app = Flask(__name__)
 agent = QLearning(final_exploration_frame=100, learning_rate=0.00000025)
-
 last_action_request = None
+minimaps = {name : (preprocess_map(filename), average_time) for name, filename, average_time in 
+                        [('peach_circuit', 'tracks/peach_circuit.png', 30 * 100)]
+            }
+
+@app.route('/get-minimap', methods = ['POST'])
+def get_minimap():
+    params = request.get_json()
+    minimap_name = params['minimap_name']
+    matrix, average_time = minimaps[minimap_name]
+    max_steps = np.max(matrix)
+    return make_response(jsonify({
+        "matrix": matrix,
+        "average_time": average_time,
+        "max_steps": max_steps
+    }))
 
 @app.route('/game-id', methods = ['POST'])
 def generate_game_id():
