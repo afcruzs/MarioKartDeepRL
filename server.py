@@ -14,10 +14,14 @@ from cStringIO import StringIO
 from qlearning import QLearning, possible_actions
 
 app = Flask(__name__)
-agent = QLearning()
+agent = QLearning(final_exploration_frame=100, learning_rate=0.00000025)
+
+last_action_request = None
 
 @app.route('/game-id', methods = ['POST'])
 def generate_game_id():
+    global last_action_request
+    last_action_request = None
     return make_response(jsonify({
         'id': uuid.uuid4()
     }))
@@ -28,8 +32,6 @@ def save_model():
     file_name = params["file_name"]
     agent.save_model(file_name)
     return make_response(jsonify({}))
-
-last_action_request = None
 
 @app.route('/request-action', methods = ['POST'])
 def request_action():
@@ -50,7 +52,7 @@ def request_action():
         s.close()
 
     processed_images = agent.preprocess_images(images)
-    if train and last_action_request is not None:
+    if train and last_action_request is not None and not is_terminal_state:
         last_state, last_action = last_action_request
         agent.store_in_replay_memory(last_state, last_action, reward,
             processed_images, is_terminal_state)
