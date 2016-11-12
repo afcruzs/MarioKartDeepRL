@@ -176,7 +176,7 @@ memory.usememorydomain("IWRAM")
 
 local track_info = retrieve_minimap('peach_circuit')
 
-function reset( ... )
+function reset()
   frame_number = 0
   game_id = renew_game_id()
   savestate.load(state_file)
@@ -229,7 +229,7 @@ while true do
         reward=reward,
         screenshots=last_screenshots,
         train=train,
-        race_ended=race_ended()
+        race_ended=(race_ended() or out_of_time)
     }, result)
 
     result = json:decode(result[1])
@@ -246,4 +246,5 @@ while true do
 
   frame_number = frame_number + 1
   emu.frameadvance()
+  collectgarbage()
 end
