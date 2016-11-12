@@ -14,9 +14,19 @@ main_button_actions = [ [], ['A'], ['B'] ]
 arrow_button_actions = [ [], ['Up'], ['Right'], ['Down'], ['Left'] ]
 
 possible_actions = [
-    { button: 1 for buttons in action for button in buttons  }
-    for action in
-        itertools.product(back_button_actions, main_button_actions, arrow_button_actions)
+    {}, # No op
+    { 'A': 1 }, # Accelerate, forward
+    { 'A': 1, 'Right': 1 }, # Accelerate, right
+    { 'A': 1, 'Left': 1 }, # Accelerate, left
+    { 'B': 1 }, # Break and reverse
+    { 'A': 1, 'Right': 1, 'R': 1 }, # Drift right
+    { 'A': 1, 'Left': 1, 'R': 1 }, # Drift left
+    { 'A': 1, 'L': 1 }, # Accelerate, forward, power
+    { 'A': 1, 'Right': 1, 'L': 1 }, # Accelerate, right, power
+    { 'A': 1, 'Left': 1, 'L': 1 }, # Accelerate, left, power
+    { 'B': 1, 'L': 1 }, # Break and reverse, power
+    { 'A': 1, 'Right': 1, 'R': 1, 'L': 1 }, # Drift right, power
+    { 'A': 1, 'Left': 1, 'R': 1, 'L': 1 } # Drift left, power
 ]
 
 if image_dim_ordering() != 'th':
