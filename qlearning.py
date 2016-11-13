@@ -28,12 +28,16 @@ possible_actions = [
 if image_dim_ordering() != 'th':
     set_image_dim_ordering('th')
 
+def copy_weights(source_model, dest_model):
+    for i, layer in enumerate(source_model.layers):
+        dest_model.layers[i].set_weights(layer.get_weights())
+
 class QLearning(object):
     def __init__(self, frame_size=(84, 84), history_length=4, minibatch_size=32,
-        replay_memory_size=1000, discount_factor=0.99, learning_rate=0.00025,
+        replay_memory_size=100000, discount_factor=0.99, learning_rate=0.00025,
         gradient_momentum=0.95, squared_momentum=0.95, min_squared_gradient=0.01,
-        initial_exploration=1, final_exploration=0.1, final_exploration_frame=10000,
-        replay_start_size=100, max_no_op=30, pretrained_model=None):
+        initial_exploration=1, final_exploration=0.1, final_exploration_frame=1000000,
+        replay_start_size=100, max_no_op=30, target_network_update_frequency=5000):
         self.frame_size = frame_size
         self.history_length = history_length
         self.minibatch_size = minibatch_size
@@ -53,6 +57,15 @@ class QLearning(object):
         self.exploration_rate = self.initial_exploration
         self.exploration_decay = (1.0 * self.initial_exploration - self.final_exploration) / self.final_exploration_frame
 
+        self.model = self._create_model()
+        self.delayed_model = self._create_model()
+        self.target_network_update_frequency = target_network_update_frequency
+
+    def load(self, filename):
+        print "Loading weights..."
+        self.model.load_weights(pretrained_model)
+
+    def _create_model(self):
         init = lambda shape, name: normal(shape, scale=0.0001, name=name)
         model = Sequential()
         model.add(Convolution2D(32, 8, 8, subsample=(4, 4), activation='relu', init=init,
@@ -65,12 +78,7 @@ class QLearning(object):
 
         model.compile(RMSprop(lr=self.learning_rate), 'mse')
 
-        self.model = model
-
-        if pretrained_model:
-            print "Loading weights..."
-            self.model.load_weights(pretrained_model)
-
+        return model
     def save_model(self, file_name):
         self.model.save_weights(file_name + ".h5")
 
@@ -89,7 +97,7 @@ class QLearning(object):
             X_new_states[i:i + 1] = new_state
 
         old_predictions = self.model.predict(X_old_states)
-        new_predictions = self.model.predict(X_new_states)
+        new_predictions = self.delayed_model.predict(X_new_states)
 
         for i in xrange(len(sample)):
             state, action, reward, new_state, is_terminal = sample[i]
@@ -109,6 +117,9 @@ class QLearning(object):
         if self.steps % 1000 == 0:
             print "Saving weights"
             self.save_model("weights/weights_%d" % (self.steps,))
+
+        if self.steps % self.target_network_update_frequency == 0:
+            copy_weights(self.model, self.delayed_model)
 
     def store_in_replay_memory(self, state, action, reward, new_state, is_terminal):
         if len(self.replay_memory) == self.replay_memory_size:
