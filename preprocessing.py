@@ -1,19 +1,16 @@
 from PIL import Image
 from collections import deque
 
-
 BORDER_COLOR = (132, 132, 132, 255)
 TRACK_COLOR = (255, 255, 255, 255)
 BACKGROUND_COLOR = (255, 0, 255, 255)
 START_LINE_COLOR = (0, 0, 0, 255)
 INIT_COLOR = (255, 0, 0, 255)
 
-
 def preprocess_map(filepath):
   offset = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
   img = Image.open(filepath)
   width, height = img.size
-
 
   matrix = [[-1 for j in xrange(height)] for i in xrange(width)]
 
@@ -44,5 +41,17 @@ def preprocess_map(filepath):
     for y in xrange(height):
       if img.getpixel((x, y)) == START_LINE_COLOR:
         matrix[x][y] = 0
+
+  track_pixels = [(x, y) for x in xrange(width) for y in xrange(height) if
+                  img.getpixel((x, y)) in (TRACK_COLOR, START_LINE_COLOR, INIT_COLOR)]
+
+  for x in xrange(width):
+    for y in xrange(height):
+      if matrix[x][y] != -1:
+        continue
+
+      _, closest_x, closest_y = min((abs(x1 - x) + abs(y1 - y), x1, y1) for x1, y1 in track_pixels)
+
+      matrix[x][y] = matrix[closest_x][closest_y]
 
   return matrix

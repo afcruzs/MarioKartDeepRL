@@ -9,22 +9,18 @@ from keras.backend import image_dim_ordering, set_image_dim_ordering
 from keras.initializations import normal
 from collections import deque
 
-back_button_actions = [ [], ['L'], ['R'], ['L', 'R'] ]
-main_button_actions = [ [], ['A'], ['B'] ]
-arrow_button_actions = [ [], ['Up'], ['Right'], ['Down'], ['Left'] ]
-
 possible_actions = [
     {}, # No op
     { 'A': 1 }, # Accelerate, forward
     { 'A': 1, 'Right': 1 }, # Accelerate, right
     { 'A': 1, 'Left': 1 }, # Accelerate, left
-    { 'B': 1 }, # Break and reverse
+    { 'B': 1, 'Down': 1 }, # Break and reverse
     { 'A': 1, 'Right': 1, 'R': 1 }, # Drift right
     { 'A': 1, 'Left': 1, 'R': 1 }, # Drift left
     { 'A': 1, 'L': 1 }, # Accelerate, forward, power
     { 'A': 1, 'Right': 1, 'L': 1 }, # Accelerate, right, power
     { 'A': 1, 'Left': 1, 'L': 1 }, # Accelerate, left, power
-    { 'B': 1, 'L': 1 }, # Break and reverse, power
+    { 'B': 1, 'Down': 1, 'L': 1 }, # Break and reverse, power
     { 'A': 1, 'Right': 1, 'R': 1, 'L': 1 }, # Drift right, power
     { 'A': 1, 'Left': 1, 'R': 1, 'L': 1 } # Drift left, power
 ]
