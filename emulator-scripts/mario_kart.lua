@@ -2,6 +2,18 @@ local http = require("socket.http")
 local mime = require("mime")
 local json = require("json")
 local ltn12 = require("ltn12")
+local deque = require("deque")
+
+local frames_to_stack = 4
+local frame_number = 0
+local update_frequency = 10
+local action = {}
+local train = false
+
+local current_pos = 0
+local prev_pos = 0
+local positions_queue = deque.new()
+
 
 local current_lap_percentage = 0
 local last_lap_percentage = 0.9
@@ -19,6 +31,19 @@ local max_frames = 65535
 local max_coins = 255
 local max_entity_hits = 20
 local max_wall_hits = 255
+local max_length_positions_queue = 60
+
+function push_position(position)
+    positions_queue:push_right(position)
+    if positions_queue:length() == max_length_positions_queue + 1 then
+        positions_queue:pop_left()
+    end
+end
+
+function get_oldest_position()
+    return positions_queue:peek_left()
+end
+
 
 function get_lap()
   local status = memory.read_u8(0x3BE0)
@@ -34,45 +59,12 @@ function get_lap()
 end
 
 function compute_reward(track_info)
-  local position = memory.read_u8(0x23B4)
-  local coins = memory.read_u8(0x3D10)
-  local first_lap_time = memory.read_u16_le(0x3C74)
-  local second_lap_time = memory.read_u16_le(0x3C76)
-  local current_lap_time = memory.read_u16_le(0x5C80) - first_lap_time - second_lap_time
-
-  local frames_not_hitting_gas = memory.read_u16_le(0x3ADC)
-  -- Overflow check
-  if memory.read_u8(0x3ADE) == 1 then
-    frames_not_hitting_gas = max_frames
-  end
-
-  local frames_hitting_brake = memory.read_u16_le(0x3AE0)
-  -- Overflow check
-  if memory.read_u8(0x3AE2) == 1 then
-    frames_hitting_brake = max_frames
-  end
-
-  local lakitu_rescue_count = memory.read_u8(0x3AE7)
-  local entity_hit_count = memory.read_u8(0x3AE8)
-  if entity_hit_count > max_entity_hits then
-    entity_hit_count = max_entity_hits
-  end
-
-  local wall_hit_count = memory.read_u8(0x3AE9)
-  local spin_count = memory.read_u8(0x3AEA)
-  local start_turbo_count = memory.read_u8(0x3AEB)
-  local drift_turbo_count = memory.read_u8(0x3AEC)
-  local item_box_hit_full = memory.read_u8(0x3AF4)
-
-  local frames_outside = memory.read_u16_le(0x3AF0)
-  -- Overflow check
-  if memory.read_u8(0x3AF2) == 1 then
-    frames_outside = max_frames
-  end
-
+  local max_velocity = 100.0 * track_info['max_steps'] / track_info['average_time'] 
+  
   local track_position = get_minimap_position()
   local x = track_position[1] - minimap_offset_x + 1
   local y = track_position[2] - minimap_offset_y + 1
+
 
   local lap_percentage = last_lap_percentage
 
@@ -96,42 +88,23 @@ function compute_reward(track_info)
     current_lap_percentage = lap_percentage
   end
 
-  local average_time = track_info['average_time']
-  local relative_time = average_time * current_lap_percentage - current_lap_time
-  lap_reward[global_lap] = relative_time
+  local new_position = {position=track_info['matrix'][x][y], lap=actual_global_lap}
+  push_position(new_position)
+  local old_position = get_oldest_position()
+  local speed = 0
 
-  --[[
-  gui.text(0, 80, "Time reward lap 1: " .. lap_reward[1])
-  gui.text(0, 100, "Time reward lap 2: " .. lap_reward[2])
-  gui.text(0, 120, "Time reward lap 3: " .. lap_reward[3])
-  --]]
+  local lap_difference = new_position['lap'] - old_position['lap']
 
-  -- return lap_reward[1] + lap_reward[2] + lap_reward[3]
-  -- local relative_time = ((average_time - first_lap_time) + (average_time - second_lap_time) +
-     -- average_time * lap_percentage - current_lap_time)
-
-  local time_reward = (lap_reward[1] + lap_reward[2] + lap_reward[3]) / (max_time_without_finish * 1.0)
-  local position_reward = (7 - position) / 7.0
-  local no_gas_reward = frames_not_hitting_gas / (max_frames * 1.0)
-  local brake_reward = frames_hitting_brake / (max_frames * 1.0)
-  local entity_hits_reward = entity_hit_count / (max_entity_hits * 1.0)
-  local wall_hits_reward = wall_hit_count / (max_wall_hits * 1.0)
-  local outside_reward = frames_outside / (max_frames * 1.0)
-
-  local attributes = {
-    time_reward=time_reward, position_reward=position_reward, no_gas_reward=no_gas_reward,
-    brake_reward=brake_reward, entity_hits_reward=entity_hits_reward,
-    wall_hits_reward=wall_hits_reward, outside_reward=outside_reward
-  }
-
-  local i = 0
-  for key,value in pairs(attributes) do
-    gui.text(0, i * 15 + 80, key .. ": " .. value)
-    i = i + 1
+  if lap_difference >= 0 then
+    speed = lap_difference * track_info['max_steps'] - old_position['position'] + new_position['position']
+  else
+    speed = -((-lap_difference) * track_info['max_steps'] - new_position['position'] + old_position['position'])
   end
+  speed = speed / max_velocity
 
-  return 0.4 * time_reward + 0.1 * position_reward - 0.1 * no_gas_reward - 0.075 * brake_reward -
-    0.025 * entity_hits_reward - 0.1 * wall_hits_reward - 0.2 * outside_reward
+   -- gui.text(0, 80, "speed: " .. speed .. '%')  
+
+  return speed
 
 end
 
@@ -190,11 +163,7 @@ local game_id = renew_game_id()
 local screenshot_folder = "../results/"
 local state_file = "../game/mario_kart.State"
 
-local frames_to_stack = 4
-local frame_number = 0
-local update_frequency = 10
-local action = {}
-local train = true
+
 
 console.log(game_id)
 
@@ -212,6 +181,7 @@ function reset()
   actual_global_lap = 0
   global_lap = 1
   last_updated_lap = -1
+  positions_queue = deque.new()
 end
 
 reset()
@@ -221,8 +191,10 @@ while true do
 
   gui.text(0, 0, "Reward: " .. reward)
   gui.text(0, 20, "Ended: " .. tostring(race_ended()))
-  gui.text(0, 40, "Lap percentage: " .. (current_lap_percentage * 100) .. '%')
-  gui.text(0, 60, "Lap: " .. (global_lap) .. ' / 3')
+  
+  
+  
+  -- gui.text(0, 80, "Lap: " .. (global_lap) .. ' / 3')
 
   client.screenshot(screenshot_folder .. "screenshot" .. (frame_number % frames_to_stack) ..  ".png")
 
@@ -262,7 +234,7 @@ while true do
     action = result.action
   end
 
-  joypad.set(action)
+  --joypad.set(action)
 
   if out_of_time or race_ended() then
     reset()
