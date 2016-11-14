@@ -8,12 +8,11 @@ local frames_to_stack = 4
 local frame_number = 0
 local update_frequency = 10
 local action = {}
-local train = false
+local train = true
 
 local current_pos = 0
 local prev_pos = 0
 local positions_queue = deque.new()
-
 
 local current_lap_percentage = 0
 local last_lap_percentage = 0.9
@@ -44,7 +43,6 @@ function get_oldest_position()
     return positions_queue:peek_left()
 end
 
-
 function get_lap()
   local status = memory.read_u8(0x3BE0)
   if status == 4 then
@@ -59,12 +57,11 @@ function get_lap()
 end
 
 function compute_reward(track_info)
-  local max_velocity = 100.0 * track_info['max_steps'] / track_info['average_time'] 
-  
+  local max_velocity = 100.0 * track_info['max_steps'] / track_info['average_time']
+
   local track_position = get_minimap_position()
   local x = track_position[1] - minimap_offset_x + 1
   local y = track_position[2] - minimap_offset_y + 1
-
 
   local lap_percentage = last_lap_percentage
 
@@ -102,10 +99,9 @@ function compute_reward(track_info)
   end
   speed = speed / max_velocity
 
-   -- gui.text(0, 80, "speed: " .. speed .. '%')  
+   -- gui.text(0, 80, "speed: " .. speed .. '%')
 
   return speed
-
 end
 
 function get_minimap_position()
@@ -159,11 +155,9 @@ function retrieve_minimap(name)
   return result
 end
 
-local game_id = renew_game_id()
+local game_id = nil
 local screenshot_folder = "../results/"
 local state_file = "../game/mario_kart.State"
-
-
 
 console.log(game_id)
 
@@ -191,10 +185,7 @@ while true do
 
   gui.text(0, 0, "Reward: " .. reward)
   gui.text(0, 20, "Ended: " .. tostring(race_ended()))
-  
-  
-  
-  -- gui.text(0, 80, "Lap: " .. (global_lap) .. ' / 3')
+  gui.text(0, 40, "Lap: " .. (global_lap) .. ' / 3')
 
   client.screenshot(screenshot_folder .. "screenshot" .. (frame_number % frames_to_stack) ..  ".png")
 
@@ -234,7 +225,7 @@ while true do
     action = result.action
   end
 
-  --joypad.set(action)
+  joypad.set(action)
 
   if out_of_time or race_ended() then
     reset()

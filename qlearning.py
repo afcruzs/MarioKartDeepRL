@@ -2,6 +2,7 @@ from scipy.misc import imresize
 import numpy as np
 import itertools
 import random
+import utils
 from keras.models import Sequential
 from keras.layers import Convolution2D, Dense, Flatten
 from keras.optimizers import RMSprop
@@ -128,9 +129,7 @@ class QLearning(object):
             self.replay_memory.append((state, action, reward, new_state, is_terminal))
 
     def sample_replay_memory(self, size):
-        sample = np.random.choice(xrange(len(self.replay_memory)),
-            min(len(self.replay_memory), size), replace=False)
-        return [self.replay_memory[i] for i in sample]
+        return utils.sample_without_replacement(self.replay_memory, min(len(self.replay_memory), size))
 
     def preprocess_images(self, images):
         if len(images) != self.history_length:
