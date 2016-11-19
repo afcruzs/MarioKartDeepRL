@@ -57,17 +57,18 @@ class QLearning(object):
         self.steps = 0
         self.exploration_rate = self.initial_exploration
         self.exploration_decay = (1.0 * self.initial_exploration - self.final_exploration) / self.final_exploration_frame
+        self.target_network_update_frequency = target_network_update_frequency
 
         self.model = self._create_model()
         self.delayed_model = self._create_model()
-        self.target_network_update_frequency = target_network_update_frequency
+        copy_weights(self.model, self.delayed_model)
 
     def load(self, filename):
         print "Loading weights..."
         self.model.load_weights(pretrained_model)
 
     def _create_model(self):
-        init = lambda shape, name: normal(shape, scale=0.0001, name=name)
+        init = lambda shape, name: normal(shape, name=name)
         model = Sequential()
         model.add(Convolution2D(32, 8, 8, subsample=(4, 4), activation='relu', init=init,
             input_shape=(self.history_length, self.frame_size[0], self.frame_size[1])))
@@ -80,6 +81,7 @@ class QLearning(object):
         model.compile(RMSprop(lr=self.learning_rate), 'mse')
 
         return model
+
     def save_model(self, file_name):
         self.model.save_weights(file_name + ".h5")
 

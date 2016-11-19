@@ -16,9 +16,10 @@ from qlearning import QLearning, possible_actions
 app = Flask(__name__)
 agent = QLearning()
 last_action_request = None
-minimaps = {name : (preprocess_map(filename), average_time) for name, filename, average_time in
-                        [('peach_circuit', 'tracks/peach_circuit.png', 30 * 100)]
-            }
+minimaps = {
+    name: (preprocess_map(filename), average_time) for name, filename, average_time in
+        [('peach_circuit', 'tracks/peach_circuit.png', 30 * 100)]
+}
 
 EMPTY_FRAME = np.zeros((240, 160, 3))
 
@@ -59,8 +60,6 @@ def request_action():
         params["game_id"], float(params["reward"]), params["screenshots"],
         params["train"], bool(params["race_ended"]))
 
-    now = datetime.now()
-
     images = []
     for i, screenshot in enumerate(screenshots):
         s = StringIO(base64.decodestring(screenshot))
@@ -68,17 +67,19 @@ def request_action():
         s.close()
 
     if len(images) != agent.history_length:
-        images = [EMPTY_FRAME] * (agent.history_length - len(images)) + images
+        images += [EMPTY_FRAME] * (agent.history_length - len(images))
+
+    now = datetime.now()
 
     processed_images = agent.preprocess_images(images)
-    if train and last_action_request is not None and not is_terminal_state:
+    if train and last_action_request is not None:
         last_state, last_action = last_action_request
         agent.store_in_replay_memory(last_state, last_action, reward,
             processed_images, is_terminal_state)
         agent.train_step()
 
     action_index = agent.choose_action(np.array([processed_images]), train)[0]
-    last_action_request = (processed_images, action_index)
+    last_action_request = None if is_terminal_state else (processed_images, action_index)
     action = possible_actions[action_index]
 
     return make_response(jsonify({'action': action}))

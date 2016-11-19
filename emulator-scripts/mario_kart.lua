@@ -25,7 +25,7 @@ local minimap_offset_y = 160 - 64
 local end_of_lap_threshold = 0.9
 local start_of_lap_threshold = 0.1
 
-local max_time_without_finish = 18000
+local max_time_without_finish = 2000
 local max_frames = 65535
 local max_coins = 255
 local max_entity_hits = 20
@@ -116,7 +116,8 @@ function get_minimap_position()
 end
 
 function race_ended()
-  return memory.read_u8(0x3BE0) == 0x34
+  --return memory.read_u8(0x3BE0) == 0x34
+  return current_lap_percentage >= 0.15
 end
 
 function make_json_request(url, method, content_table, response_out)
@@ -191,10 +192,6 @@ while true do
 
   local time = memory.read_u16_le(0x5C80)
   local out_of_time = (time >= max_time_without_finish)
-
-  if out_of_time then
-    reward = -1
-  end
 
   if out_of_time or (frame_number % update_frequency) == 0 then
     local last_screenshots = {}
