@@ -11,21 +11,24 @@ local minimap_offset_x = 240 - 64
 local minimap_offset_y = 160 - 64
 local end_of_lap_threshold = 0.9
 local start_of_lap_threshold = 0.1
-local max_time_without_finish = 2000
+local max_time_between_checkpoints = 2000
 local max_frames = 65535
 local max_coins = 255
 local max_entity_hits = 20
 local max_wall_hits = 255
 local max_length_positions_queue = 60
-local lap_checkpoint_interval = 0.15
+local checkpoint_percentage_interval = 0.15
 local base_url = "http://localhost:5000/"
 local screenshot_folder = "../results/"
 local state_file = "../game/mario_kart.State"
+local checkpoint_state_file = "../game/mario_kart_checkpoint.State"
+local train = true
+local manual_mode = false
 
 local game_id = nil
-local train = true
 local action = {}
 local state = nil
+local last_checkpoint = nil
 
 local MarioKartState = {}
 MarioKartState.__index = MarioKartState
@@ -44,7 +47,35 @@ function MarioKartState:reset()
   self.global_lap = 1
   self.position = {0, 0}
   self.time = 0
+  self.last_checkpoint_state = self:_build_checkpoint_state()
+  self.race_status = 0
   self.positions_queue = deque.new()
+end
+
+function MarioKartState:create_checkpoint()
+  self.last_checkpoint_state = self:_build_checkpoint_state()
+
+  local checkpoint = MarioKartState.new()
+  checkpoint.current_lap_percentage = self.current_lap_percentage
+  checkpoint.last_lap_percentage = self.last_lap_percentage
+  checkpoint.actual_global_lap = self.actual_global_lap
+  checkpoint.global_lap = self.global_lap
+  checkpoint.position = self.position
+  checkpoint.time = self.time
+  checkpoint.last_checkpoint_state = self.last_checkpoint_state
+  checkpoint.race_status = self.race_status
+
+  -- Omitted properties: positions_queue
+
+  return checkpoint
+end
+
+function MarioKartState:_build_checkpoint_state()
+  return {
+    lap=self.actual_global_lap,
+    lap_percentage=self.current_lap_percentage,
+    time=self.time
+  }
 end
 
 function MarioKartState:_record_position(position)
@@ -52,6 +83,14 @@ function MarioKartState:_record_position(position)
   if self.positions_queue:length() == max_length_positions_queue + 1 then
       self.positions_queue:pop_left()
   end
+end
+
+function MarioKartState:get_overall_progress()
+  return self.last_lap_percentage + self.actual_global_lap - 1
+end
+
+function MarioKartState:is_timed_out()
+  return self.time - self.last_checkpoint_state.time >= max_time_between_checkpoints
 end
 
 function MarioKartState:_get_speed(track_info)
@@ -72,11 +111,11 @@ function MarioKartState:_get_speed(track_info)
   return speed
 end
 
-function MarioKartState:_get_time_from_ram()
+function MarioKartState._get_time_from_ram()
   return memory.read_u16_le(0x5C80)
 end
 
-function MarioKartState:_get_position_from_ram()
+function MarioKartState._get_position_from_ram()
 	local old_domain = memory.getcurrentmemorydomain()
 
 	memory.usememorydomain("OAM")
@@ -90,7 +129,7 @@ function MarioKartState:_get_position_from_ram()
 end
 
 function MarioKartState:update_from_ram(track_info)
-  self.position = self:_get_position_from_ram()
+  self.position = MarioKartState._get_position_from_ram()
 
   local x = self.position[1]
   local y = self.position[2]
@@ -121,15 +160,20 @@ function MarioKartState:update_from_ram(track_info)
     y=y
   })
 
-  self.time = self:_get_time_from_ram()
+  self.time = MarioKartState._get_time_from_ram()
+  self.race_status = MarioKartState._get_race_status_from_ram()
 end
 
 function MarioKartState:get_reward(track_info)
   return self:_get_speed(track_info)
 end
 
+function MarioKartState._get_race_status_from_ram()
+  return memory.read_u8(0x3BE0)
+end
+
 function MarioKartState:race_ended()
-  return self.current_lap_percentage >= lap_checkpoint_interval
+  return self.race_status == 0x34
 end
 
 function make_json_request(url, method, content_table, response_out)
@@ -166,12 +210,25 @@ function retrieve_minimap(name)
   return result
 end
 
+function create_checkpoint()
+  last_checkpoint = state:create_checkpoint()
+  savestate.save(checkpoint_state_file)
+end
+
+function restore_checkpoint()
+  state = last_checkpoint
+  last_checkpoint = state:create_checkpoint()
+  savestate.load(checkpoint_state_file)
+end
+
 function reset()
   memory.usememorydomain("IWRAM")
   frame_number = 0
   game_id = renew_game_id()
   savestate.load(state_file)
+
   state = MarioKartState.new()
+  create_checkpoint()
 end
 
 reset()
@@ -182,51 +239,61 @@ while true do
   local reward = state:get_reward(track_info)
   local race_ended = state:race_ended()
 
+  if state:get_overall_progress() >= last_checkpoint:get_overall_progress() + checkpoint_percentage_interval then
+    create_checkpoint()
+    console.log("Checkpoint created")
+  end
+
   gui.text(0, 0, "Reward: " .. reward)
   gui.text(0, 20, "Ended: " .. tostring(race_ended))
   gui.text(0, 40, "Lap: " .. (state.global_lap) .. ' / 3')
+  gui.text(0, 60, "Overall progress: " .. (state:get_overall_progress()))
 
   client.screenshot(screenshot_folder .. "screenshot" .. (frame_number % frames_to_stack) ..  ".png")
 
-  local time = memory.read_u16_le(0x5C80)
-  local out_of_time = (time >= max_time_without_finish)
+  if not manual_mode then
+    if race_ended or (frame_number % update_frequency) == 0 then
+      local last_screenshots = {}
+      for i=0,frames_to_stack-1 do
+        if i >= frame_number then
+          break
+        end
+        local screenshot_index = ((frame_number + frames_to_stack - i) % frames_to_stack)
+        local screenshot_file = io.open(screenshot_folder .. "screenshot" .. screenshot_index ..  ".png", "rb")
 
-  if out_of_time or (frame_number % update_frequency) == 0 then
-    local last_screenshots = {}
-    for i=0,frames_to_stack-1 do
-      if i >= frame_number then
-        break
+        if screenshot_file then
+          local data = screenshot_file:read("*all")
+          last_screenshots[i + 1] = (mime.b64(data))
+          screenshot_file:close()
+        end
       end
-      local screenshot_index = ((frame_number + frames_to_stack - i) % frames_to_stack)
-      local screenshot_file = io.open(screenshot_folder .. "screenshot" .. screenshot_index ..  ".png", "rb")
 
-      if screenshot_file then
-        local data = screenshot_file:read("*all")
-        last_screenshots[i + 1] = (mime.b64(data))
-        screenshot_file:close()
-      end
+      local result = {}
+      make_json_request(base_url .. "request-action", "POST", {
+        game_id=game_id,
+        reward=reward,
+        screenshots=last_screenshots,
+        train=train,
+        race_ended=race_ended
+      }, result)
+
+      result = json:decode(result[1])
+      action = result.action
     end
 
-    local result = {}
-    make_json_request(base_url .. "request-action", "POST", {
-      game_id=game_id,
-      reward=reward,
-      screenshots=last_screenshots,
-      train=train,
-      race_ended=(race_ended or out_of_time)
-    }, result)
-
-    result = json:decode(result[1])
-    action = result.action
-  end
-
-  joypad.set(action)
-
-  if out_of_time or race_ended then
-    reset()
+    joypad.set(action)
   end
 
   frame_number = frame_number + 1
+
+  if race_ended then
+    reset()
+  end
+
+  if state:is_timed_out() then
+    restore_checkpoint()
+  end
+
   emu.frameadvance()
   collectgarbage()
 end
