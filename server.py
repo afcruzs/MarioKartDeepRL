@@ -12,9 +12,41 @@ from preprocessing import preprocess_map
 from PIL import Image
 from cStringIO import StringIO
 from qlearning import QLearning, possible_actions
+from session import Session, LOAD_SESSION, NEW_SESSION, create_dir, SESSION_PATH
+import argparse
 
+
+parser = argparse.ArgumentParser(description='Parse session parameters')
+parser.add_argument("--mode", default=NEW_SESSION, type=str)
+parser.add_argument("--episodes", default='4', type=int)
+parser.add_argument("--session_name", required=False)
+
+
+def create_agent(session_mode, episodes, session_name):
+  if not session_name:
+    now = datetime.now()
+    session_name = now.strftime("%Y%m%d_%H%M%S")
+
+  new_session_path = SESSION_PATH + session_name
+  if session_mode == NEW_SESSION:
+      if not create_dir(new_session_path): # If true, the dir is created
+        raise Exception("A session called %s already exists." % session_name)
+      session = Session(episodes, new_session_path)
+  else:
+    if create_dir(new_session_path):
+      print "Warning, %s folder was not created..." % new_session_path
+    session = Session(episodes, new_session_path)
+
+  agent = QLearning(session)
+  if session_mode == LOAD_SESSION:
+    agent.load_agent()
+
+  return agent
+
+args = parser.parse_args()
+agent = create_agent(args.mode, args.episodes, args.session_name)
 app = Flask(__name__)
-agent = QLearning()
+
 last_action_request = None
 minimaps = {
     name: (preprocess_map(filename), average_time) for name, filename, average_time in
@@ -43,12 +75,6 @@ def generate_game_id():
         'id': uuid.uuid4()
     }))
 
-@app.route('/save-model', methods = ['POST'])
-def save_model():
-    params = request.get_json()
-    file_name = params["file_name"]
-    agent.save_model(file_name)
-    return make_response(jsonify({}))
 
 @app.route('/request-action', methods = ['POST'])
 def request_action():
@@ -66,8 +92,8 @@ def request_action():
         images.append(np.array(Image.open(s)))
         s.close()
 
-    if len(images) != agent.history_length:
-        images += [EMPTY_FRAME] * (agent.history_length - len(images))
+    if len(images) != agent.parameters.history_length:
+        images += [EMPTY_FRAME] * (agent.parameters.history_length - len(images))
 
     now = datetime.now()
 
@@ -81,6 +107,8 @@ def request_action():
     action_index = agent.choose_action(np.array([processed_images]), train)[0]
     last_action_request = None if is_terminal_state else (processed_images, action_index)
     action = possible_actions[action_index]
+    if is_terminal_state:
+        agent.advance_episode()
 
     return make_response(jsonify({'action': action}))
 

@@ -5,3 +5,4 @@ game/*.sav
 emulator/
 weights/*.h5
 *.pyc
+sessions/*.*
