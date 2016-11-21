@@ -108,14 +108,14 @@ class QLearning(object):
         model_file_name = full_path + '/model.h5'
         delayed_model_file_name = full_path + '/delayed_model.h5'
         replay_memory_file_name = full_path + '/replay_memory.npy'
-        parameters_file_name = full_path + '/parameters.pkl'
+        parameters_file_name    = full_path + '/parameters.pkl'
 
         print "Loading model weights..."
         self.model.load_weights(model_file_name)
         print "Loading delayed model weights..."
         self.delayed_model.load_weights(delayed_model_file_name)
         print "Loading replayed memory..."
-        self.replay_memory = np.load(replay_memory_file_name)
+        self.replay_memory = deque(np.load(replay_memory_file_name))
         print "Loading parameters..."
         with open(parameters_file_name, 'rb') as input_file:
             self.parameters = pickle.load(input_file)
