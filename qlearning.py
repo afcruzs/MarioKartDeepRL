@@ -35,13 +35,12 @@ def copy_weights(source_model, dest_model):
         dest_model.layers[i].set_weights(layer.get_weights())
 
 class QLearningParameters(object):
-    def __init__(self, frame_size, history_length, minibatch_size,
-        replay_memory_size, discount_factor, learning_rate,
-        gradient_momentum, squared_momentum, min_squared_gradient,
-        initial_exploration, final_exploration, final_exploration_frame,
-        replay_start_size, max_no_op, target_network_update_frequency, steps,
-        exploration_rate, exploration_decay):
-    
+    def __init__(self, frame_size=(84, 84), history_length=4, minibatch_size=32,
+        replay_memory_size=100000, discount_factor=0.99, learning_rate=0.00025,
+        gradient_momentum=0.95, squared_momentum=0.95, min_squared_gradient=0.01,
+        initial_exploration=1, final_exploration=0.1, final_exploration_frame=1000000,
+        replay_start_size=100, max_no_op=30, target_network_update_frequency=5000):
+
         self.frame_size = frame_size
         self.history_length = history_length
         self.minibatch_size = minibatch_size
@@ -56,50 +55,17 @@ class QLearningParameters(object):
         self.final_exploration_frame = final_exploration_frame
         self.replay_memory_sizetart_size = replay_start_size
         self.max_no_op = max_no_op
-        self.steps = steps
-        self.exploration_rate = exploration_rate
-        self.exploration_decay = exploration_decay
-        self.target_network_update_frequency = target_network_update_frequency        
+        self.steps = 0
+        self.exploration_rate = initial_exploration
+        self.exploration_decay = (1.0 * initial_exploration - final_exploration) / final_exploration_frame
+        self.target_network_update_frequency = target_network_update_frequency
 
 
 class QLearning(object):
-    def __init__(self, session, frame_size=(84, 84), history_length=4, minibatch_size=32,
-        replay_memory_size=100000, discount_factor=0.99, learning_rate=0.00025,
-        gradient_momentum=0.95, squared_momentum=0.95, min_squared_gradient=0.01,
-        initial_exploration=1, final_exploration=0.1, final_exploration_frame=1000000,
-        replay_start_size=100, max_no_op=30, target_network_update_frequency=5000):
-
-        
-
-        '''
-        self.parameters.frame_size = frame_size
-        self.parameters.history_length = history_length
-        self.parameters.minibatch_size = minibatch_size
-        self.parameters.replay_memory_size = replay_memory_size
-        self.parameters.discount_factor = discount_factor
-        self.parameters.learning_rate = learning_rate
-        self.parameters.gradient_momentum = gradient_momentum
-        self.parameters.squared_momentum = squared_momentum
-        self.parameters.min_squared_gradient = min_squared_gradient
-        self.parameters.initial_exploration = initial_exploration
-        self.parameters.final_exploration = final_exploration
-        self.parameters.final_exploration_frame = final_exploration_frame
-        self.parameters.replay_start_size = replay_start_size
-        self.parameters.max_no_op = max_no_op
-        '''
+    def __init__(self, session, parameters):
         self.session = session
         self.replay_memory = deque()
-        steps = 0
-        exploration_rate = initial_exploration
-        exploration_decay = (1.0 * initial_exploration - final_exploration) / final_exploration_frame
-
-        self.parameters = QLearningParameters(frame_size, history_length, minibatch_size,
-        replay_memory_size, discount_factor, learning_rate,
-        gradient_momentum, squared_momentum, min_squared_gradient,
-        initial_exploration, final_exploration, final_exploration_frame,
-        replay_start_size, max_no_op, target_network_update_frequency, steps,
-        exploration_rate, exploration_decay)
-        
+        self.parameters = parameters
 
         self.model = self._create_model()
         self.delayed_model = self._create_model()
@@ -119,23 +85,23 @@ class QLearning(object):
         model.compile(RMSprop(lr=self.parameters.learning_rate), 'mse')
 
         return model
+    
     def advance_episode(self):
         self.session.advance_episode()
 
     def save_agent(self):
         full_path = self.session.get_current_path()
-        
+
         model_file_name = full_path + '/model.h5'
         delayed_model_file_name = full_path + '/delayed_model.h5'
         replay_memory_file_name = full_path + '/replay_memory.npy'
         parameters_file_name = full_path + '/parameters.pkl'
-        
+
         self.model.save_weights(model_file_name)
         self.delayed_model.save_weights(delayed_model_file_name)
         np.save(replay_memory_file_name, self.replay_memory)
         with open(parameters_file_name, 'wb') as output:
             pickle.dump(self.parameters, output)
-
 
     def load_agent(self):
         full_path = self.session.get_current_path()
@@ -183,7 +149,7 @@ class QLearning(object):
 
         loss = self.model.train_on_batch(X_old_states, Y)
         print "Loss in iteration %d is %f" % (self.parameters.steps, loss)
-        print "Exploration rate in iteration %d is %f" % (self.parameters.steps, self.exploration_rate)
+        print "Exploration rate in iteration %d is %f" % (self.parameters.steps, self.parameters.exploration_rate)
 
         self.parameters.steps += 1
 
@@ -216,12 +182,13 @@ class QLearning(object):
 
     def choose_action(self, processed_images, train):
         if train and random.uniform(0,1) <= self.parameters.exploration_rate:
-            print "The action is randomly chosen"
             result = [random.choice(xrange(len(possible_actions))) for _ in xrange(processed_images.shape[0])]
+            print "Random action:",
         else:
-            print "The action is NOT randomly chosen"
             result = [np.argmax(i) for i in self.model.predict(processed_images)]
+            print "Best action:",
+        print [possible_actions[i].keys() for i in result]
 
-        self.exploration_rate = max(self.parameters.final_exploration, 
+        self.parameters.exploration_rate = max(self.parameters.final_exploration,
             self.parameters.exploration_rate - self.parameters.exploration_decay)
         return result

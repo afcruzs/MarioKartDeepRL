@@ -4,6 +4,7 @@ from flask import abort, make_response
 from flask import Flask, current_app
 from flask import send_from_directory
 import base64
+import os
 from datetime import datetime
 import uuid
 import random
@@ -11,16 +12,14 @@ import numpy as np
 from preprocessing import preprocess_map
 from PIL import Image
 from cStringIO import StringIO
-from qlearning import QLearning, possible_actions
+from qlearning import QLearning, QLearningParameters, possible_actions
 from session import Session, LOAD_SESSION, NEW_SESSION, create_dir, SESSION_PATH
 import argparse
-
 
 parser = argparse.ArgumentParser(description='Parse session parameters')
 parser.add_argument("--mode", default=NEW_SESSION, type=str)
 parser.add_argument("--episodes", default='4', type=int)
 parser.add_argument("--session_name", required=False)
-
 
 def create_agent(session_mode, episodes, session_name):
   if not session_name:
@@ -29,15 +28,17 @@ def create_agent(session_mode, episodes, session_name):
 
   new_session_path = SESSION_PATH + session_name
   if session_mode == NEW_SESSION:
+      print "Creating session:", new_session_path
       if not create_dir(new_session_path): # If true, the dir is created
         raise Exception("A session called %s already exists." % session_name)
       session = Session(episodes, new_session_path)
   else:
-    if create_dir(new_session_path):
-      print "Warning, %s folder was not created..." % new_session_path
+    print "Loading session:", new_session_path
+    if not os.path.exists(new_session_path):
+      raise Exception("Session %s does not exist." % new_session_path)
     session = Session(episodes, new_session_path)
 
-  agent = QLearning(session)
+  agent = QLearning(session, QLearningParameters())
   if session_mode == LOAD_SESSION:
     agent.load_agent()
 
@@ -75,7 +76,6 @@ def generate_game_id():
         'id': uuid.uuid4()
     }))
 
-
 @app.route('/request-action', methods = ['POST'])
 def request_action():
     global last_action_request
@@ -108,7 +108,10 @@ def request_action():
     last_action_request = None if is_terminal_state else (processed_images, action_index)
     action = possible_actions[action_index]
     if is_terminal_state:
+        agent.save_agent()
         agent.advance_episode()
+
+        print "%s: New episode" % (now.strftime("%Y%m%d_%H%M%S"),)
 
     return make_response(jsonify({'action': action}))
 
