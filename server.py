@@ -32,6 +32,7 @@ def create_agent(session_mode, episodes, session_name):
       if not create_dir(new_session_path): # If true, the dir is created
         raise Exception("A session called %s already exists." % session_name)
       session = Session(episodes, new_session_path)
+      session.create_logs_directories()
   else:
     print "Loading session:", new_session_path
     if not os.path.exists(new_session_path):
@@ -47,6 +48,9 @@ def create_agent(session_mode, episodes, session_name):
 args = parser.parse_args()
 agent = create_agent(args.mode, args.episodes, args.session_name)
 app = Flask(__name__)
+accumulated_reward = 0.0
+number_of_steps = 0
+accumulated_loss = 0
 
 last_action_request = None
 minimaps = {
@@ -78,13 +82,16 @@ def generate_game_id():
 
 @app.route('/request-action', methods = ['POST'])
 def request_action():
-    global last_action_request
+    global last_action_request, accumulated_reward, number_of_steps, accumulated_loss
 
     params = request.get_json()
 
     game_id, reward, screenshots, train, is_terminal_state = (
         params["game_id"], float(params["reward"]), params["screenshots"],
         params["train"], bool(params["race_ended"]))
+
+    accumulated_reward += reward
+    number_of_steps += 1.0
 
     images = []
     for i, screenshot in enumerate(screenshots):
@@ -102,14 +109,27 @@ def request_action():
         last_state, last_action = last_action_request
         agent.store_in_replay_memory(last_state, last_action, reward,
             processed_images, is_terminal_state)
-        agent.train_step()
+        loss = agent.train_step()
+        accumulated_loss += loss
 
     action_index = agent.choose_action(np.array([processed_images]), train)[0]
     last_action_request = None if is_terminal_state else (processed_images, action_index)
     action = possible_actions[action_index]
+    
     if is_terminal_state:
         agent.save_agent()
         agent.advance_episode()
+    
+        
+        average_reward = accumulated_reward / number_of_steps
+        average_loss = accumulated_loss / (number_of_steps - 1)
+
+        agent.session.append_reward(average_reward)
+        agent.session.append_loss(average_loss)
+
+        accumulated_reward = 0
+        number_of_steps = 0
+        accumulated_loss = 0
 
         print "%s: New episode" % (now.strftime("%Y%m%d_%H%M%S"),)
 
