@@ -1,8 +1,17 @@
-local http = require("socket.http")
 local mime = require("mime")
 local json = require("json")
 local ltn12 = require("ltn12")
 local deque = require("deque")
+
+local socket = require "socket"
+local try    = require "try"
+
+socket.newtry  = try.new
+socket.protect = try.protect
+socket.try     = try.new()
+
+local http = require "socket.http"
+http.TIMEOUT = 15
 
 local frames_to_stack = 4
 local frame_number = 0
@@ -29,9 +38,25 @@ local game_id = nil
 local action = {}
 local state = nil
 local last_checkpoint = nil
-
 local MarioKartState = {}
+
 MarioKartState.__index = MarioKartState
+
+local function pack(ok, ...)
+  return ok, arg
+end
+
+local protected_request = function(reqt, body)
+  local ok, results = pack(pcall(function()
+    return http.request(reqt, body)
+	end))
+
+	if ok then
+		return unpack(results)
+  else
+    return nil, unpack(results)
+	end
+end
 
 function MarioKartState.new()
   local self = setmetatable({}, MarioKartState)
@@ -176,9 +201,10 @@ function MarioKartState:race_ended()
   return self.race_status == 0x34
 end
 
-function make_json_request(url, method, content_table, response_out)
+function make_json_request_core(url, method, content_table)
   local content = json:encode(content_table)
-  return http.request{
+  local response_out = {}
+  local result, error = protected_request({
     url = url,
     method = method,
     headers = {
@@ -187,27 +213,35 @@ function make_json_request(url, method, content_table, response_out)
     },
     source = ltn12.source.string(content),
     sink = ltn12.sink.table(response_out)
-  }
+  })
+
+  if result == nil then
+    return nil, error
+  end
+
+  return json:decode(table.concat(response_out, ''))
+end
+
+function make_json_request(url, method, content_table)
+  local result = nil
+  local error = nil
+
+  while not result do
+    result, error = make_json_request_core(url, method, content_table)
+  end
+
+  return result
 end
 
 function renew_game_id()
-  local result = {}
-  make_json_request(base_url .. "game-id", "POST", {}, result)
-
-  result = json:decode(result[1])
+  local result = make_json_request(base_url .. "game-id", "POST", {})
   return result.id
 end
 
 function retrieve_minimap(name)
-  local result = {}
-  make_json_request(base_url .. "get-minimap", "POST", {
+  return make_json_request(base_url .. "get-minimap", "POST", {
         minimap_name=name
-    }, result)
-
-  local json_string = table.concat(result, '')
-
-  result = json:decode(json_string)
-  return result
+    })
 end
 
 function create_checkpoint()
@@ -268,16 +302,14 @@ while true do
         end
       end
 
-      local result = {}
-      make_json_request(base_url .. "request-action", "POST", {
+      local result = make_json_request(base_url .. "request-action", "POST", {
         game_id=game_id,
         reward=reward,
         screenshots=last_screenshots,
         train=train,
         race_ended=race_ended
-      }, result)
+      })
 
-      result = json:decode(result[1])
       action = result.action
     end
 
