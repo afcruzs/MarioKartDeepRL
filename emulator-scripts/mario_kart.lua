@@ -74,6 +74,8 @@ function MarioKartState:reset()
   self.time = 0
   self.last_checkpoint_state = self:_build_checkpoint_state()
   self.race_status = 0
+  self.is_outside = false
+  self.outside_frames = 0
   self.positions_queue = deque.new()
 end
 
@@ -88,6 +90,8 @@ function MarioKartState:create_checkpoint()
   checkpoint.position = self.position
   checkpoint.time = self.time
   checkpoint.last_checkpoint_state = self.last_checkpoint_state
+  checkpoint.is_outside = self.is_outside
+  checkpoint.outside_frames = self.outside_frames
   checkpoint.race_status = self.race_status
 
   -- Omitted properties: positions_queue
@@ -187,10 +191,31 @@ function MarioKartState:update_from_ram(track_info)
 
   self.time = MarioKartState._get_time_from_ram()
   self.race_status = MarioKartState._get_race_status_from_ram()
+
+  local outside_frames = MarioKartState._get_outside_frames_from_ram()
+  self.is_outside = (outside_frames ~= self.outside_frames)
+  self.outside_frames = outside_frames
 end
 
 function MarioKartState:get_reward(track_info)
-  return self:_get_speed(track_info)
+  if self:is_timed_out() then
+    return -1.0
+  end
+
+  local speed = self:_get_speed(track_info)
+  if speed <= 0 then
+    return -1.0
+  end
+
+  if self.is_outside then
+    return -0.8
+  end
+
+  return speed
+end
+
+function MarioKartState._get_outside_frames_from_ram()
+  return memory.read_u16_le(0x3AF0)
 end
 
 function MarioKartState._get_race_status_from_ram()
@@ -275,13 +300,14 @@ while true do
 
   if state:get_overall_progress() >= last_checkpoint:get_overall_progress() + checkpoint_percentage_interval then
     create_checkpoint()
-    console.log("Checkpoint created")
   end
 
   gui.text(0, 0, "Reward: " .. reward)
   gui.text(0, 20, "Ended: " .. tostring(race_ended))
   gui.text(0, 40, "Lap: " .. (state.global_lap) .. ' / 3')
   gui.text(0, 60, "Overall progress: " .. (state:get_overall_progress()))
+  gui.text(0, 80, "Last checkpoint: " .. (last_checkpoint:get_overall_progress()))
+  gui.text(0, 100, "Is outside: " .. tostring(state.is_outside))
 
   client.screenshot(screenshot_folder .. "screenshot" .. (frame_number % frames_to_stack) ..  ".png")
 
