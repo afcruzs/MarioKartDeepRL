@@ -16,6 +16,33 @@ from qlearning import QLearning, QLearningParameters, possible_actions
 from session import Session, LOAD_SESSION, NEW_SESSION, create_dir, SESSION_PATH
 import argparse
 
+def create_agent(session_mode, episodes, session_name, replay_memory_filepath):
+    if not session_name:
+        now = datetime.now()
+        session_name = now.strftime("%Y%m%d_%H%M%S")
+
+    new_session_path = SESSION_PATH + session_name
+    if session_mode == NEW_SESSION:
+        print "Creating session:", new_session_path
+        if not create_dir(new_session_path): # If true, the dir is created
+            raise Exception("A session called %s already exists." % session_name)
+        session = Session(episodes, new_session_path)
+        session.create_logs_directories()
+    else:
+        print "Loading session:", new_session_path
+        if not os.path.exists(new_session_path):
+            raise Exception("Session %s does not exist." % new_session_path)
+        session = Session(episodes, new_session_path)
+
+    agent = QLearning(session, QLearningParameters())
+    if replay_memory_filepath:
+        agent.load_replay_memory(replay_memory_filepath)
+
+    if session_mode == LOAD_SESSION:
+        agent.load_agent()
+
+    return agent
+
 parser = argparse.ArgumentParser(description='Parse session parameters')
 parser.add_argument("--mode", default=NEW_SESSION, type=str)
 parser.add_argument("--episodes", default='4', type=int)
@@ -42,35 +69,6 @@ minimaps = {
 }
 
 EMPTY_FRAME = np.zeros((240, 160, 3))
-
-
-
-def create_agent(session_mode, episodes, session_name, replay_memory_filepath):
-  if not session_name:
-    now = datetime.now()
-    session_name = now.strftime("%Y%m%d_%H%M%S")
-
-  new_session_path = SESSION_PATH + session_name
-  if session_mode == NEW_SESSION:
-      print "Creating session:", new_session_path
-      if not create_dir(new_session_path): # If true, the dir is created
-        raise Exception("A session called %s already exists." % session_name)
-      session = Session(episodes, new_session_path)
-      session.create_logs_directories()
-  else:
-    print "Loading session:", new_session_path
-    if not os.path.exists(new_session_path):
-      raise Exception("Session %s does not exist." % new_session_path)
-    session = Session(episodes, new_session_path)
-
-  agent = QLearning(session, QLearningParameters())
-  if replay_memory_filepath:
-    agent.load_replay_memory(replay_memory_filepath)
-
-  if session_mode == LOAD_SESSION:
-    agent.load_agent()
-
-  return agent
 
 @app.route('/get-minimap', methods = ['POST'])
 def get_minimap():
@@ -127,13 +125,12 @@ def request_action():
     action_index = agent.choose_action(np.array([processed_images]), train)[0]
     last_action_request = None if is_terminal_state else (processed_images, action_index)
     action = possible_actions[action_index]
-    
+
 
     if is_terminal_state:
         agent.save_agent()
         agent.advance_episode()
-    
-        
+
         average_reward = accumulated_reward / number_of_steps
         average_loss = accumulated_loss / (number_of_steps - 1)
 

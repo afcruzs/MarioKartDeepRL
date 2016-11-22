@@ -85,7 +85,7 @@ class QLearning(object):
         model.compile(RMSprop(lr=self.parameters.learning_rate), 'mse')
 
         return model
-    
+
     def advance_episode(self):
         self.session.advance_episode()
 
@@ -160,7 +160,7 @@ class QLearning(object):
 
         if self.parameters.steps % self.parameters.target_network_update_frequency == 0:
             copy_weights(self.model, self.delayed_model)
-            
+
         return loss
 
     def store_in_replay_memory(self, state, action, reward, new_state, is_terminal):
@@ -199,5 +199,3 @@ class QLearning(object):
         self.parameters.exploration_rate = max(self.parameters.final_exploration,
             self.parameters.exploration_rate - self.parameters.exploration_decay)
         return result
-
-
