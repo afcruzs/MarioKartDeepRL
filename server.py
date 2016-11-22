@@ -34,7 +34,7 @@ def create_agent(session_mode, episodes, session_name, replay_memory_filepath):
             raise Exception("Session %s does not exist." % new_session_path)
         session = Session(episodes, new_session_path)
 
-    agent = QLearning(session, QLearningParameters(replay_start_size=100))
+    agent = QLearning(session, QLearningParameters())
     if replay_memory_filepath:
         agent.load_replay_memory(replay_memory_filepath)
 
