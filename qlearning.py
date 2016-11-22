@@ -8,7 +8,7 @@ from keras.layers import Convolution2D, Dense, Flatten
 from keras.optimizers import Adam
 from keras.backend import image_dim_ordering, set_image_dim_ordering
 from keras.initializations import normal
-from collections import deque
+from utils import CircularBuffer
 from datetime import datetime
 import pickle
 
@@ -40,7 +40,7 @@ class QLearningParameters(object):
         replay_memory_size=80000, discount_factor=0.99, learning_rate=0.00025,
         gradient_momentum=0.95, squared_momentum=0.95, min_squared_gradient=0.01,
         initial_exploration=1, final_exploration=0.1, final_exploration_frame=1000000,
-        replay_start_size=50000, target_network_update_frequency=5000):
+        replay_memory_start_size=50000, target_network_update_frequency=5000):
 
         self.frame_size = frame_size
         self.history_length = history_length
@@ -54,7 +54,7 @@ class QLearningParameters(object):
         self.initial_exploration = initial_exploration
         self.final_exploration = final_exploration
         self.final_exploration_frame = final_exploration_frame
-        self.replay_memory_start_size = replay_start_size
+        self.replay_memory_start_size = replay_memory_start_size
         self.steps = 0
         self.episodes = 0
         self.exploration_rate = initial_exploration
@@ -64,8 +64,8 @@ class QLearningParameters(object):
 class QLearning(object):
     def __init__(self, session, parameters):
         self.session = session
-        self.replay_memory = deque()
         self.parameters = parameters
+        self.replay_memory = CircularBuffer(self.parameters.replay_memory_size)
 
         self.model = self._create_model()
         self.delayed_model = self._create_model()
@@ -124,7 +124,8 @@ class QLearning(object):
 
     def load_replay_memory(self, replay_memory_file_name):
         print "Loading replay memory...", replay_memory_file_name
-        self.replay_memory = deque(np.load(replay_memory_file_name))
+        self.replay_memory = CircularBuffer(self.parameters.replay_memory_size,
+            np.load(replay_memory_file_name))
 
     def load_agent(self):
         full_path = self.session.get_current_path()
@@ -225,10 +226,7 @@ class QLearning(object):
         return loss
 
     def store_in_replay_memory(self, state, action, reward, new_state, is_terminal):
-        if len(self.replay_memory) == self.parameters.replay_memory_size:
-            self.replay_memory.popleft()
-        else:
-            self.replay_memory.append((state, action, reward, new_state, is_terminal))
+        self.replay_memory.push_circular((state, action, reward, new_state, is_terminal))
 
     def sample_replay_memory(self, size):
         return utils.sample_without_replacement(self.replay_memory, min(len(self.replay_memory), size))
