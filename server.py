@@ -20,8 +20,9 @@ parser = argparse.ArgumentParser(description='Parse session parameters')
 parser.add_argument("--mode", default=NEW_SESSION, type=str)
 parser.add_argument("--episodes", default='4', type=int)
 parser.add_argument("--session_name", required=False)
+parser.add_argument("--replay_memory_filepath", required=False)
 
-def create_agent(session_mode, episodes, session_name):
+def create_agent(session_mode, episodes, session_name, replay_memory_filepath):
   if not session_name:
     now = datetime.now()
     session_name = now.strftime("%Y%m%d_%H%M%S")
@@ -40,13 +41,16 @@ def create_agent(session_mode, episodes, session_name):
     session = Session(episodes, new_session_path)
 
   agent = QLearning(session, QLearningParameters())
+  if replay_memory_filepath:
+    agent.load_replay_memory(replay_memory_filepath)
+
   if session_mode == LOAD_SESSION:
     agent.load_agent()
 
   return agent
 
 args = parser.parse_args()
-agent = create_agent(args.mode, args.episodes, args.session_name)
+agent = create_agent(args.mode, args.episodes, args.session_name, args.replay_memory_filepath)
 app = Flask(__name__)
 accumulated_reward = 0.0
 number_of_steps = 0
@@ -115,6 +119,7 @@ def request_action():
     action_index = agent.choose_action(np.array([processed_images]), train)[0]
     last_action_request = None if is_terminal_state else (processed_images, action_index)
     action = possible_actions[action_index]
+    
     
     if is_terminal_state:
         agent.save_agent()

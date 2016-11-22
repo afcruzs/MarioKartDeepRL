@@ -103,6 +103,10 @@ class QLearning(object):
         with open(parameters_file_name, 'wb') as output:
             pickle.dump(self.parameters, output)
 
+    def load_replay_memory(self, replay_memory_file_name):
+        print "Loading replay memory...", replay_memory_file_name
+        self.replay_memory = deque(np.load(replay_memory_file_name))
+
     def load_agent(self):
         full_path = self.session.get_current_path()
         model_file_name = full_path + '/model.h5'
@@ -119,6 +123,7 @@ class QLearning(object):
         print "Loading parameters..."
         with open(parameters_file_name, 'rb') as input_file:
             self.parameters = pickle.load(input_file)
+
 
     def train_step(self):
         sample = self.sample_replay_memory(self.parameters.minibatch_size)
