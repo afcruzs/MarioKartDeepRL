@@ -5,7 +5,7 @@ import random
 import utils
 from keras.models import Sequential
 from keras.layers import Convolution2D, Dense, Flatten
-from keras.optimizers import RMSprop
+from keras.optimizers import Adam
 from keras.backend import image_dim_ordering, set_image_dim_ordering
 from keras.initializations import normal
 from collections import deque
@@ -36,7 +36,7 @@ def copy_weights(source_model, dest_model):
 
 class QLearningParameters(object):
     def __init__(self, frame_size=(84, 84), history_length=4, minibatch_size=32,
-        replay_memory_size=100000, discount_factor=0.99, learning_rate=0.00025,
+        replay_memory_size=80000, discount_factor=0.99, learning_rate=0.00025,
         gradient_momentum=0.95, squared_momentum=0.95, min_squared_gradient=0.01,
         initial_exploration=1, final_exploration=0.1, final_exploration_frame=1000000,
         replay_start_size=100, max_no_op=30, target_network_update_frequency=5000):
@@ -82,7 +82,11 @@ class QLearning(object):
         model.add(Dense(512, activation='relu', init=init))
         model.add(Dense(len(possible_actions), activation='linear', init=init))
 
-        model.compile(RMSprop(lr=self.parameters.learning_rate), 'mse')
+        model.compile(
+            Adam(lr=self.parameters.learning_rate,
+                 beta_1=self.parameters.gradient_momentum,
+                 beta_2=self.parameters.squared_momentum,
+                 epsilon=self.parameters.min_squared_gradient), 'mse')
 
         return model
 
