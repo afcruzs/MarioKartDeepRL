@@ -110,7 +110,7 @@ class QLearning(object):
 
         model_file_name = full_path + '/model.h5'
         delayed_model_file_name = full_path + '/delayed_model.h5'
-        replay_memory_file_name = full_path + '/replay_memory.npy'
+        replay_memory_file_name = full_path + '/replay_memory.h5'
         parameters_file_name = full_path + '/parameters.pkl'
 
         self.model.save_weights(model_file_name)
@@ -152,7 +152,7 @@ class QLearning(object):
         full_path = self.session.get_current_path()
         model_file_name = full_path + '/model.h5'
         delayed_model_file_name = full_path + '/delayed_model.h5'
-        replay_memory_file_name = full_path + '/replay_memory.npy'
+        replay_memory_file_name = full_path + '/replay_memory.h5'
         parameters_file_name    = full_path + '/parameters.pkl'
 
         print "Loading agent from", full_path
