@@ -126,7 +126,6 @@ def request_action():
     last_action_request = None if is_terminal_state else (processed_images, action_index)
     action = possible_actions[action_index]
 
-
     if is_terminal_state:
         agent.save_agent()
         agent.advance_episode()
@@ -146,4 +145,4 @@ def request_action():
     return make_response(jsonify({'action': action}))
 
 if __name__ == '__main__':
-    app.run(host='localhost', debug=True, use_reloader=False)
+    app.run(host='localhost', debug=True, use_reloader=False, passthrough_errors=False)
