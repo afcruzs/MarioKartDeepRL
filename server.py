@@ -22,6 +22,29 @@ parser.add_argument("--episodes", default='4', type=int)
 parser.add_argument("--session_name", required=False)
 parser.add_argument("--replay_memory_filepath", required=False)
 
+args = parser.parse_args()
+if args.replay_memory_filepath and args.mode == LOAD_SESSION:
+    raise Exception("Error, trying to load the replay memory and load an existing session")
+
+if args.mode == LOAD_SESSION and not args.session_name:
+    raise Exception("Load session provided but no session name is provided")
+
+agent = create_agent(args.mode, args.episodes, args.session_name, args.replay_memory_filepath)
+app = Flask(__name__)
+accumulated_reward = 0.0
+number_of_steps = 0
+accumulated_loss = 0
+
+last_action_request = None
+minimaps = {
+    name: (preprocess_map(filename), average_time) for name, filename, average_time in
+        [('peach_circuit', 'tracks/peach_circuit.png', 30 * 100)]
+}
+
+EMPTY_FRAME = np.zeros((240, 160, 3))
+
+
+
 def create_agent(session_mode, episodes, session_name, replay_memory_filepath):
   if not session_name:
     now = datetime.now()
@@ -48,21 +71,6 @@ def create_agent(session_mode, episodes, session_name, replay_memory_filepath):
     agent.load_agent()
 
   return agent
-
-args = parser.parse_args()
-agent = create_agent(args.mode, args.episodes, args.session_name, args.replay_memory_filepath)
-app = Flask(__name__)
-accumulated_reward = 0.0
-number_of_steps = 0
-accumulated_loss = 0
-
-last_action_request = None
-minimaps = {
-    name: (preprocess_map(filename), average_time) for name, filename, average_time in
-        [('peach_circuit', 'tracks/peach_circuit.png', 30 * 100)]
-}
-
-EMPTY_FRAME = np.zeros((240, 160, 3))
 
 @app.route('/get-minimap', methods = ['POST'])
 def get_minimap():
@@ -120,7 +128,7 @@ def request_action():
     last_action_request = None if is_terminal_state else (processed_images, action_index)
     action = possible_actions[action_index]
     
-    
+
     if is_terminal_state:
         agent.save_agent()
         agent.advance_episode()
