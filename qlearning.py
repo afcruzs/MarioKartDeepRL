@@ -75,6 +75,8 @@ class QLearning(object):
         self.episode_accumulated_loss = 0
         self.episode_steps = 0
 
+        self.session.set_episode(self.parameters.episodes)
+
     def _create_model(self):
         init = lambda shape, name: normal(shape, name=name)
         model = Sequential()
@@ -96,7 +98,7 @@ class QLearning(object):
 
     def advance_episode(self):
         self.parameters.episodes += 1
-        self.session.advance_episode()
+        self.session.set_episode(self.parameters.episodes)
 
     def save_agent(self):
         full_path = self.session.get_current_path()
@@ -131,6 +133,8 @@ class QLearning(object):
         replay_memory_file_name = full_path + '/replay_memory.npy'
         parameters_file_name    = full_path + '/parameters.pkl'
 
+        print "Loading agent from", full_path
+
         print "Loading model weights..."
         self.model.load_weights(model_file_name)
         print "Loading delayed model weights..."
@@ -140,6 +144,9 @@ class QLearning(object):
         print "Loading parameters..."
         with open(parameters_file_name, 'rb') as input_file:
             self.parameters = pickle.load(input_file)
+
+        self.session.set_episode(self.parameters.episodes)
+        print "Agent loaded from", full_path
 
     def is_initializing_replay_memory(self):
         return len(self.replay_memory) < self.parameters.replay_memory_start_size

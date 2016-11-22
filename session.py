@@ -11,14 +11,7 @@ class Session(object):
     self.episodes = episodes
     self.session_path = session_path
     self.create_episodes_directory()
-
-    episodes_sub_dirs = [(self.get_episodes_path() +  "/" + name, name) for name in os.listdir(session_path)
-        if os.path.isdir(self.get_episodes_path() +  "/" + name)]
-    if len(episodes_sub_dirs) == 0:
-      self.current_episode = 0
-      os.makedirs(self.get_current_path())
-    else:
-      self.current_episode = int(max(episodes_sub_dirs, key=lambda x : os.path.getmtime(x[0]))[1])
+    self.current_episode = 0
 
   def get_episodes_path(self):
     return self.session_path + "/episodes"
@@ -54,8 +47,8 @@ class Session(object):
     with open(self.avg_reward_logs_path() + '/' + REWARD_FILENAME, 'a') as out:
       out.write(str(value) + '\n')
 
-  def advance_episode(self):
-    self.current_episode = (self.current_episode + 1) % self.episodes
+  def set_episode(self, episode):
+    self.current_episode = episode % self.episodes
     os.makedirs(self.get_current_path())
 
 def create_dir(path):
