@@ -11,6 +11,8 @@ from keras.initializations import normal
 from utils import CircularBuffer
 from datetime import datetime
 import pickle
+import h5py
+from itertools import izip
 
 possible_actions = [
     {}, # No op
@@ -27,6 +29,8 @@ possible_actions = [
     { 'A': 1, 'Right': 1, 'R': 1, 'L': 1 }, # Drift right, power
     { 'A': 1, 'Left': 1, 'R': 1, 'L': 1 } # Drift left, power
 ]
+
+replay_memory_column_names = ('state', 'action', 'reward', 'new_state', 'is_terminal')
 
 if image_dim_ordering() != 'th':
     set_image_dim_ordering('th')
@@ -118,14 +122,31 @@ class QLearning(object):
         print "Agent state saved to", full_path
 
     def save_replay_memory(self, replay_memory_file_name):
-        print "Saving replay memory to", replay_memory_file_name
-        np.save(replay_memory_file_name, self.replay_memory)
-        print "Replay memory saved to", replay_memory_file_name
+        print "Saving replay memory to", replay_memory_file_name, "at", datetime.now()
+        with h5py.File(replay_memory_file_name,'w') as hf:
+            group = hf.create_group('replay-memory')
+            for col_idx, column in enumerate(replay_memory_column_names):
+                data = []
+                for element in self.replay_memory:
+                    data.append(element[col_idx])
+
+                group.create_dataset(column, data=data)
+
+        print "Replay memory saved to", replay_memory_file_name, "at", datetime.now()       
 
     def load_replay_memory(self, replay_memory_file_name):
-        print "Loading replay memory...", replay_memory_file_name
-        self.replay_memory = CircularBuffer(self.parameters.replay_memory_size,
-            np.load(replay_memory_file_name))
+        print "Loading replay memory...", replay_memory_file_name, "at", datetime.now()
+        self.replay_memory = CircularBuffer(self.parameters.replay_memory_size)
+
+        with h5py.File(replay_memory_file_name) as hf:
+            group = hf.get('replay-memory')
+            
+            groups = [group.get(column) for column in replay_memory_column_names]
+            
+            for item in izip(*groups):
+                self.replay_memory.push_circular(item)
+
+        print "Replay memory loaded...", replay_memory_file_name, "at", datetime.now()
 
     def load_agent(self):
         full_path = self.session.get_current_path()
@@ -136,17 +157,19 @@ class QLearning(object):
 
         print "Loading agent from", full_path
 
+        print "Loading parameters..."
+        with open(parameters_file_name, 'rb') as input_file:
+            self.parameters = pickle.load(input_file)
+
+        self.session.set_episode(self.parameters.episodes)
+
         print "Loading model weights..."
         self.model.load_weights(model_file_name)
         print "Loading delayed model weights..."
         self.delayed_model.load_weights(delayed_model_file_name)
         print "Loading replayed memory..."
         self.load_replay_memory(replay_memory_file_name)
-        print "Loading parameters..."
-        with open(parameters_file_name, 'rb') as input_file:
-            self.parameters = pickle.load(input_file)
-
-        self.session.set_episode(self.parameters.episodes)
+    
         print "Agent loaded from", full_path
 
     def is_initializing_replay_memory(self):
@@ -161,7 +184,7 @@ class QLearning(object):
         # Check if we just filled the initial replay memory
         if self.parameters.steps == 0:
             print "Saving initial replay memory..."
-            self.save_replay_memory(self.session.get_session_path() + "/initial-replay-memory.npy")
+            self.save_replay_memory(self.session.get_session_path() + "/initial-replay-memory.h5")
 
         self.episode_accumulated_reward += reward
         self.episode_steps += 1.0
