@@ -6,21 +6,28 @@ SESSION_PATH = 'sessions/'
 LOSS_FILENAME = 'avg_loss_data'
 REWARD_FILENAME = 'avg_reward_data'
 
-
-
 class Session(object):
   def __init__(self, episodes, session_path):
     self.episodes = episodes
     self.session_path = session_path
-    episodes_sub_dirs = [(session_path +  "/" + name, name) for name in os.listdir(session_path) if os.path.isdir(session_path +  "/" + name)]
+    self.create_episodes_directory()
+
+    episodes_sub_dirs = [(self.get_episodes_path() +  "/" + name, name) for name in os.listdir(session_path)
+        if os.path.isdir(self.get_episodes_path() +  "/" + name)]
     if len(episodes_sub_dirs) == 0:
       self.current_episode = 0
       os.makedirs(self.get_current_path())
     else:
       self.current_episode = int(max(episodes_sub_dirs, key=lambda x : os.path.getmtime(x[0]))[1])
 
+  def get_episodes_path(self):
+    return self.session_path + "/episodes"
+
   def get_current_path(self):
-    return self.session_path + "/" + str(self.current_episode)
+    return self.get_episodes_path() + "/" + str(self.current_episode)
+
+  def get_session_path(self):
+    return self.session_path
 
   def logs_path(self):
     return self.session_path + "/logs"
@@ -36,6 +43,8 @@ class Session(object):
     create_dir(self.loss_logs_path())
     create_dir(self.avg_reward_logs_path())
 
+  def create_episodes_directory(self):
+    create_dir(self.get_episodes_path())
 
   def append_loss(self, value):
     with open(self.loss_logs_path() + '/' + LOSS_FILENAME, 'a') as out:
@@ -55,6 +64,3 @@ def create_dir(path):
     return True
   else:
     return False
-
-
-

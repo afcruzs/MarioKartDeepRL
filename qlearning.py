@@ -9,6 +9,7 @@ from keras.optimizers import Adam
 from keras.backend import image_dim_ordering, set_image_dim_ordering
 from keras.initializations import normal
 from collections import deque
+from datetime import datetime
 import pickle
 
 possible_actions = [
@@ -39,7 +40,7 @@ class QLearningParameters(object):
         replay_memory_size=80000, discount_factor=0.99, learning_rate=0.00025,
         gradient_momentum=0.95, squared_momentum=0.95, min_squared_gradient=0.01,
         initial_exploration=1, final_exploration=0.1, final_exploration_frame=1000000,
-        replay_start_size=100, max_no_op=30, target_network_update_frequency=5000):
+        replay_start_size=50000, target_network_update_frequency=5000):
 
         self.frame_size = frame_size
         self.history_length = history_length
@@ -53,13 +54,11 @@ class QLearningParameters(object):
         self.initial_exploration = initial_exploration
         self.final_exploration = final_exploration
         self.final_exploration_frame = final_exploration_frame
-        self.replay_memory_sizetart_size = replay_start_size
-        self.max_no_op = max_no_op
+        self.replay_memory_start_size = replay_start_size
         self.steps = 0
         self.exploration_rate = initial_exploration
         self.exploration_decay = (1.0 * initial_exploration - final_exploration) / final_exploration_frame
         self.target_network_update_frequency = target_network_update_frequency
-
 
 class QLearning(object):
     def __init__(self, session, parameters):
@@ -70,6 +69,10 @@ class QLearning(object):
         self.model = self._create_model()
         self.delayed_model = self._create_model()
         copy_weights(self.model, self.delayed_model)
+
+        self.episode_accumulated_reward = 0.0
+        self.episode_accumulated_loss = 0
+        self.episode_steps = 0
 
     def _create_model(self):
         init = lambda shape, name: normal(shape, name=name)
@@ -103,9 +106,12 @@ class QLearning(object):
 
         self.model.save_weights(model_file_name)
         self.delayed_model.save_weights(delayed_model_file_name)
-        np.save(replay_memory_file_name, self.replay_memory)
+        self.save_replay_memory(replay_memory_file_name)
         with open(parameters_file_name, 'wb') as output:
             pickle.dump(self.parameters, output)
+
+    def save_replay_memory(self, replay_memory_file_name):
+        np.save(replay_memory_file_name, self.replay_memory)
 
     def load_replay_memory(self, replay_memory_file_name):
         print "Loading replay memory...", replay_memory_file_name
@@ -123,13 +129,50 @@ class QLearning(object):
         print "Loading delayed model weights..."
         self.delayed_model.load_weights(delayed_model_file_name)
         print "Loading replayed memory..."
-        self.replay_memory = deque(np.load(replay_memory_file_name))
+        self.load_replay_memory(replay_memory_file_name)
         print "Loading parameters..."
         with open(parameters_file_name, 'rb') as input_file:
             self.parameters = pickle.load(input_file)
 
+    def is_initializing_replay_memory(self):
+        return len(self.replay_memory) < self.parameters.replay_memory_start_size
+
+    def record_experience(self, state, action, reward, new_state, is_terminal):
+        self.store_in_replay_memory(state, action, reward, new_state, is_terminal)
+        if self.is_initializing_replay_memory():
+            print "Collecting initial experiences"
+            return
+
+        # Check if we just filled the initial replay memory
+        if self.parameters.steps == 0:
+            self.save_replay_memory(self.session.get_session_path() + "/initial-replay-memory.npy")
+
+        self.episode_accumulated_reward += reward
+        self.episode_steps += 1.0
+
+        loss = self.train_step()
+        self.episode_accumulated_loss += loss
+
+        if is_terminal:
+            average_reward = self.episode_accumulated_reward / self.episode_steps
+            average_loss = self.episode_accumulated_loss / self.episode_steps
+
+            self.session.append_reward(average_reward)
+            self.session.append_loss(average_loss)
+
+            self.episode_accumulated_reward = 0
+            self.episode_steps = 0
+            self.episode_accumulated_loss = 0
+
+            self.save_agent()
+            self.advance_episode()
+
+            now = datetime.now()
+
+            print "%s: New episode" % (now.strftime("%Y%m%d_%H%M%S"),)
 
     def train_step(self):
+        self.parameters.steps += 1
         sample = self.sample_replay_memory(self.parameters.minibatch_size)
         Y = np.zeros((len(sample), len(possible_actions)))
         X_old_states = np.zeros((len(sample), self.parameters.history_length,
@@ -159,8 +202,6 @@ class QLearning(object):
         loss = self.model.train_on_batch(X_old_states, Y)
         print "Loss in iteration %d is %f" % (self.parameters.steps, loss)
         print "Exploration rate in iteration %d is %f" % (self.parameters.steps, self.parameters.exploration_rate)
-
-        self.parameters.steps += 1
 
         if self.parameters.steps % self.parameters.target_network_update_frequency == 0:
             copy_weights(self.model, self.delayed_model)
@@ -192,7 +233,8 @@ class QLearning(object):
         return result
 
     def choose_action(self, processed_images, train):
-        if train and random.uniform(0,1) <= self.parameters.exploration_rate:
+        if train and (self.is_initializing_replay_memory() or
+                random.uniform(0,1) <= self.parameters.exploration_rate):
             result = [random.choice(xrange(len(possible_actions))) for _ in xrange(processed_images.shape[0])]
             print "Random action:",
         else:
@@ -200,6 +242,7 @@ class QLearning(object):
             print "Best action:",
         print [possible_actions[i].keys() for i in result]
 
-        self.parameters.exploration_rate = max(self.parameters.final_exploration,
-            self.parameters.exploration_rate - self.parameters.exploration_decay)
+        if train and not self.is_initializing_replay_memory():
+            self.parameters.exploration_rate = max(self.parameters.final_exploration,
+                self.parameters.exploration_rate - self.parameters.exploration_decay)
         return result
