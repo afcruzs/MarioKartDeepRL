@@ -56,6 +56,7 @@ class QLearningParameters(object):
         self.final_exploration_frame = final_exploration_frame
         self.replay_memory_start_size = replay_start_size
         self.steps = 0
+        self.episodes = 0
         self.exploration_rate = initial_exploration
         self.exploration_decay = (1.0 * initial_exploration - final_exploration) / final_exploration_frame
         self.target_network_update_frequency = target_network_update_frequency
@@ -94,10 +95,12 @@ class QLearning(object):
         return model
 
     def advance_episode(self):
+        self.parameters.episodes += 1
         self.session.advance_episode()
 
     def save_agent(self):
         full_path = self.session.get_current_path()
+        print "Saving agent state to", full_path
 
         model_file_name = full_path + '/model.h5'
         delayed_model_file_name = full_path + '/delayed_model.h5'
@@ -110,8 +113,12 @@ class QLearning(object):
         with open(parameters_file_name, 'wb') as output:
             pickle.dump(self.parameters, output)
 
+        print "Agent state saved to", full_path
+
     def save_replay_memory(self, replay_memory_file_name):
+        print "Saving replay memory to", replay_memory_file_name
         np.save(replay_memory_file_name, self.replay_memory)
+        print "Replay memory saved to", replay_memory_file_name
 
     def load_replay_memory(self, replay_memory_file_name):
         print "Loading replay memory...", replay_memory_file_name
@@ -140,11 +147,12 @@ class QLearning(object):
     def record_experience(self, state, action, reward, new_state, is_terminal):
         self.store_in_replay_memory(state, action, reward, new_state, is_terminal)
         if self.is_initializing_replay_memory():
-            print "Collecting initial experiences"
+            print "Collecting initial experiences (%d / %d)" % (len(self.replay_memory), self.parameters.replay_memory_start_size)
             return
 
         # Check if we just filled the initial replay memory
         if self.parameters.steps == 0:
+            print "Saving initial replay memory..."
             self.save_replay_memory(self.session.get_session_path() + "/initial-replay-memory.npy")
 
         self.episode_accumulated_reward += reward
@@ -169,7 +177,7 @@ class QLearning(object):
 
             now = datetime.now()
 
-            print "%s: New episode" % (now.strftime("%Y%m%d_%H%M%S"),)
+            print "%s: Episode %d" % (now.strftime("%Y%m%d_%H%M%S"), self.parameters.episodes)
 
     def train_step(self):
         self.parameters.steps += 1
@@ -200,8 +208,9 @@ class QLearning(object):
                 Y[i, action] = reward + self.parameters.discount_factor * np.max(new_predictions[i])
 
         loss = self.model.train_on_batch(X_old_states, Y)
-        print "Loss in iteration %d is %f" % (self.parameters.steps, loss)
-        print "Exploration rate in iteration %d is %f" % (self.parameters.steps, self.parameters.exploration_rate)
+        print "Episode %d. Global step: %d. Episode step: %d" % (self.parameters.episodes, self.parameters.steps, self.episode_steps)
+        print "Loss is %f" % (loss,)
+        print "Exploration rate is %f" % (self.parameters.exploration_rate, )
 
         if self.parameters.steps % self.parameters.target_network_update_frequency == 0:
             copy_weights(self.model, self.delayed_model)

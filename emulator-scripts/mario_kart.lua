@@ -11,7 +11,7 @@ socket.protect = try.protect
 socket.try     = try.new()
 
 local http = require "socket.http"
-http.TIMEOUT = 15
+http.TIMEOUT = nil -- Wait indefinitely
 
 local frames_to_stack = 4
 local frame_number = 0
@@ -249,10 +249,13 @@ end
 
 function make_json_request(url, method, content_table)
   local result = nil
-  local error = nil
+  local err = nil
 
-  while not result do
-    result, error = make_json_request_core(url, method, content_table)
+  result, err = make_json_request_core(url, method, content_table)
+  if not result then
+    console.log("Request error: " .. url .. ", " .. method)
+    console.log(err)
+    error("Request error")
   end
 
   return result
