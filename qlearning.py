@@ -149,7 +149,8 @@ class QLearning(object):
         self.delayed_model.load_weights(delayed_model_file_name)
 
         self.load_replay_memory(replay_memory_file_name)
-
+        self.advance_episode()
+        
         print "Agent loaded from", full_path
 
     def is_initializing_replay_memory(self):
