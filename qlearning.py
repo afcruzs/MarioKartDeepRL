@@ -125,25 +125,14 @@ class QLearning(object):
         print "Saving replay memory to", replay_memory_file_name, "at", datetime.now()
         with h5py.File(replay_memory_file_name,'w') as hf:
             group = hf.create_group('replay-memory')
-            saved_arrays = {}
-            saved_arrays_data = []
             for col_idx, column in enumerate(replay_memory_column_names):
                 data = []
-                if column in ('state', 'new_state'):
-                    for element in self.replay_memory:
-                        key = id(element[col_idx])
-                        if key not in saved_arrays:
-                            saved_arrays[key] = len(saved_arrays_data)
-                            saved_arrays_data.append(element[col_idx])
-                        data.append(saved_arrays[key])
-                else:
-                    for element in self.replay_memory:
-                        data.append(element[col_idx])
+                for element in self.replay_memory:
+                    data.append(element[col_idx])
 
                 group.create_dataset(column, data=data)
-            group.create_dataset('state-data', data=saved_arrays_data)
 
-        print "Replay memory saved to", replay_memory_file_name, "at", datetime.now()
+        print "Replay memory saved to", replay_memory_file_name, "at", datetime.now()       
 
     def load_replay_memory(self, replay_memory_file_name):
         print "Loading replay memory...", replay_memory_file_name, "at", datetime.now()
@@ -151,12 +140,9 @@ class QLearning(object):
 
         with h5py.File(replay_memory_file_name) as hf:
             group = hf.get('replay-memory')
-            state_data = group.get('state-data')
-
+            
             groups = [group.get(column) for column in replay_memory_column_names]
-            groups[replay_memory_column_names.index('state')] = (state_data[i] for i in group.get('state'))
-            groups[replay_memory_column_names.index('new_state')] = (state_data[i] for i in group.get('new_state'))
-
+            
             for item in izip(*groups):
                 self.replay_memory.push_circular(item)
 
@@ -183,7 +169,7 @@ class QLearning(object):
         self.delayed_model.load_weights(delayed_model_file_name)
         print "Loading replayed memory..."
         self.load_replay_memory(replay_memory_file_name)
-
+    
         print "Agent loaded from", full_path
 
     def is_initializing_replay_memory(self):
