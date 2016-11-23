@@ -49,7 +49,7 @@ class Session(object):
 
   def set_episode(self, episode):
     self.current_episode = episode % self.episodes
-    os.makedirs(self.get_current_path())
+    create_dir(self.get_current_path())
 
 def create_dir(path):
   if not os.path.exists(path):
