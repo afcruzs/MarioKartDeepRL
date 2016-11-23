@@ -118,9 +118,9 @@ class QLearning(object):
         print "Agent state saved to", full_path
 
     def save_replay_memory(self, replay_memory_file_name):
-        print "Saving replay memory to", replay_memory_file_name
+        print "%s: Saving replay memory to %s", % (datetime.now(), replay_memory_file_name)
         np.save(replay_memory_file_name, self.replay_memory)
-        print "Replay memory saved to", replay_memory_file_name
+        print "%s: Replay memory saved to %s", % (datetime.now(), replay_memory_file_name)
 
     def load_replay_memory(self, replay_memory_file_name):
         print "%s: Loading replay memory from %s" % (datetime.now(), replay_memory_file_name)
