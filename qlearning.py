@@ -123,9 +123,10 @@ class QLearning(object):
         print "Replay memory saved to", replay_memory_file_name
 
     def load_replay_memory(self, replay_memory_file_name):
-        print "Loading replay memory...", replay_memory_file_name
+        print "%s: Loading replay memory from %s" % (datetime.now(), replay_memory_file_name)
         self.replay_memory = CircularBuffer(self.parameters.replay_memory_size,
             np.load(replay_memory_file_name))
+        print "%s: Replay memory loaded from %s" % (datetime.now(), replay_memory_file_name)
 
     def load_agent(self):
         full_path = self.session.get_current_path()
@@ -136,17 +137,19 @@ class QLearning(object):
 
         print "Loading agent from", full_path
 
-        print "Loading model weights..."
-        self.model.load_weights(model_file_name)
-        print "Loading delayed model weights..."
-        self.delayed_model.load_weights(delayed_model_file_name)
-        print "Loading replayed memory..."
-        self.load_replay_memory(replay_memory_file_name)
         print "Loading parameters..."
         with open(parameters_file_name, 'rb') as input_file:
             self.parameters = pickle.load(input_file)
 
         self.session.set_episode(self.parameters.episodes)
+
+        print "Loading model weights..."
+        self.model.load_weights(model_file_name)
+        print "Loading delayed model weights..."
+        self.delayed_model.load_weights(delayed_model_file_name)
+
+        self.load_replay_memory(replay_memory_file_name)
+
         print "Agent loaded from", full_path
 
     def is_initializing_replay_memory(self):
