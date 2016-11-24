@@ -101,6 +101,11 @@ class QLearning(object):
         self.session.set_episode(self.parameters.episodes)
 
     def save_agent(self):
+        print "Saving episode folder information"
+        episode_file_name = self.session.get_session_path() + '/episode.txt'
+        with open(episode_file_name, 'w') as f:
+            f.write(str(self.parameters.episodes) + '\n')
+
         full_path = self.session.get_current_path()
         print "Saving agent state to", full_path
 
@@ -129,6 +134,14 @@ class QLearning(object):
         print "%s: Replay memory loaded from %s" % (datetime.now(), replay_memory_file_name)
 
     def load_agent(self):
+        print "Locating episode"
+        episode_file_name = self.session.get_session_path() + '/episode.txt'
+        episode = None
+        with open(episode_file_name, 'r') as input_file:
+            episode = int(input_file.readline().strip())
+
+        self.session.set_episode(episode)
+
         full_path = self.session.get_current_path()
         model_file_name = full_path + '/model.h5'
         delayed_model_file_name = full_path + '/delayed_model.h5'
@@ -142,6 +155,7 @@ class QLearning(object):
             self.parameters = pickle.load(input_file)
 
         self.session.set_episode(self.parameters.episodes)
+        print "Current episode is:", self.parameters.episodes
 
         print "Loading model weights..."
         self.model.load_weights(model_file_name)
@@ -150,7 +164,7 @@ class QLearning(object):
 
         self.load_replay_memory(replay_memory_file_name)
         self.advance_episode()
-        
+
         print "Agent loaded from", full_path
 
     def is_initializing_replay_memory(self):
