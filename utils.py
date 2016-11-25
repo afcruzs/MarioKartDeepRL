@@ -9,7 +9,7 @@ class CircularBuffer(object):
         self._actual_len = 0
         self._head = 0
 
-        if source:
+        if source is not None:
             for element in source:
                 self.push_circular(element)
 
