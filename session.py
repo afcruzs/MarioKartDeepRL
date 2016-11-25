@@ -2,6 +2,7 @@ import os
 
 NEW_SESSION = 'NEW_SESSION'
 LOAD_SESSION = 'LOAD_SESSION'
+LOAD_MODEL = 'LOAD_MODEL'
 SESSION_PATH = 'sessions/'
 LOSS_FILENAME = 'avg_loss_data'
 REWARD_FILENAME = 'avg_reward_data'
