@@ -12,6 +12,7 @@ class Session(object):
     self.episodes = episodes
     self.session_path = session_path
     self.create_episodes_directory()
+    self.create_logs_directories()
     self.current_episode = 0
 
   def get_episodes_path(self):

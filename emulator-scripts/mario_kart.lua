@@ -33,6 +33,7 @@ local state_file = "../game/mario_kart.State"
 local checkpoint_state_file = "../game/mario_kart_checkpoint.State"
 local train = true
 local manual_mode = false
+local use_checkpoint = false
 
 local game_id = nil
 local action = {}
@@ -351,7 +352,7 @@ while true do
     reset()
   end
 
-  if state:is_timed_out() then
+  if state:is_timed_out() and use_checkpoint then
     restore_checkpoint()
   end
 

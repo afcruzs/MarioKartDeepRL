@@ -23,6 +23,12 @@ def create_agent(session_mode, episodes, session_name, replay_memory_filepath, m
 
     new_session_path = SESSION_PATH + session_name
 
+    if session_mode == LOAD_MODEL and not os.path.exists(new_session_path):
+        raise Exception("Session %s does not exist." % new_session_path)
+
+    if session_mode == NEW_SESSION and os.path.exists(new_session_path):
+        raise Exception("A session called %s already exists." % session_name)
+
     session = Session(episodes, new_session_path)
     agent = QLearning(session, QLearningParameters())
 
@@ -32,19 +38,10 @@ def create_agent(session_mode, episodes, session_name, replay_memory_filepath, m
     
         agent.model.load_weights(model_filepath)
 
-    elif session_mode == NEW_SESSION:
-        print "Creating session:", new_session_path
-        if not create_dir(new_session_path): # If true, the dir is created
-            raise Exception("A session called %s already exists." % session_name)
-    
-        session.create_logs_directories()
     elif session_mode == LOAD_SESSION:
         print "Loading session:", new_session_path
-        if not os.path.exists(new_session_path):
-            raise Exception("Session %s does not exist." % new_session_path)
-
         agent.load_agent()
-    else:
+    elif session_mode != NEW_SESSION:
         raise Exception("Invalid session mode")
         
     if replay_memory_filepath:
