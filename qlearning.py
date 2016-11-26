@@ -101,11 +101,6 @@ class QLearning(object):
         self.session.set_episode(self.parameters.episodes)
 
     def save_agent(self):
-        print "Saving episode folder information"
-        episode_file_name = self.session.get_session_path() + '/episode.txt'
-        with open(episode_file_name, 'w') as f:
-            f.write(str(self.parameters.episodes) + '\n')
-
         full_path = self.session.get_current_path()
         print "Saving agent state to", full_path
 
@@ -119,6 +114,11 @@ class QLearning(object):
         self.save_replay_memory(replay_memory_file_name)
         with open(parameters_file_name, 'wb') as output:
             pickle.dump(self.parameters, output)
+
+        print "Saving episode folder information"
+        episode_file_name = self.session.get_session_path() + '/episode.txt'
+        with open(episode_file_name, 'w') as f:
+            f.write(str(self.parameters.episodes) + '\n')
 
         print "Agent state saved to", full_path
 
