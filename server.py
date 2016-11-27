@@ -23,7 +23,7 @@ def create_agent(session_mode, episodes, session_name, replay_memory_filepath, m
 
     new_session_path = SESSION_PATH + session_name
 
-    if session_mode == LOAD_MODEL and not os.path.exists(new_session_path):
+    if session_mode == LOAD_MODEL and not os.path.exists(model_filepath):
         raise Exception("Session %s does not exist." % new_session_path)
 
     if session_mode == NEW_SESSION and os.path.exists(new_session_path):
