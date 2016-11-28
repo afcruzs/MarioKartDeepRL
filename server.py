@@ -13,7 +13,7 @@ from preprocessing import preprocess_map
 from PIL import Image
 from cStringIO import StringIO
 from qlearning import QLearning, QLearningParameters, possible_actions
-from session import Session, LOAD_SESSION, NEW_SESSION, create_dir, SESSION_PATH, LOAD_MODEL
+from session import Session, LOAD_SESSION, NEW_SESSION, create_dir, SESSION_PATH, LOAD_MODEL, LOAD_SESSION_NO_REPLAY
 import argparse
 
 def create_agent(session_mode, episodes, session_name, replay_memory_filepath, model_filepath):
@@ -37,10 +37,10 @@ def create_agent(session_mode, episodes, session_name, replay_memory_filepath, m
             raise Exception("The model file path is not specified")
 
         agent.model.load_weights(model_filepath)
-
-    elif session_mode == LOAD_SESSION:
+    elif session_mode == LOAD_SESSION or session_mode == LOAD_SESSION_NO_REPLAY:
         print "Loading session:", new_session_path
-        agent.load_agent()
+        load_replay_memory = (session_mode != LOAD_SESSION_NO_REPLAY)
+        agent.load_agent(load_replay_memory=load_replay_memory)
     elif session_mode != NEW_SESSION:
         raise Exception("Invalid session mode")
 

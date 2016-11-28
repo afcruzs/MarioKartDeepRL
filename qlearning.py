@@ -141,7 +141,7 @@ class QLearning(object):
             np.load(replay_memory_file_name))
         print "%s: Replay memory loaded from %s" % (datetime.now(), replay_memory_file_name)
 
-    def load_agent(self):
+    def load_agent(self, load_replay_memory=True):
         print "Locating episode"
         episode_file_name = self.session.get_session_path() + '/episode.txt'
         episode = None
@@ -170,7 +170,11 @@ class QLearning(object):
         print "Loading delayed model weights..."
         self.delayed_model.load_weights(delayed_model_file_name)
 
-        self.load_replay_memory(replay_memory_file_name)
+        if load_replay_memory:
+            self.load_replay_memory(replay_memory_file_name)
+        else:
+            print "Replay memory load skipped"
+
         self.advance_episode()
 
         print "Agent loaded from", full_path
