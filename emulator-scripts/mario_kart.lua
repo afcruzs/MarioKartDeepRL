@@ -199,7 +199,7 @@ function MarioKartState:update_from_ram(track_info)
 end
 
 function MarioKartState:get_reward(track_info)
-  if self:is_timed_out() then
+  if use_checkpoint and self:is_timed_out() then
     return -1.0
   end
 
