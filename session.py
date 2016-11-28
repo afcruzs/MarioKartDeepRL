@@ -6,6 +6,7 @@ LOAD_MODEL = 'LOAD_MODEL'
 SESSION_PATH = 'sessions/'
 LOSS_FILENAME = 'avg_loss_data'
 REWARD_FILENAME = 'avg_reward_data'
+SCORE_FILENAME = 'score_data'
 
 class Session(object):
   def __init__(self, episodes, session_path):
@@ -33,6 +34,15 @@ class Session(object):
   def avg_reward_logs_path(self):
     return self.logs_path() + '/reward'
 
+  def all_weights_path(self):
+    return self.session_path + "/all_weights"
+
+  def get_episode_weights_directory(self, episode):
+    path = self.all_weights_path() + "/" + str(episode)
+    create_dir(path)
+
+    return path
+
   def create_logs_directories(self):
     create_dir(self.logs_path())
     create_dir(self.loss_logs_path())
@@ -48,6 +58,10 @@ class Session(object):
   def append_reward(self, value):
     with open(self.avg_reward_logs_path() + '/' + REWARD_FILENAME, 'a') as out:
       out.write(str(value) + '\n')
+
+  def append_score(self, score, episode_steps, episode):
+    with open(self.avg_reward_logs_path() + '/' + SCORE_FILENAME, 'a') as out:
+      out.write(str(episode) + ' ' + str(score) + ' ' + str(episode_steps) + '\n')
 
   def set_episode(self, episode):
     self.current_episode = episode % self.episodes

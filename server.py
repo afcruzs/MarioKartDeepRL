@@ -35,7 +35,7 @@ def create_agent(session_mode, episodes, session_name, replay_memory_filepath, m
     if session_mode == LOAD_MODEL:
         if not model_filepath:
             raise Exception("The model file path is not specified")
-    
+
         agent.model.load_weights(model_filepath)
 
     elif session_mode == LOAD_SESSION:
@@ -43,10 +43,10 @@ def create_agent(session_mode, episodes, session_name, replay_memory_filepath, m
         agent.load_agent()
     elif session_mode != NEW_SESSION:
         raise Exception("Invalid session mode")
-        
+
     if replay_memory_filepath:
         agent.load_replay_memory(replay_memory_filepath)
-    
+
     return agent
 
 parser = argparse.ArgumentParser(description='Parse session parameters')
@@ -63,7 +63,7 @@ if args.replay_memory_filepath and args.mode == LOAD_SESSION:
 if args.mode == LOAD_SESSION and not args.session_name:
     raise Exception("Load session provided but no session name is provided")
 
-agent = create_agent(args.mode, args.episodes, 
+agent = create_agent(args.mode, args.episodes,
                      args.session_name, args.replay_memory_filepath, args.model_filepath)
 app = Flask(__name__)
 

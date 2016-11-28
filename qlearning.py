@@ -11,6 +11,7 @@ from keras.initializations import normal
 from utils import CircularBuffer
 from datetime import datetime
 import pickle
+import shutil
 
 possible_actions = [
     {}, # No op
@@ -120,6 +121,13 @@ class QLearning(object):
         with open(episode_file_name, 'w') as f:
             f.write(str(self.parameters.episodes) + '\n')
 
+        print "Copying weights to global folder"
+
+        episode_weights_dir = self.session.get_episode_weights_directory(self.parameters.episodes) + '/'
+        shutil.copy(model_file_name, episode_weights_dir)
+        shutil.copy(delayed_model_file_name, episode_weights_dir)
+        shutil.copy(parameters_file_name, episode_weights_dir)
+
         print "Agent state saved to", full_path
 
     def save_replay_memory(self, replay_memory_file_name):
@@ -193,6 +201,8 @@ class QLearning(object):
 
             self.session.append_reward(average_reward)
             self.session.append_loss(average_loss)
+            self.session.append_score(self.episode_accumulated_reward, self.episode_steps,
+                self.parameters.episodes)
 
             self.episode_accumulated_reward = 0
             self.episode_steps = 0
@@ -235,7 +245,10 @@ class QLearning(object):
 
         loss = self.model.train_on_batch(X_old_states, Y)
         print "Episode %d. Global step: %d. Episode step: %d" % (self.parameters.episodes, self.parameters.steps, self.episode_steps)
-        print "Loss is %f" % (loss,)
+        print "Cumulative reward: %f. Average: %f" % (self.episode_accumulated_reward,
+            self.episode_accumulated_reward / self.episode_steps,)
+        print "Loss is %f (Average: %f. Cumulative: %f)" % (loss,
+            self.episode_accumulated_loss / self.episode_steps, self.episode_accumulated_loss)
         print "Exploration rate is %f" % (self.parameters.exploration_rate, )
 
         if self.parameters.steps % self.parameters.target_network_update_frequency == 0:
