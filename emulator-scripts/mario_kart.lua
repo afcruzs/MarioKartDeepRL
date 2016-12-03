@@ -325,11 +325,9 @@ while true do
         local screenshot_index = ((frame_number + frames_to_stack - i) % frames_to_stack)
         local screenshot_file = io.open(screenshot_folder .. "screenshot" .. screenshot_index ..  ".png", "rb")
 
-        if screenshot_file then
-          local data = screenshot_file:read("*all")
-          last_screenshots[i + 1] = (mime.b64(data))
-          screenshot_file:close()
-        end
+        local data = screenshot_file:read("*all")
+        last_screenshots[i + 1] = (mime.b64(data))
+        screenshot_file:close()
       end
 
       local result = make_json_request(base_url .. "request-action", "POST", {
