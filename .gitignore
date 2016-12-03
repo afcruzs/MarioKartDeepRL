@@ -7,3 +7,4 @@ weights/*.h5
 *.pyc
 game/mario_kart_checkpoint.State
 sessions/**/*
+.idea/
