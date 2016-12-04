@@ -34,6 +34,7 @@ local checkpoint_state_file = "../game/mario_kart_checkpoint.State"
 local train = true
 local manual_mode = false
 local use_checkpoint = false
+local repeat_forever = true
 
 local game_id = nil
 local action = {}
@@ -346,7 +347,13 @@ while true do
 
   frame_number = frame_number + 1
 
+  emu.frameadvance()
+  collectgarbage()
+
   if race_ended then
+    if not repeat_forever then
+      break
+    end
     reset()
   end
 
@@ -354,6 +361,4 @@ while true do
     restore_checkpoint()
   end
 
-  emu.frameadvance()
-  collectgarbage()
 end
