@@ -35,6 +35,7 @@ local train = true
 local manual_mode = false
 local use_checkpoint = false
 local repeat_forever = true
+local use_initial_checkpoint = true
 
 local game_id = nil
 local action = {}
@@ -289,7 +290,10 @@ function reset()
   memory.usememorydomain("IWRAM")
   frame_number = 0
   game_id = renew_game_id()
-  savestate.load(state_file)
+
+  if use_initial_checkpoint then
+    savestate.load(state_file)
+  end
 
   state = MarioKartState.new()
   create_checkpoint()
