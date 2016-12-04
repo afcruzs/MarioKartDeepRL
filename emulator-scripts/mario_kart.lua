@@ -319,7 +319,7 @@ while true do
     if race_ended or (frame_number % update_frequency) == 0 then
       local last_screenshots = {}
       for i=0,frames_to_stack-1 do
-        if i >= frame_number then
+        if i > frame_number then
           break
         end
         local screenshot_index = ((frame_number + frames_to_stack - i) % frames_to_stack)
