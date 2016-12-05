@@ -28,6 +28,15 @@ Finaliza el juego cuando 3003BE0 (1 byte) es 34
 
 Al parecer, 3003BE0 se vuelve 40 temporalmente al iniciar
 
+Posición en el mapa (real):
+ x: 3003B9A (2 bytes, unsigned)
+ y: 3003B9E (2 bytes, unsigned)
+
+Velocidad: 3003C56 (2 bytes, signed)
+Orientación: 3003C15 (1 byte, unsigned) o bien 3003C14 (2 bytes, unsigned)
+
+Pausa: 3003C2F (1 byte) & 0x10
+
 ----------
 Función de reward a usar:
 
