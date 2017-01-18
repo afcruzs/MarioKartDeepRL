@@ -66,6 +66,8 @@ if args.mode == LOAD_SESSION and not args.session_name:
 agent = create_agent(args.mode, args.episodes,
                      args.session_name, args.replay_memory_filepath, args.model_filepath)
 app = Flask(__name__)
+from flask_cors import CORS
+CORS(app)
 
 last_action_request = None
 minimaps = {

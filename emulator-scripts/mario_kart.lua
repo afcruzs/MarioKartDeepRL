@@ -3,8 +3,11 @@ local json = require("json")
 local ltn12 = require("ltn12")
 local deque = require("deque")
 
-local socket = require "socket"
-local try    = require "try"
+local socket = require("socket")
+local try    = require("try")
+
+local copas = require("copas")
+local websocket = require("websocket")
 
 socket.newtry  = try.new
 socket.protect = try.protect
@@ -264,16 +267,6 @@ function make_json_request(url, method, content_table)
   return result
 end
 
-function renew_game_id()
-  local result = make_json_request(base_url .. "game-id", "POST", {})
-  return result.id
-end
-
-function retrieve_minimap(name)
-  return make_json_request(base_url .. "get-minimap", "POST", {
-        minimap_name=name
-    })
-end
 
 function create_checkpoint()
   last_checkpoint = state:create_checkpoint()
@@ -286,22 +279,138 @@ function restore_checkpoint()
   savestate.load(checkpoint_state_file)
 end
 
-function reset()
-  memory.usememorydomain("IWRAM")
-  frame_number = 0
-  game_id = renew_game_id()
+local track_info = nil
+local reward = nil
+local race_ended = nil
 
-  if use_initial_checkpoint then
-    savestate.load(state_file)
-  end
+websocket.server.copas.listen
+{
+  -- listen on port 8080
+  port = 8080,
+  -- the protocols field holds
+  --   key: protocol name
+  --   value: callback on new connection
+  protocols = {
+    -- this callback is called, whenever a new client connects.
+    -- ws is a new websocket instance
+    emulator = function(ws)
+      while true do
+        local message = ws:receive()
+        
+        if not message then
+          console.log('Connection closed')
+          ws:close()
+          return
+        end
 
-  state = MarioKartState.new()
-  create_checkpoint()
-end
+        local params = json:decode(message)
 
-reset()
-local track_info = retrieve_minimap('peach_circuit')
 
+        local actions = {
+          ['advance_frame'] = function()
+            local frames = params['frames']
+
+            for i=1, frames do
+              joypad.set(action)
+              emu.frameadvance()
+              state:update_from_ram(track_info)
+              reward = state:get_reward(track_info)
+              race_ended = state:race_ended()
+              frame_number = frame_number + 1
+
+              gui.text(0, 0, "Reward: " .. reward)
+              gui.text(0, 20, "Ended: " .. tostring(race_ended))
+              gui.text(0, 40, "Lap: " .. (state.global_lap) .. ' / 3')
+              gui.text(0, 60, "Overall progress: " .. (state:get_overall_progress()))
+              -- gui.text(0, 80, "Last checkpoint: " .. (last_checkpoint:get_overall_progress()))
+              gui.text(0, 100, "Is outside: " .. tostring(state.is_outside))
+
+              client.screenshot(screenshot_folder .. "screenshot" .. (frame_number % frames_to_stack) ..  ".png")
+
+              if state:get_overall_progress() >= last_checkpoint:get_overall_progress() + checkpoint_percentage_interval then
+                create_checkpoint()
+              end
+
+              if state:is_timed_out() and use_checkpoint then
+                restore_checkpoint()
+                break
+              end
+
+              if race_ended then
+                break
+              end
+            end
+            
+            collectgarbage()
+          end,
+
+          ['initialize'] = function()
+            track_info = params['track_info']
+            memory.usememorydomain("IWRAM")
+            action = {}
+            frame_number = 0
+            reward = nil
+            race_ended = nil
+            state = MarioKartState.new()
+
+            if use_initial_checkpoint then
+              savestate.load(state_file)
+            end
+
+            create_checkpoint()
+          end,
+
+          ['act'] = function()
+            action = params['action']
+          end,
+
+          ['perceive'] = function()
+            local last_screenshots = {}
+            
+
+            for i=0,frames_to_stack-1 do
+              if i > frame_number then
+                break
+              end
+              local screenshot_index = ((frame_number + frames_to_stack - i) % frames_to_stack)
+              local screenshot_file = io.open(screenshot_folder .. "screenshot" .. screenshot_index ..  ".png", "rb")
+
+              local data = screenshot_file:read("*all")
+              last_screenshots[i + 1] = (mime.b64(data))
+              screenshot_file:close()
+            end
+
+            local result = {
+              reward=reward,
+              screenshots=last_screenshots,
+              train=train,
+              race_ended=race_ended
+            }
+
+            ws:send(json:encode(result))
+
+          end
+        }
+
+        local method = params['method']
+        local action = actions[method]
+        if action ~= nil then
+          action()
+        else
+          console.log("Bad action " .. method)
+          ws:close()
+          return
+        end
+
+        ws:send('ola')        
+      end
+    end
+  }
+}
+
+-- use the copas loop
+copas.loop()
+--[[
 while true do
   state:update_from_ram(track_info)
   local reward = state:get_reward(track_info)
@@ -366,3 +475,5 @@ while true do
   end
 
 end
+
+]]
