@@ -7,7 +7,7 @@ from keras.models import Sequential
 from keras.layers import Convolution2D, Dense, Flatten
 from keras.optimizers import Adam
 from keras.backend import image_dim_ordering, set_image_dim_ordering
-from keras.initializations import normal
+from keras.initializers import RandomNormal
 from utils import CircularBuffer
 from datetime import datetime
 import pickle
@@ -79,7 +79,7 @@ class QLearning(object):
         self.session.set_episode(self.parameters.episodes)
 
     def _create_model(self):
-        init = lambda shape, name: normal(shape, name=name)
+        init = RandomNormal()
         model = Sequential()
         model.add(Convolution2D(32, 8, 8, subsample=(4, 4), activation='relu', init=init,
             input_shape=(self.parameters.history_length, self.parameters.frame_size[0], self.parameters.frame_size[1])))
