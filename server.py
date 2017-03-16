@@ -127,4 +127,4 @@ def request_action():
     return make_response(jsonify({'action': action}))
 
 if __name__ == '__main__':
-    app.run(host='localhost', debug=True, use_reloader=False, passthrough_errors=False)
+    app.run(host='0.0.0.0', debug=True, use_reloader=False, passthrough_errors=False)
