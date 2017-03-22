@@ -29,8 +29,7 @@ local max_length_positions_queue = 60
 local checkpoint_percentage_interval = 0.15
 local base_url = "http://localhost:5000/"
 local screenshot_folder = "../results/"
-local state_file = "../game/mario_kart.State"
-local checkpoint_state_file = "../game/mario_kart_checkpoint.State"
+
 local train = true
 local manual_mode = false
 local use_checkpoint = false
@@ -43,7 +42,73 @@ local state = nil
 local last_checkpoint = nil
 local MarioKartState = {}
 
+local base_state_file = "../game/"
+local tracks_file_names = { 
+                            {name = "boo_lake", state = "FlowerCup/BooLake.State"},
+                            {name = "bowser_castle_2", state = "FlowerCup/BowserCastle2.State"},
+                            {name = "mario_circuit", state = "FlowerCup/MarioCircuit.State"},
+                            {name = "cheep_cheep_island", state = "LighthingCup/CheepCheepIsland.State"},
+                            {name = "luigi_circuit", state = "LighthingCup/LuigiCircuit.State"},
+                            {name = "sky_garden", state = "LighthingCup/SkyGarden.State"},
+                            {name = "sunset_wilds", state = "LighthingCup/SunsetWilds.State"},
+                            {name = "bowser_castle_1", state = "MushroomCup/BowserCastle1.State"},
+                            {name = "peach_circuit", state = "MushroomCup/PeachCircuit.State"},
+                            {name = "shy_guy_beach", state = "MushroomCup/ShyGuyBeach.State"},
+                            {name = "bowser_castle_3", state = "StarCup/BowserCastle3.State"},
+                            {name = "snow_land", state = "StarCup/SnowLand.State"},
+                            {name = "yoshi_desert", state = "StarCup/YoshiDesert.State"}
+                          }
+
+local number_of_tracks = 3
+local current_track_idx = 1
+local tracks_permutation = {}                          
+
+local state_file = nil
+local track_info = nil
+local checkpoint_state_file = "../game/mario_kart_checkpoint.State"
+
 MarioKartState.__index = MarioKartState
+
+function table_length(T)
+  local count = 0
+  for _ in pairs(T) do count = count + 1 end
+  return count
+end
+
+function generate_tracks_permutation()
+  local n = table_length(tracks_file_names)
+  for i = 1, n, 1 do
+    tracks_permutation[i] = i
+  end
+
+  for i = 1, n, 1 do
+    local rand_x = math.random(1, n)
+    local rand_y = math.random(1, n)
+    tracks_permutation[rand_x], tracks_permutation[rand_y] = 
+    tracks_permutation[rand_y], tracks_permutation[rand_x]
+  end
+
+  current_track_idx = 1
+  local current = get_current_track_data()
+  track_info = retrieve_minimap( current.name )
+  state_file = base_state_file .. current.state
+
+end
+
+function get_current_track_data()
+  return tracks_file_names[tracks_permutation[current_track_idx]]
+end
+
+function advance_track()
+  if current_track_idx >= number_of_tracks then
+    generate_tracks_permutation()
+  else
+    current_track_idx = current_track_idx + 1
+    local current = get_current_track_data()
+    track_info = retrieve_minimap( current.name )
+    state_file = base_state_file .. current.state
+  end  
+end
 
 local function pack(ok, ...)
   return ok, arg
@@ -299,8 +364,8 @@ function reset()
   create_checkpoint()
 end
 
+generate_tracks_permutation()
 reset()
-local track_info = retrieve_minimap('peach_circuit')
 
 while true do
   state:update_from_ram(track_info)
@@ -358,6 +423,7 @@ while true do
     if not repeat_forever then
       break
     end
+    advance_track()
     reset()
   end
 
