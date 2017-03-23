@@ -13,7 +13,7 @@ from preprocessing import preprocess_map
 from PIL import Image
 from cStringIO import StringIO
 from qlearning import QLearning, QLearningParameters, possible_actions
-from session import Session, LOAD_SESSION, NEW_SESSION, create_dir, SESSION_PATH, LOAD_MODEL, LOAD_SESSION_NO_REPLAY
+from session import Session, LOAD_SESSION, NEW_SESSION, create_dir, SESSION_PATH, LOAD_MODEL, LOAD_SESSION_NO_REPLAY, RECORD_HIDDEN_REP
 import argparse
 
 def create_agent(session_mode, episodes, session_name, replay_memory_filepath, model_filepath):
@@ -32,11 +32,13 @@ def create_agent(session_mode, episodes, session_name, replay_memory_filepath, m
     session = Session(episodes, new_session_path)
     agent = QLearning(session, QLearningParameters())
 
-    if session_mode == LOAD_MODEL:
+    if session_mode == LOAD_MODEL or session_mode == RECORD_HIDDEN_REP:
         if not model_filepath:
             raise Exception("The model file path is not specified")
 
         agent.model.load_weights(model_filepath)
+
+        agent.build_shrinked_model()
     elif session_mode == LOAD_SESSION or session_mode == LOAD_SESSION_NO_REPLAY:
         print "Loading session:", new_session_path
         load_replay_memory = (session_mode != LOAD_SESSION_NO_REPLAY)
@@ -81,6 +83,7 @@ def get_minimap():
     minimap_name = params['minimap_name']
     matrix, average_time = minimaps[minimap_name]
     max_steps = np.max(matrix)
+
     return make_response(jsonify({
         "matrix": matrix,
         "average_time": average_time,
@@ -123,6 +126,10 @@ def request_action():
     action_index = agent.choose_action(np.array([processed_images]), train)[0]
     last_action_request = None if is_terminal_state else (processed_images, action_index)
     action = possible_actions[action_index]
+
+    if agent.shrinked_model is not None:
+        hidden_vector = agent.get_embedding(np.array([processed_images]))
+        print hidden_vector.shape
 
     return make_response(jsonify({'action': action}))
 

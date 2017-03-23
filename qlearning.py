@@ -72,6 +72,8 @@ class QLearning(object):
         self.delayed_model = self._create_model()
         copy_weights(self.model, self.delayed_model)
 
+        self.shrinked_model = None
+
         self.episode_accumulated_reward = 0.0
         self.episode_accumulated_loss = 0
         self.episode_steps = 0
@@ -96,6 +98,35 @@ class QLearning(object):
                  epsilon=self.parameters.min_squared_gradient), 'mse')
 
         return model
+
+    def build_shrinked_model(self):
+        init = lambda shape, name: normal(shape, name=name)
+        model = Sequential()
+        model.add(Convolution2D(32, 8, 8, subsample=(4, 4), activation='relu', init=init,
+            input_shape=(self.parameters.history_length, self.parameters.frame_size[0], self.parameters.frame_size[1])))
+        model.add(Convolution2D(64, 4, 4, subsample=(2, 2), activation='relu', init=init))
+        model.add(Convolution2D(64, 3, 3, subsample=(1, 1), activation='relu', init=init))
+        model.add(Flatten())
+        model.add(Dense(512, activation='relu', init=init))
+        
+
+        model.compile(
+            Adam(lr=self.parameters.learning_rate,
+                 beta_1=self.parameters.gradient_momentum,
+                 beta_2=self.parameters.squared_momentum,
+                 epsilon=self.parameters.min_squared_gradient), 'mse')
+
+        self.shrinked_model = model
+
+    def is_recording_embeddings(self):
+        return self.shrinked_model is not None
+
+    def get_embedding(self, processed_images):
+        if not self.is_recording_embeddings():
+            print "WARNING: Shrikined model is not initialized"
+            return None
+
+        return self.shrinked_model.predict(processed_images)[0]
 
     def advance_episode(self):
         self.parameters.episodes += 1
