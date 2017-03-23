@@ -98,6 +98,18 @@ def generate_game_id():
         'id': uuid.uuid4()
     }))
 
+@app.route('/save-to-file-embeddings', methods = ['POST'])
+def save_to_file_embeddings():
+    if not agent.is_recording_embeddings():
+        return make_response(jsonify({
+            'error': 'The agent is not recording embeddings'
+        }))
+
+    agent.session.save_to_file_embeddings()
+    return make_response(jsonify({'message' : 
+                                  "The embeddings are stored in " + 
+                                   agent.session.get_embeddings_path()}))
+
 @app.route('/request-action', methods = ['POST'])
 def request_action():
     global last_action_request
@@ -129,7 +141,7 @@ def request_action():
 
     if agent.shrinked_model is not None:
         hidden_vector, max_reward = agent.get_embedding(np.array([processed_images]))
-
+        agent.session.store_embeddings(images, hidden_vector, max_reward)
         print hidden_vector.shape, reward
 
     return make_response(jsonify({'action': action}))

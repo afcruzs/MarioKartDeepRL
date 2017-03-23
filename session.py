@@ -1,4 +1,5 @@
 import os
+import pickle
 
 NEW_SESSION = 'NEW_SESSION'
 LOAD_SESSION = 'LOAD_SESSION'
@@ -10,6 +11,7 @@ LOSS_FILENAME = 'avg_loss_data'
 REWARD_FILENAME = 'avg_reward_data'
 SCORE_FILENAME = 'score_data'
 
+
 class Session(object):
   def __init__(self, episodes, session_path):
     self.episodes = episodes
@@ -17,6 +19,32 @@ class Session(object):
     self.create_episodes_directory()
     self.create_logs_directories()
     self.current_episode = 0
+    self.states = []
+    self.embeddings = []
+    self.max_rewards = []
+
+  def store_embeddings(self, state, embedding, q_value):
+    self.states.append(state)
+    self.embeddings.append(embedding)
+    self.max_rewards.append(q_value)
+
+  def save_to_file_embeddings(self):
+    with open(self.get_embeddings_path() + "/embeddings.pkl", "w") as file_obj:
+      pickle.dump(self.embeddings, file_obj)
+
+    with open(self.get_embeddings_path() + "/states.pkl", "w") as file_obj:
+      pickle.dump(self.states, file_obj)
+
+    with open(self.get_embeddings_path() + "/max_rewards.pkl", "w") as file_obj:
+      pickle.dump(self.max_rewards, file_obj)
+
+    del self.max_rewards[:]
+    del self.states[:]
+    del self.embeddings[:]
+
+
+  def get_embeddings_path(self):
+    return self.session_path + "/embeddings"
 
   def get_episodes_path(self):
     return self.session_path + "/episodes"
@@ -49,6 +77,7 @@ class Session(object):
     create_dir(self.logs_path())
     create_dir(self.loss_logs_path())
     create_dir(self.avg_reward_logs_path())
+    create_dir(self.get_embeddings_path())
 
   def create_episodes_directory(self):
     create_dir(self.get_episodes_path())
