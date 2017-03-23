@@ -126,7 +126,10 @@ class QLearning(object):
             print "WARNING: Shrikined model is not initialized"
             return None
 
-        return self.shrinked_model.predict(processed_images)[0]
+        embedding = self.shrinked_model.predict(processed_images)[0]
+        max_q_value = np.max(self.model.predict(processed_images)[0])
+
+        return embedding, max_q_value
 
     def advance_episode(self):
         self.parameters.episodes += 1
