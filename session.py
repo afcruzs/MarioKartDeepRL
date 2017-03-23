@@ -29,13 +29,13 @@ class Session(object):
     self.max_rewards.append(q_value)
 
   def save_to_file_embeddings(self):
-    with open(self.get_embeddings_path() + "/embeddings.pkl", "w") as file_obj:
+    with open(self.get_embeddings_path() + "/embeddings.pkl", "wb") as file_obj:
       pickle.dump(self.embeddings, file_obj)
 
-    with open(self.get_embeddings_path() + "/states.pkl", "w") as file_obj:
+    with open(self.get_embeddings_path() + "/states.pkl", "wb") as file_obj:
       pickle.dump(self.states, file_obj)
 
-    with open(self.get_embeddings_path() + "/max_rewards.pkl", "w") as file_obj:
+    with open(self.get_embeddings_path() + "/max_rewards.pkl", "wb") as file_obj:
       pickle.dump(self.max_rewards, file_obj)
 
     del self.max_rewards[:]
