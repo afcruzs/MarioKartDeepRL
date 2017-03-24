@@ -80,6 +80,20 @@ function MarioKartState:reset()
   self.is_outside = false
   self.outside_frames = 0
   self.positions_queue = deque.new()
+  self.last_score = 0
+  self.same_place_frames = 0
+
+  self.place = 0
+  self.coins = 0
+  self.frames_not_hitting_gas = 0
+  self.frames_hitting_brake = 0
+  self.lakitu_rescue_count = 0
+  self.entity_hit_count = 0
+  self.wall_hit_count = 0
+  self.spin_count = 0
+  self.start_turbo_count = 0
+  self.drift_turbo_count = 0
+  self.item_box_hit_full = 0
 end
 
 function MarioKartState:create_checkpoint()
@@ -96,6 +110,20 @@ function MarioKartState:create_checkpoint()
   checkpoint.is_outside = self.is_outside
   checkpoint.outside_frames = self.outside_frames
   checkpoint.race_status = self.race_status
+  checkpoint.last_score = self.last_score
+  checkpoint.same_place_frames = self.same_place_frames
+
+  checkpoint.place = self.place
+  checkpoint.coins = self.coins
+  checkpoint.frames_not_hitting_gas = self.frames_not_hitting_gas
+  checkpoint.frames_hitting_brake = self.frames_hitting_brake
+  checkpoint.lakitu_rescue_count = self.lakitu_rescue_count
+  checkpoint.entity_hit_count = self.entity_hit_count
+  checkpoint.wall_hit_count = self.wall_hit_count
+  checkpoint.spin_count = self.spin_count
+  checkpoint.start_turbo_count = self.start_turbo_count
+  checkpoint.drift_turbo_count = self.drift_turbo_count
+  checkpoint.item_box_hit_full = self.item_box_hit_full
 
   -- Omitted properties: positions_queue
 
@@ -125,22 +153,14 @@ function MarioKartState:is_timed_out()
   return self.time - self.last_checkpoint_state.time >= max_time_between_checkpoints
 end
 
-function MarioKartState:_get_speed(track_info)
-  local max_velocity = 100.0 * track_info['max_steps'] / track_info['average_time']
+function MarioKartState:_get_progress_difference(track_info)
   local new_position = assert(self.positions_queue:peek_right(), 'No new position available')
   local old_position = assert(self.positions_queue:peek_left(), 'No old position available')
 
-  local speed = 0
-  local lap_difference = new_position['lap'] - old_position['lap']
+  local new_overall_percentage = new_position['lap'] + new_position['lap_percentage']
+  local old_overall_percentage = old_position['lap'] + old_position['lap_percentage']
 
-  if lap_difference >= 0 then
-    speed = lap_difference * track_info['max_steps'] - old_position['step'] + new_position['step']
-  else
-    speed = -((-lap_difference) * track_info['max_steps'] - new_position['step'] + old_position['step'])
-  end
-  speed = speed / max_velocity
-
-  return speed
+  return new_overall_percentage - old_overall_percentage
 end
 
 function MarioKartState._get_time_from_ram()
@@ -161,6 +181,7 @@ function MarioKartState._get_position_from_ram()
 end
 
 function MarioKartState:update_from_ram(track_info)
+  self.last_score = self:_get_score()
   self.position = MarioKartState._get_position_from_ram()
 
   local x = self.position[1]
@@ -189,7 +210,8 @@ function MarioKartState:update_from_ram(track_info)
     step=track_info['matrix'][x][y],
     lap=self.actual_global_lap,
     x=x,
-    y=y
+    y=y,
+    lap_percentage=lap_percentage
   })
 
   self.time = MarioKartState._get_time_from_ram()
@@ -198,6 +220,35 @@ function MarioKartState:update_from_ram(track_info)
   local outside_frames = MarioKartState._get_outside_frames_from_ram()
   self.is_outside = (outside_frames ~= self.outside_frames)
   self.outside_frames = outside_frames
+
+  local old_place = self.place
+  self.place = memory.read_u8(0x23B4)
+
+  if old_place ~= self.place then
+    self.same_place_frames = 0
+  end
+
+  self.same_place_frames = self.same_place_frames + 1
+
+  self.coins = memory.read_u8(0x3D10)
+  self.frames_not_hitting_gas = memory.read_u16_le(0x3ADC)
+  self.frames_hitting_brake = memory.read_u16_le(0x3AE0)
+  self.lakitu_rescue_count = memory.read_u8(0x3AE7)
+  self.entity_hit_count = memory.read_u8(0x3AE8)
+  self.wall_hit_count = memory.read_u8(0x3AE9)
+  self.spin_count = memory.read_u8(0x3AEA)
+  self.start_turbo_count = memory.read_u8(0x3AEB)
+  self.drift_turbo_count = memory.read_u8(0x3AEC)
+  self.item_box_hit_full = memory.read_u8(0x3AF4)
+end
+
+function MarioKartState:_get_score()
+  return (7 - self.place) / 30 * self.same_place_frames + self.coins * 4 - self.time / 80 -
+    self.frames_not_hitting_gas / 4 - self.frames_hitting_brake / 2 -
+    self.lakitu_rescue_count * 30 - self.entity_hit_count * 15 -
+    self.wall_hit_count * 20 - self.spin_count * 15 + self.start_turbo_count * 25 +
+    self.drift_turbo_count * 15 + self.item_box_hit_full * 15 -
+    self.outside_frames / 4
 end
 
 function MarioKartState:get_reward(track_info)
@@ -205,16 +256,10 @@ function MarioKartState:get_reward(track_info)
     return -1.0
   end
 
-  local speed = self:_get_speed(track_info)
-  if speed <= 0 then
-    return -1.0
-  end
+  local progress_diference = self:_get_progress_difference(track_info)
+  local score_reward = self:_get_score() - self.last_score
 
-  if self.is_outside then
-    return -0.8
-  end
-
-  return speed
+  return 0.3 * progress_diference + 0.7 * score_reward
 end
 
 function MarioKartState._get_outside_frames_from_ram()
