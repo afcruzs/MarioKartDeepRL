@@ -3,6 +3,9 @@ from sklearn.manifold import TSNE
 from matplotlib import pyplot as plt
 import argparse
 import pickle
+from scipy.misc import toimage
+from scipy.misc import imshow
+
 
 def load_embeddings_only(dir):
   with open(dir + "/embeddings.pkl", 'rb') as file_obj:
@@ -36,6 +39,21 @@ def compute_t_sne(embeddings, n_components=2):
 
   return model.fit_transform(embeddings)
 
+def do_visualize(embeddings_2d, max_rewards, states):
+  x = embeddings_2d[:,0]
+  y = embeddings_2d[:,1]
+
+  def on_pick(event):
+    ind = event.ind[0]
+    data = states[ind]
+    toimage(data).show()
+
+  fig = plt.figure()
+  ax1 = fig.add_subplot(1, 1, 1)
+  col = ax1.scatter(x, y, cmap=plt.get_cmap('RdYlGn'), c=max_rewards, s=90, picker=True)
+  fig.canvas.mpl_connect('pick_event', on_pick)
+  plt.show()
+
 
 if __name__ == '__main__':
   COMPUTE_AND_VISUALIZE = "COMPUTE_AND_VISUALIZE"
@@ -57,12 +75,12 @@ if __name__ == '__main__':
     embeddings, max_rewards, states = load_embeddings_data(embeddings_dir)
     embeddings_2d = compute_t_sne(embeddings)
 
-    x = embeddings_2d[:,0]
-    y = embeddings_2d[:,1]
+    print "Saving..."
+    with open(embeddings_dir + "/t-sne-embeddings.pkl", "wb") as file_obj:
+      pickle.dump(embeddings_2d, file_obj)
 
-    plt.scatter(x, y, cmap=plt.get_cmap('RdYlGn'), c=max_rewards, s=80)
-    plt.show()
-
+    do_visualize(embeddings_2d, max_rewards, states)
+    
   elif mode == COMPUTE_ONLY:
     
     embeddings = load_embeddings_only(embeddings_dir)
@@ -77,12 +95,9 @@ if __name__ == '__main__':
       embeddings_2d = pickle.load(file_obj)    
 
     max_rewards = load_max_rewards_only(embeddings_dir)
-    
-    x = embeddings_2d[:,0]
-    y = embeddings_2d[:,1]
+    states = load_states_only(embeddings_dir)
 
-    plt.scatter(x, y, cmap=plt.get_cmap('RdYlGn'), c=max_rewards, s=80)
-    plt.show()
+    do_visualize(embeddings_2d, max_rewards, states)
     
 
 
