@@ -1,4 +1,5 @@
 import os
+import tensorflow as tf
 
 NEW_SESSION = 'NEW_SESSION'
 LOAD_SESSION = 'LOAD_SESSION'
@@ -10,30 +11,49 @@ REWARD_FILENAME = 'avg_reward_data'
 SCORE_FILENAME = 'score_data'
 
 class Session(object):
-  def __init__(self, episodes, session_path):
-    self.episodes = episodes
+  def __init__(self, saved_episodes, session_path):
+    self.saved_episodes = saved_episodes
     self.session_path = session_path
     self.create_episodes_directory()
-    self.create_logs_directories()
     self.current_episode = 0
+
+    self.loss_variable = tf.Variable(0)
+    self.reward_variable = tf.Variable(0)
+    self.score_variable = tf.Variable(0)
+    self.episode_steps_variable = tf.Variable(0)
+
+    tf.summary.scalar("Loss", self.loss_variable)
+    tf.summary.scalar("Reward", self.reward_variable)
+    tf.summary.scalar("Score", self.score_variable)
+    tf.summary.scalar("Episode steps", self.episode_steps_variable)
+
+    self.summary_ops = tf.summary.merge_all()
+    self.tf_session = tf.Session()
+    self.is_closed = False
+
+    self.tf_session.run(tf.global_variables_initializer())
+    self.writer = tf.summary.FileWriter(self.get_logs_path(), self.tf_session.graph)
+
+  def __enter__(self):
+    return self
+
+  def __exit__(self, exc_type, exc_value, traceback):
+    assert not self.is_closed
+
+    self.is_closed = True
+    self.tf_session.close()
 
   def get_episodes_path(self):
     return self.session_path + "/episodes"
 
   def get_current_path(self):
-    return self.get_episodes_path() + "/" + str(self.current_episode)
+    return self.get_episodes_path() + "/" + str(self.current_episode % self.saved_episodes)
 
   def get_session_path(self):
     return self.session_path
 
-  def logs_path(self):
+  def get_logs_path(self):
     return self.session_path + "/logs"
-
-  def loss_logs_path(self):
-    return self.logs_path() + '/loss'
-
-  def avg_reward_logs_path(self):
-    return self.logs_path() + '/reward'
 
   def all_weights_path(self):
     return self.session_path + "/all_weights"
@@ -44,28 +64,22 @@ class Session(object):
 
     return path
 
-  def create_logs_directories(self):
-    create_dir(self.logs_path())
-    create_dir(self.loss_logs_path())
-    create_dir(self.avg_reward_logs_path())
-
   def create_episodes_directory(self):
     create_dir(self.get_episodes_path())
 
-  def append_loss(self, value):
-    with open(self.loss_logs_path() + '/' + LOSS_FILENAME, 'a') as out:
-      out.write(str(value) + '\n')
+  def save_episode_results(self, reward, score, loss, episode_steps):
+    summary = self.tf_session.run(self.summary_ops, feed_dict={
+        self.reward_variable: reward,
+        self.score_variable: score,
+        self.loss_variable: loss,
+        self.episode_steps_variable: episode_steps
+    })
 
-  def append_reward(self, value):
-    with open(self.avg_reward_logs_path() + '/' + REWARD_FILENAME, 'a') as out:
-      out.write(str(value) + '\n')
-
-  def append_score(self, score, episode_steps, episode):
-    with open(self.avg_reward_logs_path() + '/' + SCORE_FILENAME, 'a') as out:
-      out.write(str(episode) + ' ' + str(score) + ' ' + str(episode_steps) + '\n')
+    self.writer.add_summary(summary, self.current_episode)
+    self.writer.flush()
 
   def set_episode(self, episode):
-    self.current_episode = episode % self.episodes
+    self.current_episode = episode
     create_dir(self.get_current_path())
 
 def create_dir(path):

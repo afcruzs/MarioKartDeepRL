@@ -203,10 +203,9 @@ class QLearning(object):
             average_reward = self.episode_accumulated_reward / self.episode_steps
             average_loss = self.episode_accumulated_loss / self.episode_steps
 
-            self.session.append_reward(average_reward)
-            self.session.append_loss(average_loss)
-            self.session.append_score(self.episode_accumulated_reward, self.episode_steps,
-                self.parameters.episodes)
+            self.session.save_episode_results(reward=average_reward,
+                score=self.episode_accumulated_reward, loss=average_loss,
+                episode_steps=self.episode_steps)
 
             self.episode_accumulated_reward = 0
             self.episode_steps = 0
