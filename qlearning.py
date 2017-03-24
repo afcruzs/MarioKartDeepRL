@@ -103,11 +103,12 @@ class QLearning(object):
         init = lambda shape, name: normal(shape, name=name)
         model = Sequential()
         model.add(Convolution2D(32, 8, 8, subsample=(4, 4), activation='relu', init=init,
-            input_shape=(self.parameters.history_length, self.parameters.frame_size[0], self.parameters.frame_size[1])))
-        model.add(Convolution2D(64, 4, 4, subsample=(2, 2), activation='relu', init=init))
-        model.add(Convolution2D(64, 3, 3, subsample=(1, 1), activation='relu', init=init))
+            input_shape=(self.parameters.history_length, self.parameters.frame_size[0], self.parameters.frame_size[1]),
+            weights=self.model.layers[0].get_weights()))
+        model.add(Convolution2D(64, 4, 4, subsample=(2, 2), activation='relu', init=init, weights=self.model.layers[1].get_weights()))
+        model.add(Convolution2D(64, 3, 3, subsample=(1, 1), activation='relu', init=init, weights=self.model.layers[2].get_weights()))
         model.add(Flatten())
-        model.add(Dense(512, activation='relu', init=init))
+        model.add(Dense(512, activation='relu', init=init, weights=self.model.layers[4].get_weights()))
         
 
         model.compile(

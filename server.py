@@ -141,7 +141,7 @@ def request_action():
 
     if agent.shrinked_model is not None:
         hidden_vector, max_reward = agent.get_embedding(np.array([processed_images]))
-        agent.session.store_embeddings(images, hidden_vector, max_reward)
+        agent.session.store_embeddings(images[-1], hidden_vector, max_reward)
 
     return make_response(jsonify({'action': action}))
 
