@@ -199,13 +199,28 @@ class QLearning(object):
         loss = self.train_step()
         self.episode_accumulated_loss += loss
 
-        if is_terminal:
-            average_reward = self.episode_accumulated_reward / self.episode_steps
-            average_loss = self.episode_accumulated_loss / self.episode_steps
+        average_reward = self.episode_accumulated_reward / self.episode_steps
+        average_loss = self.episode_accumulated_loss / self.episode_steps
+        score = self.episode_accumulated_reward
+        episode_steps = self.episode_steps
+        episode = self.parameters.episodes
+        global_steps = self.parameters.steps
 
-            self.session.save_episode_results(reward=average_reward,
-                score=self.episode_accumulated_reward, loss=average_loss,
-                episode_steps=self.episode_steps)
+        print "\nEpisode %d. Global step: %d. Episode step: %d" % (episode, global_steps,
+            episode_steps)
+        print "Cumulative reward: %f. Average: %f" % (score, average_reward)
+        print "Loss is %f (Average: %f. Cumulative: %f)" % (loss, average_loss,
+            self.episode_accumulated_loss)
+        print "Exploration rate is %f" % (self.parameters.exploration_rate, )
+
+        if is_terminal:
+            print (("%s: Episode %d finished. Score: %f. Average reward: %f. Average loss: %f. " +
+                "Episode steps: %f") %
+                (datetime.now().strftime("%Y%m%d_%H%M%S"), episode, score, average_reward,
+                average_loss, episode_steps))
+
+            self.session.save_episode_results(reward=average_reward, score=score, loss=average_loss,
+                episode_steps=episode_steps)
 
             self.episode_accumulated_reward = 0
             self.episode_steps = 0
@@ -214,9 +229,7 @@ class QLearning(object):
             self.save_agent()
             self.advance_episode()
 
-            now = datetime.now()
-
-            print "%s: Episode %d" % (now.strftime("%Y%m%d_%H%M%S"), self.parameters.episodes)
+            print "%s: Episode %d saved" % (datetime.now().strftime("%Y%m%d_%H%M%S"), episode)
 
     def train_step(self):
         self.parameters.steps += 1
@@ -247,12 +260,6 @@ class QLearning(object):
                 Y[i, action] = reward + self.parameters.discount_factor * np.max(new_predictions[i])
 
         loss = self.model.train_on_batch(X_old_states, Y)
-        print "Episode %d. Global step: %d. Episode step: %d" % (self.parameters.episodes, self.parameters.steps, self.episode_steps)
-        print "Cumulative reward: %f. Average: %f" % (self.episode_accumulated_reward,
-            self.episode_accumulated_reward / self.episode_steps,)
-        print "Loss is %f (Average: %f. Cumulative: %f)" % (loss,
-            self.episode_accumulated_loss / self.episode_steps, self.episode_accumulated_loss)
-        print "Exploration rate is %f" % (self.parameters.exploration_rate, )
 
         if self.parameters.steps % self.parameters.target_network_update_frequency == 0:
             copy_weights(self.model, self.delayed_model)
