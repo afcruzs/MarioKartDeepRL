@@ -17,10 +17,10 @@ class Session(object):
     self.create_episodes_directory()
     self.current_episode = 0
 
-    self.loss_variable = tf.Variable(0)
-    self.reward_variable = tf.Variable(0)
-    self.score_variable = tf.Variable(0)
-    self.episode_steps_variable = tf.Variable(0)
+    self.loss_variable = tf.Variable(0.0)
+    self.reward_variable = tf.Variable(0.0)
+    self.score_variable = tf.Variable(0.0)
+    self.episode_steps_variable = tf.Variable(0.0)
 
     tf.summary.scalar("Loss", self.loss_variable)
     tf.summary.scalar("Reward", self.reward_variable)
