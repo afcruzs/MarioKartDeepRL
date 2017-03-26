@@ -33,7 +33,7 @@ local state_file = "../game/mario_kart.State"
 local checkpoint_state_file = "../game/mario_kart_checkpoint.State"
 local train = true
 local manual_mode = false
-local use_checkpoint = false
+local use_checkpoint = true
 local repeat_forever = true
 local use_initial_checkpoint = true
 
