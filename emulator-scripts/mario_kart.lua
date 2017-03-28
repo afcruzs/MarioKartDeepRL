@@ -45,6 +45,19 @@ local MarioKartState = {}
 
 MarioKartState.__index = MarioKartState
 
+function table_shallow_copy(t)
+  copy = {}
+  for key, value in pairs(t) do
+    copy[key] = value
+  end
+
+  return copy
+end
+
+function mod_difference(new, old, limit)
+  return math.fmod(limit + new - old, limit)
+end
+
 local function pack(ok, ...)
   return ok, arg
 end
@@ -75,25 +88,29 @@ function MarioKartState:reset()
   self.global_lap = 1
   self.position = {0, 0}
   self.time = 0
+  self.previous_time = 0
   self.last_checkpoint_state = self:_build_checkpoint_state()
   self.race_status = 0
   self.is_outside = false
-  self.outside_frames = 0
   self.positions_queue = deque.new()
-  self.last_score = 0
-  self.same_place_frames = 0
 
-  self.place = 0
-  self.coins = 0
-  self.frames_not_hitting_gas = 0
-  self.frames_hitting_brake = 0
-  self.lakitu_rescue_count = 0
-  self.entity_hit_count = 0
-  self.wall_hit_count = 0
-  self.spin_count = 0
-  self.start_turbo_count = 0
-  self.drift_turbo_count = 0
-  self.item_box_hit_full = 0
+  self.ram_data = {
+    outside_frames = 0,
+    place_score = 0,
+    coins = 0,
+    frames_not_hitting_gas = 0,
+    frames_hitting_brake = 0,
+    lakitu_rescue_count = 0,
+    entity_hit_count = 0,
+    wall_hit_count = 0,
+    spin_count = 0,
+    start_turbo_count = 0,
+    drift_turbo_count = 0,
+    item_box_hit_full = 0
+  }
+
+  self.previous_ram_data = table_shallow_copy(self.ram_data)
+
 end
 
 function MarioKartState:create_checkpoint()
@@ -106,24 +123,13 @@ function MarioKartState:create_checkpoint()
   checkpoint.global_lap = self.global_lap
   checkpoint.position = self.position
   checkpoint.time = self.time
+  checkpoint.previous_time = self.previous_time
   checkpoint.last_checkpoint_state = self.last_checkpoint_state
   checkpoint.is_outside = self.is_outside
-  checkpoint.outside_frames = self.outside_frames
   checkpoint.race_status = self.race_status
-  checkpoint.last_score = self.last_score
-  checkpoint.same_place_frames = self.same_place_frames
 
-  checkpoint.place = self.place
-  checkpoint.coins = self.coins
-  checkpoint.frames_not_hitting_gas = self.frames_not_hitting_gas
-  checkpoint.frames_hitting_brake = self.frames_hitting_brake
-  checkpoint.lakitu_rescue_count = self.lakitu_rescue_count
-  checkpoint.entity_hit_count = self.entity_hit_count
-  checkpoint.wall_hit_count = self.wall_hit_count
-  checkpoint.spin_count = self.spin_count
-  checkpoint.start_turbo_count = self.start_turbo_count
-  checkpoint.drift_turbo_count = self.drift_turbo_count
-  checkpoint.item_box_hit_full = self.item_box_hit_full
+  checkpoint.ram_data = table_shallow_copy(self.ram_data)
+  checkpoint.previous_ram_data = table_shallow_copy(self.previous_ram_data)
 
   -- Omitted properties: positions_queue
 
@@ -181,7 +187,8 @@ function MarioKartState._get_position_from_ram()
 end
 
 function MarioKartState:update_from_ram(track_info)
-  self.last_score = self:_get_score()
+  self.previous_ram_data = table_shallow_copy(self.ram_data)
+  self.previous_time = self.time
   self.position = MarioKartState._get_position_from_ram()
 
   local x = self.position[1]
@@ -218,37 +225,24 @@ function MarioKartState:update_from_ram(track_info)
   self.race_status = MarioKartState._get_race_status_from_ram()
 
   local outside_frames = MarioKartState._get_outside_frames_from_ram()
-  self.is_outside = (outside_frames ~= self.outside_frames)
-  self.outside_frames = outside_frames
+  self.is_outside = (outside_frames ~= self.ram_data.outside_frames)
 
-  local old_place = self.place
-  self.place = memory.read_u8(0x23B4)
+  local place = memory.read_u8(0x23B4)
 
-  if old_place ~= self.place then
-    self.same_place_frames = 0
-  end
-
-  self.same_place_frames = self.same_place_frames + 1
-
-  self.coins = memory.read_u8(0x3D10)
-  self.frames_not_hitting_gas = memory.read_u16_le(0x3ADC)
-  self.frames_hitting_brake = memory.read_u16_le(0x3AE0)
-  self.lakitu_rescue_count = memory.read_u8(0x3AE7)
-  self.entity_hit_count = memory.read_u8(0x3AE8)
-  self.wall_hit_count = memory.read_u8(0x3AE9)
-  self.spin_count = memory.read_u8(0x3AEA)
-  self.start_turbo_count = memory.read_u8(0x3AEB)
-  self.drift_turbo_count = memory.read_u8(0x3AEC)
-  self.item_box_hit_full = memory.read_u8(0x3AF4)
-end
-
-function MarioKartState:_get_score()
-  return (7 - self.place) / 30 * self.same_place_frames + self.coins * 4 - self.time / 80 -
-    self.frames_not_hitting_gas / 4 - self.frames_hitting_brake / 2 -
-    self.lakitu_rescue_count * 30 - self.entity_hit_count * 15 -
-    self.wall_hit_count * 20 - self.spin_count * 15 + self.start_turbo_count * 25 +
-    self.drift_turbo_count * 15 + self.item_box_hit_full * 15 -
-    self.outside_frames / 4
+  self.ram_data = {
+    outside_frames = outside_frames,
+    place_score = self.ram_data.place_score + (7 - place),
+    coins = memory.read_u8(0x3D10),
+    frames_not_hitting_gas = memory.read_u16_le(0x3ADC),
+    frames_hitting_brake = memory.read_u16_le(0x3AE0),
+    lakitu_rescue_count = memory.read_u8(0x3AE7),
+    entity_hit_count = memory.read_u8(0x3AE8),
+    wall_hit_count = memory.read_u8(0x3AE9),
+    spin_count = memory.read_u8(0x3AEA),
+    start_turbo_count = memory.read_u8(0x3AEB),
+    drift_turbo_count = memory.read_u8(0x3AEC),
+    item_box_hit_full = memory.read_u8(0x3AF4)
+  }
 end
 
 function MarioKartState:get_reward(track_info)
@@ -257,7 +251,31 @@ function MarioKartState:get_reward(track_info)
   end
 
   local progress_diference = self:_get_progress_difference(track_info)
-  local score_reward = self:_get_score() - self.last_score
+  local score_reward = (
+    (self.ram_data.place_score - self.previous_ram_data.place_score) / 30 +
+    (self.ram_data.coins - self.previous_ram_data.coins) * 4 -
+    (self.time - self.previous_time) / 80 -
+    mod_difference(self.ram_data.frames_not_hitting_gas,
+      self.previous_ram_data.frames_not_hitting_gas, 65536) / 4 -
+    mod_difference(self.ram_data.frames_hitting_brake,
+      self.previous_ram_data.frames_hitting_brake, 65536) / 2 -
+    mod_difference(self.ram_data.lakitu_rescue_count,
+      self.previous_ram_data.lakitu_rescue_count, 256) * 30 -
+    mod_difference(self.ram_data.entity_hit_count,
+      self.previous_ram_data.entity_hit_count, 256) * 15 -
+    mod_difference(self.ram_data.wall_hit_count,
+      self.previous_ram_data.wall_hit_count, 256) * 20 -
+    mod_difference(self.ram_data.spin_count,
+      self.previous_ram_data.spin_count, 256) * 15 +
+    mod_difference(self.ram_data.start_turbo_count,
+      self.previous_ram_data.start_turbo_count, 256) * 25 +
+    mod_difference(self.ram_data.drift_turbo_count,
+      self.previous_ram_data.drift_turbo_count, 256) * 15 +
+    mod_difference(self.ram_data.item_box_hit_full,
+      self.previous_ram_data.item_box_hit_full, 256) * 15 -
+    mod_difference(self.ram_data.outside_frames,
+      self.previous_ram_data.outside_frames, 65536) / 4
+  )
 
   return 0.3 * progress_diference + 0.7 * score_reward
 end
