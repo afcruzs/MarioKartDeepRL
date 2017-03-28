@@ -103,7 +103,7 @@ class QLearning(object):
 
     def save_agent(self):
         full_path = self.session.get_current_path()
-        print "Saving agent state to", full_path
+        print("Saving agent state to", full_path)
 
         model_file_name = full_path + '/model.h5'
         delayed_model_file_name = full_path + '/delayed_model.h5'
@@ -116,33 +116,33 @@ class QLearning(object):
         with open(parameters_file_name, 'wb') as output:
             pickle.dump(self.parameters, output)
 
-        print "Saving episode folder information"
+        print("Saving episode folder information")
         episode_file_name = self.session.get_session_path() + '/episode.txt'
         with open(episode_file_name, 'w') as f:
             f.write(str(self.parameters.episodes) + '\n')
 
-        print "Copying weights to global folder"
+        print("Copying weights to global folder")
 
         episode_weights_dir = self.session.get_episode_weights_directory(self.parameters.episodes) + '/'
         shutil.copy(model_file_name, episode_weights_dir)
         shutil.copy(delayed_model_file_name, episode_weights_dir)
         shutil.copy(parameters_file_name, episode_weights_dir)
 
-        print "Agent state saved to", full_path
+        print("Agent state saved to", full_path)
 
     def save_replay_memory(self, replay_memory_file_name):
-        print "%s: Saving replay memory to %s" % (datetime.now(), replay_memory_file_name)
+        print("%s: Saving replay memory to %s" % (datetime.now(), replay_memory_file_name))
         np.save(replay_memory_file_name, self.replay_memory)
-        print "%s: Replay memory saved to %s" % (datetime.now(), replay_memory_file_name)
+        print("%s: Replay memory saved to %s" % (datetime.now(), replay_memory_file_name))
 
     def load_replay_memory(self, replay_memory_file_name):
-        print "%s: Loading replay memory from %s" % (datetime.now(), replay_memory_file_name)
+        print("%s: Loading replay memory from %s" % (datetime.now(), replay_memory_file_name))
         self.replay_memory = CircularBuffer(self.parameters.replay_memory_size,
             np.load(replay_memory_file_name))
-        print "%s: Replay memory loaded from %s" % (datetime.now(), replay_memory_file_name)
+        print("%s: Replay memory loaded from %s" % (datetime.now(), replay_memory_file_name))
 
     def load_agent(self, load_replay_memory=True):
-        print "Locating episode"
+        print("Locating episode")
         episode_file_name = self.session.get_session_path() + '/episode.txt'
         episode = None
         with open(episode_file_name, 'r') as input_file:
@@ -156,28 +156,28 @@ class QLearning(object):
         replay_memory_file_name = full_path + '/replay_memory.npy'
         parameters_file_name    = full_path + '/parameters.pkl'
 
-        print "Loading agent from", full_path
+        print("Loading agent from", full_path)
 
-        print "Loading parameters..."
+        print("Loading parameters...")
         with open(parameters_file_name, 'rb') as input_file:
             self.parameters = pickle.load(input_file)
 
         self.session.set_episode(self.parameters.episodes)
-        print "Current episode is:", self.parameters.episodes
+        print("Current episode is:", self.parameters.episodes)
 
-        print "Loading model weights..."
+        print("Loading model weights...")
         self.model.load_weights(model_file_name)
-        print "Loading delayed model weights..."
+        print("Loading delayed model weights...")
         self.delayed_model.load_weights(delayed_model_file_name)
 
         if load_replay_memory:
             self.load_replay_memory(replay_memory_file_name)
         else:
-            print "Replay memory load skipped"
+            print("Replay memory load skipped")
 
         self.advance_episode()
 
-        print "Agent loaded from", full_path
+        print("Agent loaded from", full_path)
 
     def is_initializing_replay_memory(self):
         return len(self.replay_memory) < self.parameters.replay_memory_start_size
@@ -185,12 +185,12 @@ class QLearning(object):
     def record_experience(self, state, action, reward, new_state, is_terminal):
         self.store_in_replay_memory(state, action, reward, new_state, is_terminal)
         if self.is_initializing_replay_memory():
-            print "Collecting initial experiences (%d / %d)" % (len(self.replay_memory), self.parameters.replay_memory_start_size)
+            print("Collecting initial experiences (%d / %d)" % (len(self.replay_memory), self.parameters.replay_memory_start_size))
             return
 
         # Check if we just filled the initial replay memory
         if self.parameters.steps == 0:
-            print "Saving initial replay memory..."
+            print("Saving initial replay memory...")
             self.save_replay_memory(self.session.get_session_path() + "/initial-replay-memory.npy")
 
         self.episode_accumulated_reward += reward
@@ -206,15 +206,15 @@ class QLearning(object):
         episode = self.parameters.episodes
         global_steps = self.parameters.steps
 
-        print "\nEpisode %d. Global step: %d. Episode step: %d" % (episode, global_steps,
-            episode_steps)
-        print "Cumulative reward: %f. Average: %f" % (score, average_reward)
-        print "Loss is %f (Average: %f. Cumulative: %f)" % (loss, average_loss,
-            self.episode_accumulated_loss)
-        print "Exploration rate is %f" % (self.parameters.exploration_rate, )
+        print("\nEpisode %d. Global step: %d. Episode step: %d" % (episode, global_steps,
+            episode_steps))
+        print("Cumulative reward: %f. Average: %f" % (score, average_reward))
+        print("Loss is %f (Average: %f. Cumulative: %f)" % (loss, average_loss,
+            self.episode_accumulated_loss))
+        print("Exploration rate is %f" % (self.parameters.exploration_rate, ))
 
         if is_terminal:
-            print (("%s: Episode %d finished. Score: %f. Average reward: %f. Average loss: %f. " +
+            print(("%s: Episode %d finished. Score: %f. Average reward: %f. Average loss: %f. " +
                 "Episode steps: %f") %
                 (datetime.now().strftime("%Y%m%d_%H%M%S"), episode, score, average_reward,
                 average_loss, episode_steps))
@@ -229,7 +229,7 @@ class QLearning(object):
             self.save_agent()
             self.advance_episode()
 
-            print "%s: Episode %d saved" % (datetime.now().strftime("%Y%m%d_%H%M%S"), episode)
+            print("%s: Episode %d saved" % (datetime.now().strftime("%Y%m%d_%H%M%S"), episode))
 
     def train_step(self):
         self.parameters.steps += 1
@@ -240,7 +240,7 @@ class QLearning(object):
         X_new_states = np.zeros((len(sample), self.parameters.history_length,
             self.parameters.frame_size[0], self.parameters.frame_size[1]))
 
-        for i in xrange(len(sample)):
+        for i in range(len(sample)):
             state, action, reward, new_state, is_terminal = sample[i]
 
             X_old_states[i:i + 1] = state
@@ -249,7 +249,7 @@ class QLearning(object):
         old_predictions = self.model.predict(X_old_states)
         new_predictions = self.delayed_model.predict(X_new_states)
 
-        for i in xrange(len(sample)):
+        for i in range(len(sample)):
             state, action, reward, new_state, is_terminal = sample[i]
 
             Y[i] = old_predictions[i]
@@ -288,14 +288,15 @@ class QLearning(object):
         return result
 
     def choose_action(self, processed_images, train):
+        action_type = None
         if train and (self.is_initializing_replay_memory() or
                 random.uniform(0,1) <= self.parameters.exploration_rate):
-            result = [random.choice(xrange(len(possible_actions))) for _ in xrange(processed_images.shape[0])]
-            print "Random action:",
+            result = [random.choice(range(len(possible_actions))) for _ in range(processed_images.shape[0])]
+            action_type = "Random action"
         else:
             result = [np.argmax(i) for i in self.model.predict(processed_images)]
-            print "Best action:",
-        print [possible_actions[i].keys() for i in result]
+            action_type = "Best action"
+        print(action_type + ':', [possible_actions[i].keys() for i in result])
 
         if train and not self.is_initializing_replay_memory():
             self.parameters.exploration_rate = max(self.parameters.final_exploration,
