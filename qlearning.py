@@ -12,6 +12,7 @@ from utils import CircularBuffer
 from datetime import datetime
 import pickle
 import shutil
+from tables import IsDescription, Float32Atom, Int8Col, BoolCol, open_file, Float32Col
 
 possible_actions = [
     {}, # No op
@@ -28,6 +29,9 @@ possible_actions = [
     { 'A': 1, 'Right': 1, 'R': 1, 'L': 1 }, # Drift right, power
     { 'A': 1, 'Left': 1, 'R': 1, 'L': 1 } # Drift left, power
 ]
+
+HDF5_REPLAY_MEMORY_GROUP_NAME = 'replay_memory_group'
+HDF5_REPLAY_MEMORY_TABLE_NAME = 'replay_memory_table'
 
 if image_dim_ordering() != 'th':
     set_image_dim_ordering('th')
@@ -107,7 +111,7 @@ class QLearning(object):
 
         model_file_name = full_path + '/model.h5'
         delayed_model_file_name = full_path + '/delayed_model.h5'
-        replay_memory_file_name = full_path + '/replay_memory.npy'
+        replay_memory_file_name = full_path + '/replay_memory.h5'
         parameters_file_name = full_path + '/parameters.pkl'
 
         self.model.save_weights(model_file_name)
@@ -132,14 +136,52 @@ class QLearning(object):
 
     def save_replay_memory(self, replay_memory_file_name):
         print("%s: Saving replay memory to %s" % (datetime.now(), replay_memory_file_name))
-        np.save(replay_memory_file_name, self.replay_memory)
+        state_shape = (self.parameters.history_length, *self.parameters.frame_size)
+
+        memory_sample_cols = {
+            'state': Float32Col(shape=state_shape), 
+            'new_state': Float32Col(shape=state_shape),
+            'action': Int8Col(),
+            'reward': Float32Col(),
+            'is_terminal': BoolCol()
+        }
+
+
+        with open_file(replay_memory_file_name, mode="w") as h5file:
+            group = h5file.create_group('/', HDF5_REPLAY_MEMORY_GROUP_NAME, 'Replay Memory')
+            table = h5file.create_table(group, HDF5_REPLAY_MEMORY_TABLE_NAME, memory_sample_cols, 'Replay Memory Sample')
+            row = table.row
+
+            for state, action, reward, new_state, is_terminal in self.replay_memory:
+                row['state'] = state
+                row['new_state'] = new_state
+                row['action'] = action
+                row['reward'] = reward
+                row['is_terminal'] = is_terminal
+
+                row.append()
+
         print("%s: Replay memory saved to %s" % (datetime.now(), replay_memory_file_name))
 
     def load_replay_memory(self, replay_memory_file_name):
         print("%s: Loading replay memory from %s" % (datetime.now(), replay_memory_file_name))
-        self.replay_memory = CircularBuffer(self.parameters.replay_memory_size,
-            np.load(replay_memory_file_name))
+        self.replay_memory = CircularBuffer(self.parameters.replay_memory_size)
+
+        with open_file(replay_memory_file_name, mode="r") as h5file:
+            group = h5file.root.__getattr__(HDF5_REPLAY_MEMORY_GROUP_NAME)
+            table = group.__getattr__(HDF5_REPLAY_MEMORY_TABLE_NAME)
+
+            for row in table:
+                state = row['state']
+                new_state = row['new_state']
+                action = row['action']
+                reward = row['reward']
+                is_terminal = row['is_terminal']
+
+                self.store_in_replay_memory(state, action, reward, new_state, is_terminal)
+                
         print("%s: Replay memory loaded from %s" % (datetime.now(), replay_memory_file_name))
+        print("Replay memory size: %d" % (len(self.replay_memory),))
 
     def load_agent(self, load_replay_memory=True):
         print("Locating episode")
@@ -153,7 +195,7 @@ class QLearning(object):
         full_path = self.session.get_current_path()
         model_file_name = full_path + '/model.h5'
         delayed_model_file_name = full_path + '/delayed_model.h5'
-        replay_memory_file_name = full_path + '/replay_memory.npy'
+        replay_memory_file_name = full_path + '/replay_memory.h5'
         parameters_file_name    = full_path + '/parameters.pkl'
 
         print("Loading agent from", full_path)
@@ -191,7 +233,7 @@ class QLearning(object):
         # Check if we just filled the initial replay memory
         if self.parameters.steps == 0:
             print("Saving initial replay memory...")
-            self.save_replay_memory(self.session.get_session_path() + "/initial-replay-memory.npy")
+            self.save_replay_memory(self.session.get_session_path() + "/initial-replay-memory.h5")
 
         self.episode_accumulated_reward += reward
         self.episode_steps += 1.0
