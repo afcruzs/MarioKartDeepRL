@@ -15,6 +15,9 @@ http.TIMEOUT = nil -- Wait indefinitely
 
 local frames_to_stack = 4
 local frame_number = 0
+local stacked_frames = 0
+local last_checkpoint_stacked_frames = 0
+local score = 0
 local update_frequency = 10
 local minimap_offset_x = 240 - 64
 local minimap_offset_y = 160 - 64
@@ -251,6 +254,12 @@ function MarioKartState:get_reward(track_info)
   end
 
   local progress_diference = self:_get_progress_difference(track_info)
+  local progress_reward = progress_diference
+
+  if progress_diference <= 0 and self.time > 0 then
+    progress_reward = -1
+  end
+
   local score_reward = (
     (self.ram_data.place_score - self.previous_ram_data.place_score) / 30 +
     (self.ram_data.coins - self.previous_ram_data.coins) * 4 -
@@ -277,7 +286,7 @@ function MarioKartState:get_reward(track_info)
       self.previous_ram_data.outside_frames, 65536) / 4
   )
 
-  return 0.3 * progress_diference + 0.7 * score_reward
+  return 0.5 * progress_reward + 0.5 * score_reward
 end
 
 function MarioKartState._get_outside_frames_from_ram()
@@ -327,6 +336,17 @@ function make_json_request(url, method, content_table)
   return result
 end
 
+function copy_file(source, destination)
+  local input_file = assert(io.open(source, "rb"))
+  local output_file = assert(io.open(destination, "wb"))
+
+  local data = input_file:read("*all")
+  output_file:write(data)
+
+  assert(input_file:close())
+  assert(output_file:close())
+end
+
 function renew_game_id()
   local result = make_json_request(base_url .. "game-id", "POST", {})
   return result.id
@@ -340,18 +360,46 @@ end
 
 function create_checkpoint()
   last_checkpoint = state:create_checkpoint()
+  last_checkpoint_stacked_frames = stacked_frames
   savestate.save(checkpoint_state_file)
+
+  -- Copy frames
+  for i=0,frames_to_stack-1 do
+    if i >= stacked_frames then
+      break
+    end
+    local screenshot_index = ((frame_number + frames_to_stack - i) % frames_to_stack)
+
+    local source_screenshot = screenshot_folder .. "screenshot" .. screenshot_index ..  ".png"
+    local destination_screenshot = screenshot_folder .. "checkpoint" .. i ..  ".png"
+    copy_file(source_screenshot, destination_screenshot)
+  end
 end
 
 function restore_checkpoint()
   state = last_checkpoint
+  stacked_frames = last_checkpoint_stacked_frames
   last_checkpoint = state:create_checkpoint()
   savestate.load(checkpoint_state_file)
+
+  for i=0,frames_to_stack-1 do
+    if i >= stacked_frames then
+      break
+    end
+    local screenshot_index = ((frame_number + frames_to_stack - i) % frames_to_stack)
+
+    local source_screenshot = screenshot_folder .. "checkpoint" .. i ..  ".png"
+    local destination_screenshot = screenshot_folder .. "screenshot" .. screenshot_index ..  ".png"
+    copy_file(source_screenshot, destination_screenshot)
+  end
 end
 
 function reset()
   memory.usememorydomain("IWRAM")
   frame_number = 0
+  stacked_frames = 0
+  last_checkpoint_stacked_frames = 0
+  score = 0
   game_id = renew_game_id()
 
   if use_initial_checkpoint then
@@ -366,8 +414,12 @@ reset()
 local track_info = retrieve_minimap('peach_circuit')
 
 while true do
+  client.screenshot(screenshot_folder .. "screenshot" .. (frame_number % frames_to_stack) ..  ".png")
+  stacked_frames = math.min(stacked_frames + 1, frames_to_stack)
+
   state:update_from_ram(track_info)
   local reward = state:get_reward(track_info)
+  score = score + reward
   local race_ended = state:race_ended()
 
   if state:get_overall_progress() >= last_checkpoint:get_overall_progress() + checkpoint_percentage_interval then
@@ -380,14 +432,13 @@ while true do
   gui.text(0, 60, "Overall progress: " .. (state:get_overall_progress()))
   gui.text(0, 80, "Last checkpoint: " .. (last_checkpoint:get_overall_progress()))
   gui.text(0, 100, "Is outside: " .. tostring(state.is_outside))
-
-  client.screenshot(screenshot_folder .. "screenshot" .. (frame_number % frames_to_stack) ..  ".png")
+  gui.text(0, 120, "Score: " .. score)
 
   if not manual_mode then
     if race_ended or (frame_number % update_frequency) == 0 then
       local last_screenshots = {}
       for i=0,frames_to_stack-1 do
-        if i > frame_number then
+        if i >= stacked_frames then
           break
         end
         local screenshot_index = ((frame_number + frames_to_stack - i) % frames_to_stack)
