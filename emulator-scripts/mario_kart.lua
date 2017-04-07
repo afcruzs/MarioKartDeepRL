@@ -18,6 +18,7 @@ local frame_number = 0
 local stacked_frames = 0
 local last_checkpoint_stacked_frames = 0
 local score = 0
+local current_reward = 0
 local update_frequency = 10
 local minimap_offset_x = 240 - 64
 local minimap_offset_y = 160 - 64
@@ -400,6 +401,7 @@ function reset()
   stacked_frames = 0
   last_checkpoint_stacked_frames = 0
   score = 0
+  current_reward = 0
   game_id = renew_game_id()
 
   if use_initial_checkpoint then
@@ -420,6 +422,10 @@ while true do
   state:update_from_ram(track_info)
   local reward = state:get_reward(track_info)
   score = score + reward
+
+  -- Keep track of the reward for the last update_frequency frames
+  current_reward = current_reward + reward
+
   local race_ended = state:race_ended()
 
   if state:get_overall_progress() >= last_checkpoint:get_overall_progress() + checkpoint_percentage_interval then
@@ -451,13 +457,14 @@ while true do
 
       local result = make_json_request(base_url .. "request-action", "POST", {
         game_id=game_id,
-        reward=reward,
+        reward=current_reward,
         screenshots=last_screenshots,
         train=train,
         race_ended=race_ended
       })
 
       action = result.action
+      current_reward = 0
     end
 
     joypad.set(action)

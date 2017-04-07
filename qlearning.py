@@ -250,7 +250,7 @@ class QLearning(object):
 
         print("\nEpisode %d. Global step: %d. Episode step: %d" % (episode, global_steps,
             episode_steps))
-        print("Cumulative reward: %f. Average: %f" % (score, average_reward))
+        print("Cumulative reward: %f. Average: %f. Current reward: %f" % (score, average_reward, reward))
         print("Loss is %f (Average: %f. Cumulative: %f)" % (loss, average_loss,
             self.episode_accumulated_loss))
         print("Exploration rate is %f" % (self.parameters.exploration_rate, ))
