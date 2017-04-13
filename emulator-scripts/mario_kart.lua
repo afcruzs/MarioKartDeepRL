@@ -287,7 +287,7 @@ function MarioKartState:get_reward(track_info)
       self.previous_ram_data.outside_frames, 65536) / 4
   )
 
-  return 0.5 * progress_reward + 0.5 * score_reward
+  return (0.5 * progress_reward + 0.5 * score_reward) / 14.0
 end
 
 function MarioKartState._get_outside_frames_from_ram()
