@@ -42,7 +42,7 @@ def copy_weights(source_model, dest_model):
 
 class QLearningParameters(object):
     def __init__(self, frame_size=(84, 84), history_length=1, minibatch_size=32,
-        replay_memory_size=100000, discount_factor=0.99, learning_rate=0.00025,
+        replay_memory_size=100000, discount_factor=0.92, learning_rate=0.00025,
         gradient_momentum=0.95, squared_momentum=0.95, min_squared_gradient=0.01,
         initial_exploration=1, final_exploration=0.1, final_exploration_frame=1000000,
         replay_memory_start_size=50000, target_network_update_frequency=5000, use_color_frames=True):
