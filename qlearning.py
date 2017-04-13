@@ -41,11 +41,11 @@ def copy_weights(source_model, dest_model):
         dest_model.layers[i].set_weights(layer.get_weights())
 
 class QLearningParameters(object):
-    def __init__(self, frame_size=(84, 84), history_length=4, minibatch_size=32,
+    def __init__(self, frame_size=(84, 84), history_length=1, minibatch_size=32,
         replay_memory_size=100000, discount_factor=0.99, learning_rate=0.00025,
         gradient_momentum=0.95, squared_momentum=0.95, min_squared_gradient=0.01,
         initial_exploration=1, final_exploration=0.1, final_exploration_frame=1000000,
-        replay_memory_start_size=50000, target_network_update_frequency=5000):
+        replay_memory_start_size=50000, target_network_update_frequency=5000, use_color_frames=True):
 
         self.frame_size = frame_size
         self.history_length = history_length
@@ -65,6 +65,8 @@ class QLearningParameters(object):
         self.exploration_rate = initial_exploration
         self.exploration_decay = (1.0 * initial_exploration - final_exploration) / final_exploration_frame
         self.target_network_update_frequency = target_network_update_frequency
+        self.use_color_frames = use_color_frames
+
 
 class QLearning(object):
     def __init__(self, session, parameters):
@@ -81,12 +83,17 @@ class QLearning(object):
         self.episode_steps = 0
 
         self.session.set_episode(self.parameters.episodes)
+    
+    def _get_frame_channels(self):
+        return 3 if self.parameters.use_color_frames else 1
 
     def _create_model(self):
+        channels = self._get_frame_channels()
+        
         init = RandomNormal()
         model = Sequential()
         model.add(Conv2D(32, (8, 8), strides=(4, 4), activation='relu', kernel_initializer=init,
-            input_shape=(self.parameters.history_length, self.parameters.frame_size[0], self.parameters.frame_size[1])))
+            input_shape=(channels * self.parameters.history_length, self.parameters.frame_size[0], self.parameters.frame_size[1])))
         model.add(Conv2D(64, (4, 4), strides=(2, 2), activation='relu', kernel_initializer=init))
         model.add(Conv2D(64, (3, 3), strides=(1, 1), activation='relu', kernel_initializer=init))
         model.add(Flatten())
@@ -136,7 +143,8 @@ class QLearning(object):
 
     def save_replay_memory(self, replay_memory_file_name):
         print("%s: Saving replay memory to %s" % (datetime.now(), replay_memory_file_name))
-        state_shape = (self.parameters.history_length, *self.parameters.frame_size)
+        channels = self._get_frame_channels()
+        state_shape = (channels * self.parameters.history_length, *self.parameters.frame_size)
 
         memory_sample_cols = {
             'state': Float32Col(shape=state_shape), 
@@ -276,10 +284,12 @@ class QLearning(object):
     def train_step(self):
         self.parameters.steps += 1
         sample = self.sample_replay_memory(self.parameters.minibatch_size)
+        channels = self._get_frame_channels()
+
         Y = np.zeros((len(sample), len(possible_actions)))
-        X_old_states = np.zeros((len(sample), self.parameters.history_length,
+        X_old_states = np.zeros((len(sample), channels * self.parameters.history_length,
             self.parameters.frame_size[0], self.parameters.frame_size[1]))
-        X_new_states = np.zeros((len(sample), self.parameters.history_length,
+        X_new_states = np.zeros((len(sample), channels * self.parameters.history_length,
             self.parameters.frame_size[0], self.parameters.frame_size[1]))
 
         for i in range(len(sample)):
@@ -318,14 +328,21 @@ class QLearning(object):
         if len(images) != self.parameters.history_length:
             raise Exception(
                 "Invalid number of frames. Expected %d, got %d" % (self.parameters.history_length, len(images)))
-
-        result = np.zeros((self.parameters.history_length, self.parameters.frame_size[0], self.parameters.frame_size[1]))
+        
+        color_channels = self._get_frame_channels()
+        
+        result = np.zeros((color_channels * self.parameters.history_length, self.parameters.frame_size[0], self.parameters.frame_size[1]))
         for i, image in enumerate(images):
             resized_image = imresize(image, self.parameters.frame_size)
-            # Assume RGB
-            result[i] = (0.2126 * resized_image[:, :, 0] +
-                         0.7152 * resized_image[:, :, 1] +
-                         0.0722 * resized_image[:, :, 2])
+            if self.parameters.use_color_frames == False:
+                # Assume RGB
+                result[i * color_channels, :, :] = (0.2126 * resized_image[:, :, 0] +
+                                                    0.7152 * resized_image[:, :, 1] +
+                                                    0.0722 * resized_image[:, :, 2])
+            else:
+                for j in range(color_channels):
+                    result[i * color_channels +  j] = resized_image[:, :, j]
+                
 
         return result
 

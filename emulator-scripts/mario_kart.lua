@@ -13,7 +13,7 @@ socket.try     = try.new()
 local http = require "socket.http"
 http.TIMEOUT = nil -- Wait indefinitely
 
-local frames_to_stack = 4
+local frames_to_stack = 1
 local frame_number = 0
 local stacked_frames = 0
 local last_checkpoint_stacked_frames = 0
