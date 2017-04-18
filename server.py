@@ -74,7 +74,21 @@ EMPTY_FRAME = np.zeros((240, 160, 3))
 last_action_request = None
 minimaps = {
     name: (preprocess_map(filename), average_time) for name, filename, average_time in
-        [('peach_circuit', 'tracks/peach_circuit.png', 30 * 100)]
+        [('peach_circuit', 'tracks/peach_circuit.png', 30 * 100),
+         ('boo_lake', 'tracks/boo_lake.png', 30 * 100),
+         ('bowser_castle_2', 'tracks/bowser_castle_2.png', 30 * 100),
+         ('mario_circuit', 'tracks/mario_circuit.png', 30 * 100),
+         ('cheep_cheep_island', 'tracks/cheep_cheep_island.png', 30 * 100),
+         ('luigi_circuit', 'tracks/luigi_circuit.png', 30 * 100),
+         ('sky_garden', 'tracks/sky_garden.png', 30 * 100),
+         ('sunset_wilds', 'tracks/sunset_wilds.png', 30 * 100),
+         ('bowser_castle_1', 'tracks/bowser_castle_1.png', 30 * 100),
+         ('shy_guy_beach', 'tracks/shy_guy_beach.png', 30 * 100),
+         ('bowser_castle_3', 'tracks/bowser_castle_3.png', 30 * 100),
+         ('snow_land', 'tracks/snow_land.png', 30 * 100),
+         ('yoshi_desert', 'tracks/yoshi_desert.png', 30 * 100)]
+
+
 }
 
 agent, session = create_agent(args.mode, args.saved_episodes,
@@ -82,12 +96,20 @@ agent, session = create_agent(args.mode, args.saved_episodes,
     args.session_base_path)
 app = Flask(__name__)
 
+
+@app.route('/get-checkpoint-parameters', methods = ['POST'])
+def get_checkpoints_parameters():
+    return make_response(jsonify({
+        'max_time_between_checkpoints': agent.parameters.max_time_between_checkpoints
+    }))
+
 @app.route('/get-minimap', methods = ['POST'])
 def get_minimap():
     params = request.get_json()
     minimap_name = params['minimap_name']
     matrix, average_time = minimaps[minimap_name]
     max_steps = np.max(matrix)
+
     return make_response(jsonify({
         "matrix": matrix,
         "average_time": average_time,
@@ -107,10 +129,12 @@ def request_action():
     global last_action_request
 
     params = request.get_json()
-
+    
     game_id, reward, screenshots, train, is_terminal_state = (
         params["game_id"], float(params["reward"]), params["screenshots"],
         params["train"], bool(params["race_ended"]))
+
+    max_time_between_checkpoints = agent.parameters.max_time_between_checkpoints
 
     images = []
     for i, screenshot in enumerate(screenshots):
@@ -131,7 +155,11 @@ def request_action():
     last_action_request = None if is_terminal_state else (processed_images, action_index)
     action = possible_actions[action_index]
 
-    return make_response(jsonify({'action': action}))
+    
+    return make_response(jsonify({
+        'action': action,
+        'max_time_between_checkpoints': max_time_between_checkpoints,
+    }))
 
 if __name__ == '__main__':
     with session:

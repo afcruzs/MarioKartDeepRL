@@ -24,7 +24,7 @@ local minimap_offset_x = 240 - 64
 local minimap_offset_y = 160 - 64
 local end_of_lap_threshold = 0.9
 local start_of_lap_threshold = 0.1
-local max_time_between_checkpoints = 2000
+local max_time_between_checkpoints = nil
 local max_frames = 65535
 local max_coins = 255
 local max_entity_hits = 20
@@ -33,13 +33,13 @@ local max_length_positions_queue = 60
 local checkpoint_percentage_interval = 0.15
 local base_url = "http://localhost:5000/"
 local screenshot_folder = "../results/"
-local state_file = "../game/mario_kart.State"
-local checkpoint_state_file = "../game/mario_kart_checkpoint.State"
+
 local train = true
 local manual_mode = false
 local use_checkpoint = true
 local repeat_forever = true
 local use_initial_checkpoint = true
+local use_training_tracks = true
 
 local game_id = nil
 local action = {}
@@ -47,7 +47,78 @@ local state = nil
 local last_checkpoint = nil
 local MarioKartState = {}
 
+local base_state_file = "../game/"
+
+local training_track_file_name = { 
+                            {name = "boo_lake", state = "FlowerCup/BooLake.State"},
+                            {name = "bowser_castle_2", state = "FlowerCup/BowserCastle2.State"},
+                            {name = "luigi_circuit", state = "LighthingCup/LuigiCircuit.State"},
+                            {name = "sky_garden", state = "LighthingCup/SkyGarden.State"},
+                            {name = "peach_circuit", state = "MushroomCup/PeachCircuit.State"},
+                            {name = "shy_guy_beach", state = "MushroomCup/ShyGuyBeach.State"},
+                            {name = "bowser_castle_3", state = "StarCup/BowserCastle3.State"},
+                            {name = "yoshi_desert", state = "StarCup/YoshiDesert.State"}
+                          }                                        
+
+local testing_track_file_name = {
+  {name = "mario_circuit", state = "FlowerCup/MarioCircuit.State"},
+  {name = "cheep_cheep_island", state = "LighthingCup/CheepCheepIsland.State"},
+  {name = "sunset_wilds", state = "LighthingCup/SunsetWilds.State"},
+  {name = "bowser_castle_1", state = "MushroomCup/BowserCastle1.State"},
+  {name = "snow_land", state = "StarCup/SnowLand.State"},
+}
+
+local track_file_name = use_training_tracks and training_track_file_name or testing_track_file_name
+
+-- A random sequence (without repetition)
+-- of tracks is generated with size 'number_of_tracks'.
+-- After the player successfuly completes these tracks,
+-- a new random sequence is generated and so on.
+local number_of_tracks = 3
+
+local current_track_idx = 0
+local tracks_permutation = {}                          
+
+local state_file = nil
+local track_info = nil
+local checkpoint_state_file = "../game/mario_kart_checkpoint.State"
+
 MarioKartState.__index = MarioKartState
+
+function table_length(T)
+  local count = 0
+  for _ in pairs(T) do count = count + 1 end
+  return count
+end
+
+function generate_tracks_permutation()
+  local n = table_length(track_file_name)
+  for i = 1, n, 1 do
+    tracks_permutation[i] = i
+  end
+
+  for i = 1, n - 1, 1 do
+    local j = math.random(i, n)
+    tracks_permutation[i], tracks_permutation[j] = 
+    tracks_permutation[j], tracks_permutation[i]
+  end
+end
+
+function get_current_track_data()
+  return track_file_name[tracks_permutation[current_track_idx]]
+end
+
+function advance_track()
+  if current_track_idx == 0 or current_track_idx == number_of_tracks then
+    generate_tracks_permutation()
+    current_track_idx = 0
+  end  
+
+  current_track_idx = current_track_idx + 1
+  local current = get_current_track_data()
+  track_info = retrieve_minimap( current.name )
+  state_file = base_state_file .. current.state
+end  
 
 function table_shallow_copy(t)
   copy = {}
@@ -76,6 +147,11 @@ local protected_request = function(reqt, body)
   else
     return nil, unpack(results)
 	end
+end
+
+function initialize_checkpoints_parameters()
+  local result = make_json_request(base_url .. "get-checkpoint-parameters", "POST", {})
+  max_time_between_checkpoints = result.max_time_between_checkpoints
 end
 
 function MarioKartState.new()
@@ -412,8 +488,11 @@ function reset()
   create_checkpoint()
 end
 
+advance_track()
 reset()
-local track_info = retrieve_minimap('peach_circuit')
+
+initialize_checkpoints_parameters()
+
 
 while true do
   client.screenshot(screenshot_folder .. "screenshot" .. (frame_number % frames_to_stack) ..  ".png")
@@ -465,6 +544,7 @@ while true do
 
       action = result.action
       current_reward = 0
+      max_time_between_checkpoints = result.max_time_between_checkpoints
     end
 
     joypad.set(action)
@@ -479,11 +559,13 @@ while true do
     if not repeat_forever then
       break
     end
+    advance_track()
     reset()
   end
 
-  if state:is_timed_out() and use_checkpoint then
-    restore_checkpoint()
-  end
+  
 
+  if state:is_timed_out() and use_checkpoint then
+    restore_checkpoint()    
+  end
 end
