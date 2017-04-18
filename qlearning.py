@@ -45,7 +45,7 @@ class QLearningParameters(object):
         replay_memory_size=100000, discount_factor=0.92, learning_rate=0.00025,
         gradient_momentum=0.95, squared_momentum=0.95, min_squared_gradient=0.01,
         initial_exploration=1, final_exploration=0.1, final_exploration_frame=1000000,
-        replay_memory_start_size=50000, target_network_update_frequency=5000, use_color_frames=True):
+        replay_memory_start_size=80000, target_network_update_frequency=5000, use_color_frames=True):
 
         self.frame_size = frame_size
         self.history_length = history_length
