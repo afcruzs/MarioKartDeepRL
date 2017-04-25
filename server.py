@@ -82,6 +82,14 @@ agent, session = create_agent(args.mode, args.saved_episodes,
     args.session_base_path)
 app = Flask(__name__)
 
+
+@app.route('/get-checkpoint-parameters', methods = ['POST'])
+def get_checkpoints_parameters():
+    return make_response(jsonify({
+        'max_time_between_checkpoints': agent.parameters.max_time_between_checkpoints,
+        'max_time_between_checkpoints_increase': agent.parameters.max_time_between_checkpoints_increase
+    }))
+
 @app.route('/get-minimap', methods = ['POST'])
 def get_minimap():
     params = request.get_json()
@@ -107,10 +115,14 @@ def request_action():
     global last_action_request
 
     params = request.get_json()
-
-    game_id, reward, screenshots, train, is_terminal_state = (
+    
+    game_id, reward, screenshots, train, is_terminal_state, max_time_between_checkpoints, max_time_between_checkpoints_increase = (
         params["game_id"], float(params["reward"]), params["screenshots"],
-        params["train"], bool(params["race_ended"]))
+        params["train"], bool(params["race_ended"]),
+        float(params["max_time_between_checkpoints"]),
+        float(params["max_time_between_checkpoints_increase"]))
+
+    agent.set_checkpoints_parameters(max_time_between_checkpoints, max_time_between_checkpoints_increase)
 
     images = []
     for i, screenshot in enumerate(screenshots):

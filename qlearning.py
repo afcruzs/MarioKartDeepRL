@@ -45,7 +45,9 @@ class QLearningParameters(object):
         replay_memory_size=100000, discount_factor=0.92, learning_rate=0.00025,
         gradient_momentum=0.95, squared_momentum=0.95, min_squared_gradient=0.01,
         initial_exploration=1, final_exploration=0.1, final_exploration_frame=1000000,
-        replay_memory_start_size=50000, target_network_update_frequency=5000, use_color_frames=True):
+        replay_memory_start_size=50000, target_network_update_frequency=5000, use_color_frames=True,
+        max_time_between_checkpoints=2000, final_max_time_between_checkpoints=20000,
+        final_checkpoint_frame=1000000):
 
         self.frame_size = frame_size
         self.history_length = history_length
@@ -66,6 +68,8 @@ class QLearningParameters(object):
         self.exploration_decay = (1.0 * initial_exploration - final_exploration) / final_exploration_frame
         self.target_network_update_frequency = target_network_update_frequency
         self.use_color_frames = use_color_frames
+        self.max_time_between_checkpoints = max_time_between_checkpoints
+        self.max_time_between_checkpoints_increase = (1.0 * final_max_time_between_checkpoints - max_time_between_checkpoints) / final_checkpoint_frame
 
 
 class QLearning(object):
@@ -83,6 +87,10 @@ class QLearning(object):
         self.episode_steps = 0
 
         self.session.set_episode(self.parameters.episodes)
+
+    def set_checkpoints_parameters(self, max_time_between_checkpoints, max_time_between_checkpoints_increase):
+        self.parameters.max_time_between_checkpoints = max_time_between_checkpoints
+        self.parameters.max_time_between_checkpoints_increase = max_time_between_checkpoints_increase
     
     def _get_frame_channels(self):
         return 3 if self.parameters.use_color_frames else 1

@@ -24,7 +24,8 @@ local minimap_offset_x = 240 - 64
 local minimap_offset_y = 160 - 64
 local end_of_lap_threshold = 0.9
 local start_of_lap_threshold = 0.1
-local max_time_between_checkpoints = 2000
+local max_time_between_checkpoints = nil
+local max_time_between_checkpoints_increase = nil
 local max_frames = 65535
 local max_coins = 255
 local max_entity_hits = 20
@@ -76,6 +77,12 @@ local protected_request = function(reqt, body)
   else
     return nil, unpack(results)
 	end
+end
+
+function initialize_checkpoints_parameters()
+  local result = make_json_request(base_url .. "get-checkpoint-parameters", "POST", {})
+  max_time_between_checkpoints = result.max_time_between_checkpoints
+  max_time_between_checkpoints_increase = result.max_time_between_checkpoints_increase
 end
 
 function MarioKartState.new()
@@ -415,6 +422,8 @@ end
 reset()
 local track_info = retrieve_minimap('peach_circuit')
 
+initialize_checkpoints_parameters()
+
 while true do
   client.screenshot(screenshot_folder .. "screenshot" .. (frame_number % frames_to_stack) ..  ".png")
   stacked_frames = math.min(stacked_frames + 1, frames_to_stack)
@@ -460,7 +469,9 @@ while true do
         reward=current_reward,
         screenshots=last_screenshots,
         train=train,
-        race_ended=race_ended
+        race_ended=race_ended,
+        max_time_between_checkpoints=max_time_between_checkpoints,
+        max_time_between_checkpoints_increase=max_time_between_checkpoints_increase
       })
 
       action = result.action
@@ -482,8 +493,12 @@ while true do
     reset()
   end
 
+  
+
   if state:is_timed_out() and use_checkpoint then
-    restore_checkpoint()
+    restore_checkpoint()    
   end
+
+  max_time_between_checkpoints = max_time_between_checkpoints + max_time_between_checkpoints_increase
 
 end
