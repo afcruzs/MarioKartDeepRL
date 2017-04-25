@@ -8,7 +8,7 @@ START_LINE_COLOR = (0, 0, 0)
 INIT_COLOR = (255, 0, 0)
 
 def preprocess_map(filepath):
-  print "Processing", filepath
+  print("Processing", filepath)
   offset = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
   img = Image.open(filepath)
   width, height = img.size
