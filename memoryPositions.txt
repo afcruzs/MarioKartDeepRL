@@ -48,3 +48,5 @@ Reward = PositionPoints + Coins * 4 - Time / 8 - FramesNotHittingGas / 4
          - FramesOutsideTrack / 4
 
 PositionPoints = (7 - position) * 8
+
+https://www.gamefaqs.com/gba/371318-mario-kart-super-circuit/faqs/67255

@@ -4,14 +4,15 @@ import itertools
 import random
 import utils
 from keras.models import Sequential
-from keras.layers import Convolution2D, Dense, Flatten
+from keras.layers import Conv2D, Dense, Flatten
 from keras.optimizers import Adam
 from keras.backend import image_dim_ordering, set_image_dim_ordering
-from keras.initializations import normal
+from keras.initializers import RandomNormal
 from utils import CircularBuffer
 from datetime import datetime
 import pickle
 import shutil
+from tables import IsDescription, Float32Atom, Int8Col, BoolCol, open_file, Float32Col
 
 possible_actions = [
     {}, # No op
@@ -29,6 +30,9 @@ possible_actions = [
     { 'A': 1, 'Left': 1, 'R': 1, 'L': 1 } # Drift left, power
 ]
 
+HDF5_REPLAY_MEMORY_GROUP_NAME = 'replay_memory_group'
+HDF5_REPLAY_MEMORY_TABLE_NAME = 'replay_memory_table'
+
 if image_dim_ordering() != 'th':
     set_image_dim_ordering('th')
 
@@ -37,11 +41,11 @@ def copy_weights(source_model, dest_model):
         dest_model.layers[i].set_weights(layer.get_weights())
 
 class QLearningParameters(object):
-    def __init__(self, frame_size=(84, 84), history_length=4, minibatch_size=32,
-        replay_memory_size=80000, discount_factor=0.99, learning_rate=0.00025,
+    def __init__(self, frame_size=(84, 84), history_length=1, minibatch_size=32,
+        replay_memory_size=100000, discount_factor=0.92, learning_rate=0.00025,
         gradient_momentum=0.95, squared_momentum=0.95, min_squared_gradient=0.01,
         initial_exploration=1, final_exploration=0.1, final_exploration_frame=1000000,
-        replay_memory_start_size=50000, target_network_update_frequency=5000):
+        replay_memory_start_size=50000, target_network_update_frequency=5000, use_color_frames=True):
 
         self.frame_size = frame_size
         self.history_length = history_length
@@ -61,6 +65,8 @@ class QLearningParameters(object):
         self.exploration_rate = initial_exploration
         self.exploration_decay = (1.0 * initial_exploration - final_exploration) / final_exploration_frame
         self.target_network_update_frequency = target_network_update_frequency
+        self.use_color_frames = use_color_frames
+
 
 class QLearning(object):
     def __init__(self, session, parameters):
@@ -77,17 +83,22 @@ class QLearning(object):
         self.episode_steps = 0
 
         self.session.set_episode(self.parameters.episodes)
+    
+    def _get_frame_channels(self):
+        return 3 if self.parameters.use_color_frames else 1
 
     def _create_model(self):
-        init = lambda shape, name: normal(shape, name=name)
+        channels = self._get_frame_channels()
+        
+        init = RandomNormal()
         model = Sequential()
-        model.add(Convolution2D(32, 8, 8, subsample=(4, 4), activation='relu', init=init,
-            input_shape=(self.parameters.history_length, self.parameters.frame_size[0], self.parameters.frame_size[1])))
-        model.add(Convolution2D(64, 4, 4, subsample=(2, 2), activation='relu', init=init))
-        model.add(Convolution2D(64, 3, 3, subsample=(1, 1), activation='relu', init=init))
+        model.add(Conv2D(32, (8, 8), strides=(4, 4), activation='relu', kernel_initializer=init,
+            input_shape=(channels * self.parameters.history_length, self.parameters.frame_size[0], self.parameters.frame_size[1])))
+        model.add(Conv2D(64, (4, 4), strides=(2, 2), activation='relu', kernel_initializer=init))
+        model.add(Conv2D(64, (3, 3), strides=(1, 1), activation='relu', kernel_initializer=init))
         model.add(Flatten())
-        model.add(Dense(512, activation='relu', init=init))
-        model.add(Dense(len(possible_actions), activation='linear', init=init))
+        model.add(Dense(512, activation='relu', kernel_initializer=init))
+        model.add(Dense(len(possible_actions), activation='linear', kernel_initializer=init))
 
         model.compile(
             Adam(lr=self.parameters.learning_rate,
@@ -103,11 +114,11 @@ class QLearning(object):
 
     def save_agent(self):
         full_path = self.session.get_current_path()
-        print "Saving agent state to", full_path
+        print("Saving agent state to", full_path)
 
         model_file_name = full_path + '/model.h5'
         delayed_model_file_name = full_path + '/delayed_model.h5'
-        replay_memory_file_name = full_path + '/replay_memory.npy'
+        replay_memory_file_name = full_path + '/replay_memory.h5'
         parameters_file_name = full_path + '/parameters.pkl'
 
         self.model.save_weights(model_file_name)
@@ -116,33 +127,72 @@ class QLearning(object):
         with open(parameters_file_name, 'wb') as output:
             pickle.dump(self.parameters, output)
 
-        print "Saving episode folder information"
+        print("Saving episode folder information")
         episode_file_name = self.session.get_session_path() + '/episode.txt'
         with open(episode_file_name, 'w') as f:
             f.write(str(self.parameters.episodes) + '\n')
 
-        print "Copying weights to global folder"
+        print("Copying weights to global folder")
 
         episode_weights_dir = self.session.get_episode_weights_directory(self.parameters.episodes) + '/'
         shutil.copy(model_file_name, episode_weights_dir)
         shutil.copy(delayed_model_file_name, episode_weights_dir)
         shutil.copy(parameters_file_name, episode_weights_dir)
 
-        print "Agent state saved to", full_path
+        print("Agent state saved to", full_path)
 
     def save_replay_memory(self, replay_memory_file_name):
-        print "%s: Saving replay memory to %s" % (datetime.now(), replay_memory_file_name)
-        np.save(replay_memory_file_name, self.replay_memory)
-        print "%s: Replay memory saved to %s" % (datetime.now(), replay_memory_file_name)
+        print("%s: Saving replay memory to %s" % (datetime.now(), replay_memory_file_name))
+        channels = self._get_frame_channels()
+        state_shape = (channels * self.parameters.history_length, *self.parameters.frame_size)
+
+        memory_sample_cols = {
+            'state': Float32Col(shape=state_shape), 
+            'new_state': Float32Col(shape=state_shape),
+            'action': Int8Col(),
+            'reward': Float32Col(),
+            'is_terminal': BoolCol()
+        }
+
+
+        with open_file(replay_memory_file_name, mode="w") as h5file:
+            group = h5file.create_group('/', HDF5_REPLAY_MEMORY_GROUP_NAME, 'Replay Memory')
+            table = h5file.create_table(group, HDF5_REPLAY_MEMORY_TABLE_NAME, memory_sample_cols, 'Replay Memory Sample')
+            row = table.row
+
+            for state, action, reward, new_state, is_terminal in self.replay_memory:
+                row['state'] = state
+                row['new_state'] = new_state
+                row['action'] = action
+                row['reward'] = reward
+                row['is_terminal'] = is_terminal
+
+                row.append()
+
+        print("%s: Replay memory saved to %s" % (datetime.now(), replay_memory_file_name))
 
     def load_replay_memory(self, replay_memory_file_name):
-        print "%s: Loading replay memory from %s" % (datetime.now(), replay_memory_file_name)
-        self.replay_memory = CircularBuffer(self.parameters.replay_memory_size,
-            np.load(replay_memory_file_name))
-        print "%s: Replay memory loaded from %s" % (datetime.now(), replay_memory_file_name)
+        print("%s: Loading replay memory from %s" % (datetime.now(), replay_memory_file_name))
+        self.replay_memory = CircularBuffer(self.parameters.replay_memory_size)
+
+        with open_file(replay_memory_file_name, mode="r") as h5file:
+            group = h5file.root.__getattr__(HDF5_REPLAY_MEMORY_GROUP_NAME)
+            table = group.__getattr__(HDF5_REPLAY_MEMORY_TABLE_NAME)
+
+            for row in table:
+                state = row['state']
+                new_state = row['new_state']
+                action = row['action']
+                reward = row['reward']
+                is_terminal = row['is_terminal']
+
+                self.store_in_replay_memory(state, action, reward, new_state, is_terminal)
+                
+        print("%s: Replay memory loaded from %s" % (datetime.now(), replay_memory_file_name))
+        print("Replay memory size: %d" % (len(self.replay_memory),))
 
     def load_agent(self, load_replay_memory=True):
-        print "Locating episode"
+        print("Locating episode")
         episode_file_name = self.session.get_session_path() + '/episode.txt'
         episode = None
         with open(episode_file_name, 'r') as input_file:
@@ -153,31 +203,31 @@ class QLearning(object):
         full_path = self.session.get_current_path()
         model_file_name = full_path + '/model.h5'
         delayed_model_file_name = full_path + '/delayed_model.h5'
-        replay_memory_file_name = full_path + '/replay_memory.npy'
+        replay_memory_file_name = full_path + '/replay_memory.h5'
         parameters_file_name    = full_path + '/parameters.pkl'
 
-        print "Loading agent from", full_path
+        print("Loading agent from", full_path)
 
-        print "Loading parameters..."
+        print("Loading parameters...")
         with open(parameters_file_name, 'rb') as input_file:
             self.parameters = pickle.load(input_file)
 
         self.session.set_episode(self.parameters.episodes)
-        print "Current episode is:", self.parameters.episodes
+        print("Current episode is:", self.parameters.episodes)
 
-        print "Loading model weights..."
+        print("Loading model weights...")
         self.model.load_weights(model_file_name)
-        print "Loading delayed model weights..."
+        print("Loading delayed model weights...")
         self.delayed_model.load_weights(delayed_model_file_name)
 
         if load_replay_memory:
             self.load_replay_memory(replay_memory_file_name)
         else:
-            print "Replay memory load skipped"
+            print("Replay memory load skipped")
 
         self.advance_episode()
 
-        print "Agent loaded from", full_path
+        print("Agent loaded from", full_path)
 
     def is_initializing_replay_memory(self):
         return len(self.replay_memory) < self.parameters.replay_memory_start_size
@@ -185,13 +235,13 @@ class QLearning(object):
     def record_experience(self, state, action, reward, new_state, is_terminal):
         self.store_in_replay_memory(state, action, reward, new_state, is_terminal)
         if self.is_initializing_replay_memory():
-            print "Collecting initial experiences (%d / %d)" % (len(self.replay_memory), self.parameters.replay_memory_start_size)
+            print("Collecting initial experiences (%d / %d)" % (len(self.replay_memory), self.parameters.replay_memory_start_size))
             return
 
         # Check if we just filled the initial replay memory
         if self.parameters.steps == 0:
-            print "Saving initial replay memory..."
-            self.save_replay_memory(self.session.get_session_path() + "/initial-replay-memory.npy")
+            print("Saving initial replay memory...")
+            self.save_replay_memory(self.session.get_session_path() + "/initial-replay-memory.h5")
 
         self.episode_accumulated_reward += reward
         self.episode_steps += 1.0
@@ -199,14 +249,28 @@ class QLearning(object):
         loss = self.train_step()
         self.episode_accumulated_loss += loss
 
-        if is_terminal:
-            average_reward = self.episode_accumulated_reward / self.episode_steps
-            average_loss = self.episode_accumulated_loss / self.episode_steps
+        average_reward = self.episode_accumulated_reward / self.episode_steps
+        average_loss = self.episode_accumulated_loss / self.episode_steps
+        score = self.episode_accumulated_reward
+        episode_steps = self.episode_steps
+        episode = self.parameters.episodes
+        global_steps = self.parameters.steps
 
-            self.session.append_reward(average_reward)
-            self.session.append_loss(average_loss)
-            self.session.append_score(self.episode_accumulated_reward, self.episode_steps,
-                self.parameters.episodes)
+        print("\nEpisode %d. Global step: %d. Episode step: %d" % (episode, global_steps,
+            episode_steps))
+        print("Cumulative reward: %f. Average: %f. Current reward: %f" % (score, average_reward, reward))
+        print("Loss is %f (Average: %f. Cumulative: %f)" % (loss, average_loss,
+            self.episode_accumulated_loss))
+        print("Exploration rate is %f" % (self.parameters.exploration_rate, ))
+
+        if is_terminal:
+            print(("%s: Episode %d finished. Score: %f. Average reward: %f. Average loss: %f. " +
+                "Episode steps: %f") %
+                (datetime.now().strftime("%Y%m%d_%H%M%S"), episode, score, average_reward,
+                average_loss, episode_steps))
+
+            self.session.save_episode_results(reward=average_reward, score=score, loss=average_loss,
+                episode_steps=episode_steps)
 
             self.episode_accumulated_reward = 0
             self.episode_steps = 0
@@ -215,20 +279,20 @@ class QLearning(object):
             self.save_agent()
             self.advance_episode()
 
-            now = datetime.now()
-
-            print "%s: Episode %d" % (now.strftime("%Y%m%d_%H%M%S"), self.parameters.episodes)
+            print("%s: Episode %d saved" % (datetime.now().strftime("%Y%m%d_%H%M%S"), episode))
 
     def train_step(self):
         self.parameters.steps += 1
         sample = self.sample_replay_memory(self.parameters.minibatch_size)
+        channels = self._get_frame_channels()
+
         Y = np.zeros((len(sample), len(possible_actions)))
-        X_old_states = np.zeros((len(sample), self.parameters.history_length,
+        X_old_states = np.zeros((len(sample), channels * self.parameters.history_length,
             self.parameters.frame_size[0], self.parameters.frame_size[1]))
-        X_new_states = np.zeros((len(sample), self.parameters.history_length,
+        X_new_states = np.zeros((len(sample), channels * self.parameters.history_length,
             self.parameters.frame_size[0], self.parameters.frame_size[1]))
 
-        for i in xrange(len(sample)):
+        for i in range(len(sample)):
             state, action, reward, new_state, is_terminal = sample[i]
 
             X_old_states[i:i + 1] = state
@@ -237,7 +301,7 @@ class QLearning(object):
         old_predictions = self.model.predict(X_old_states)
         new_predictions = self.delayed_model.predict(X_new_states)
 
-        for i in xrange(len(sample)):
+        for i in range(len(sample)):
             state, action, reward, new_state, is_terminal = sample[i]
 
             Y[i] = old_predictions[i]
@@ -248,12 +312,6 @@ class QLearning(object):
                 Y[i, action] = reward + self.parameters.discount_factor * np.max(new_predictions[i])
 
         loss = self.model.train_on_batch(X_old_states, Y)
-        print "Episode %d. Global step: %d. Episode step: %d" % (self.parameters.episodes, self.parameters.steps, self.episode_steps)
-        print "Cumulative reward: %f. Average: %f" % (self.episode_accumulated_reward,
-            self.episode_accumulated_reward / self.episode_steps,)
-        print "Loss is %f (Average: %f. Cumulative: %f)" % (loss,
-            self.episode_accumulated_loss / self.episode_steps, self.episode_accumulated_loss)
-        print "Exploration rate is %f" % (self.parameters.exploration_rate, )
 
         if self.parameters.steps % self.parameters.target_network_update_frequency == 0:
             copy_weights(self.model, self.delayed_model)
@@ -270,26 +328,34 @@ class QLearning(object):
         if len(images) != self.parameters.history_length:
             raise Exception(
                 "Invalid number of frames. Expected %d, got %d" % (self.parameters.history_length, len(images)))
-
-        result = np.zeros((self.parameters.history_length, self.parameters.frame_size[0], self.parameters.frame_size[1]))
+        
+        color_channels = self._get_frame_channels()
+        
+        result = np.zeros((color_channels * self.parameters.history_length, self.parameters.frame_size[0], self.parameters.frame_size[1]))
         for i, image in enumerate(images):
             resized_image = imresize(image, self.parameters.frame_size)
-            # Assume RGB
-            result[i] = (0.2126 * resized_image[:, :, 0] +
-                         0.7152 * resized_image[:, :, 1] +
-                         0.0722 * resized_image[:, :, 2])
+            if self.parameters.use_color_frames == False:
+                # Assume RGB
+                result[i * color_channels, :, :] = (0.2126 * resized_image[:, :, 0] +
+                                                    0.7152 * resized_image[:, :, 1] +
+                                                    0.0722 * resized_image[:, :, 2])
+            else:
+                for j in range(color_channels):
+                    result[i * color_channels +  j] = resized_image[:, :, j]
+                
 
         return result
 
     def choose_action(self, processed_images, train):
+        action_type = None
         if train and (self.is_initializing_replay_memory() or
                 random.uniform(0,1) <= self.parameters.exploration_rate):
-            result = [random.choice(xrange(len(possible_actions))) for _ in xrange(processed_images.shape[0])]
-            print "Random action:",
+            result = [random.choice(range(len(possible_actions))) for _ in range(processed_images.shape[0])]
+            action_type = "Random action"
         else:
             result = [np.argmax(i) for i in self.model.predict(processed_images)]
-            print "Best action:",
-        print [possible_actions[i].keys() for i in result]
+            action_type = "Best action"
+        print(action_type + ':', [possible_actions[i].keys() for i in result])
 
         if train and not self.is_initializing_replay_memory():
             self.parameters.exploration_rate = max(self.parameters.final_exploration,

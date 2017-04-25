@@ -26,7 +26,7 @@ class CircularBuffer(object):
         return self._buffer[i]
 
     def __iter__(self):
-        for i in xrange(self._actual_len):
+        for i in range(self._actual_len):
             yield self._buffer[(self._head + i) % self._max_length]
 
     def push_circular(self, element):
@@ -49,7 +49,7 @@ def sample_without_replacement(source, n):
     chosen.add(-1)
     result = []
 
-    for i in xrange(n):
+    for i in range(n):
         element = -1
         while element in chosen:
             element = np.random.randint(0, len(source))

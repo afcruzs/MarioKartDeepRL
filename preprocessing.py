@@ -13,12 +13,12 @@ def preprocess_map(filepath):
   img = Image.open(filepath)
   width, height = img.size
 
-  matrix = [[-1 for j in xrange(height)] for i in xrange(width)]
+  matrix = [[-1 for j in range(height)] for i in range(width)]
 
   q = deque()
 
-  for x in xrange(width):
-    for y in xrange(height):
+  for x in range(width):
+    for y in range(height):
       if img.getpixel((x, y)) == INIT_COLOR:
         matrix[x][y] = 0
         q.append((x, y))
@@ -38,16 +38,16 @@ def preprocess_map(filepath):
         matrix[new_x][new_y] = 1 + cost
         q.append((new_x, new_y))
 
-  for x in xrange(width):
-    for y in xrange(height):
+  for x in range(width):
+    for y in range(height):
       if img.getpixel((x, y)) == START_LINE_COLOR:
         matrix[x][y] = 0
 
-  track_pixels = [(x, y) for x in xrange(width) for y in xrange(height) if
+  track_pixels = [(x, y) for x in range(width) for y in range(height) if
                   img.getpixel((x, y)) in (TRACK_COLOR, START_LINE_COLOR, INIT_COLOR)]
 
-  for x in xrange(width):
-    for y in xrange(height):
+  for x in range(width):
+    for y in range(height):
       if matrix[x][y] != -1:
         continue
 

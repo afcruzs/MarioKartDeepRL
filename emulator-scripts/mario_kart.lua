@@ -14,7 +14,12 @@ local http = require "socket.http"
 http.TIMEOUT = nil -- Wait indefinitely
 
 local frames_to_stack = 4
+local frames_to_stack = 1
 local frame_number = 0
+local stacked_frames = 0
+local last_checkpoint_stacked_frames = 0
+local score = 0
+local current_reward = 0
 local update_frequency = 10
 local minimap_offset_x = 240 - 64
 local minimap_offset_y = 160 - 64
@@ -33,6 +38,7 @@ local screenshot_folder = "../results/"
 local train = true
 local manual_mode = false
 local use_checkpoint = false
+local use_checkpoint = true
 local repeat_forever = true
 local use_initial_checkpoint = true
 
@@ -108,6 +114,18 @@ function advance_track()
     track_info = retrieve_minimap( current.name )
     state_file = base_state_file .. current.state
   end  
+=======
+function table_shallow_copy(t)
+  copy = {}
+  for key, value in pairs(t) do
+    copy[key] = value
+  end
+
+  return copy
+end
+
+function mod_difference(new, old, limit)
+  return math.fmod(limit + new - old, limit)
 end
 
 local function pack(ok, ...)
@@ -140,11 +158,29 @@ function MarioKartState:reset()
   self.global_lap = 1
   self.position = {0, 0}
   self.time = 0
+  self.previous_time = 0
   self.last_checkpoint_state = self:_build_checkpoint_state()
   self.race_status = 0
   self.is_outside = false
-  self.outside_frames = 0
   self.positions_queue = deque.new()
+
+  self.ram_data = {
+    outside_frames = 0,
+    place_score = 0,
+    coins = 0,
+    frames_not_hitting_gas = 0,
+    frames_hitting_brake = 0,
+    lakitu_rescue_count = 0,
+    entity_hit_count = 0,
+    wall_hit_count = 0,
+    spin_count = 0,
+    start_turbo_count = 0,
+    drift_turbo_count = 0,
+    item_box_hit_full = 0
+  }
+
+  self.previous_ram_data = table_shallow_copy(self.ram_data)
+
 end
 
 function MarioKartState:create_checkpoint()
@@ -157,10 +193,13 @@ function MarioKartState:create_checkpoint()
   checkpoint.global_lap = self.global_lap
   checkpoint.position = self.position
   checkpoint.time = self.time
+  checkpoint.previous_time = self.previous_time
   checkpoint.last_checkpoint_state = self.last_checkpoint_state
   checkpoint.is_outside = self.is_outside
-  checkpoint.outside_frames = self.outside_frames
   checkpoint.race_status = self.race_status
+
+  checkpoint.ram_data = table_shallow_copy(self.ram_data)
+  checkpoint.previous_ram_data = table_shallow_copy(self.previous_ram_data)
 
   -- Omitted properties: positions_queue
 
@@ -190,22 +229,14 @@ function MarioKartState:is_timed_out()
   return self.time - self.last_checkpoint_state.time >= max_time_between_checkpoints
 end
 
-function MarioKartState:_get_speed(track_info)
-  local max_velocity = 100.0 * track_info['max_steps'] / track_info['average_time']
+function MarioKartState:_get_progress_difference(track_info)
   local new_position = assert(self.positions_queue:peek_right(), 'No new position available')
   local old_position = assert(self.positions_queue:peek_left(), 'No old position available')
 
-  local speed = 0
-  local lap_difference = new_position['lap'] - old_position['lap']
+  local new_overall_percentage = new_position['lap'] + new_position['lap_percentage']
+  local old_overall_percentage = old_position['lap'] + old_position['lap_percentage']
 
-  if lap_difference >= 0 then
-    speed = lap_difference * track_info['max_steps'] - old_position['step'] + new_position['step']
-  else
-    speed = -((-lap_difference) * track_info['max_steps'] - new_position['step'] + old_position['step'])
-  end
-  speed = speed / max_velocity
-
-  return speed
+  return new_overall_percentage - old_overall_percentage
 end
 
 function MarioKartState._get_time_from_ram()
@@ -226,6 +257,8 @@ function MarioKartState._get_position_from_ram()
 end
 
 function MarioKartState:update_from_ram(track_info)
+  self.previous_ram_data = table_shallow_copy(self.ram_data)
+  self.previous_time = self.time
   self.position = MarioKartState._get_position_from_ram()
 
   local x = self.position[1]
@@ -254,15 +287,32 @@ function MarioKartState:update_from_ram(track_info)
     step=track_info['matrix'][x][y],
     lap=self.actual_global_lap,
     x=x,
-    y=y
+    y=y,
+    lap_percentage=lap_percentage
   })
 
   self.time = MarioKartState._get_time_from_ram()
   self.race_status = MarioKartState._get_race_status_from_ram()
 
   local outside_frames = MarioKartState._get_outside_frames_from_ram()
-  self.is_outside = (outside_frames ~= self.outside_frames)
-  self.outside_frames = outside_frames
+  self.is_outside = (outside_frames ~= self.ram_data.outside_frames)
+
+  local place = memory.read_u8(0x23B4)
+
+  self.ram_data = {
+    outside_frames = outside_frames,
+    place_score = self.ram_data.place_score + (7 - place),
+    coins = memory.read_u8(0x3D10),
+    frames_not_hitting_gas = memory.read_u16_le(0x3ADC),
+    frames_hitting_brake = memory.read_u16_le(0x3AE0),
+    lakitu_rescue_count = memory.read_u8(0x3AE7),
+    entity_hit_count = memory.read_u8(0x3AE8),
+    wall_hit_count = memory.read_u8(0x3AE9),
+    spin_count = memory.read_u8(0x3AEA),
+    start_turbo_count = memory.read_u8(0x3AEB),
+    drift_turbo_count = memory.read_u8(0x3AEC),
+    item_box_hit_full = memory.read_u8(0x3AF4)
+  }
 end
 
 function MarioKartState:get_reward(track_info)
@@ -270,16 +320,40 @@ function MarioKartState:get_reward(track_info)
     return -1.0
   end
 
-  local speed = self:_get_speed(track_info)
-  if speed <= 0 then
-    return -1.0
+  local progress_diference = self:_get_progress_difference(track_info)
+  local progress_reward = progress_diference
+
+  if progress_diference <= 0 and self.time > 0 then
+    progress_reward = -1
   end
 
-  if self.is_outside then
-    return -0.8
-  end
+  local score_reward = (
+    (self.ram_data.place_score - self.previous_ram_data.place_score) / 30 +
+    (self.ram_data.coins - self.previous_ram_data.coins) * 4 -
+    (self.time - self.previous_time) / 80 -
+    mod_difference(self.ram_data.frames_not_hitting_gas,
+      self.previous_ram_data.frames_not_hitting_gas, 65536) / 4 -
+    mod_difference(self.ram_data.frames_hitting_brake,
+      self.previous_ram_data.frames_hitting_brake, 65536) / 2 -
+    mod_difference(self.ram_data.lakitu_rescue_count,
+      self.previous_ram_data.lakitu_rescue_count, 256) * 30 -
+    mod_difference(self.ram_data.entity_hit_count,
+      self.previous_ram_data.entity_hit_count, 256) * 15 -
+    mod_difference(self.ram_data.wall_hit_count,
+      self.previous_ram_data.wall_hit_count, 256) * 20 -
+    mod_difference(self.ram_data.spin_count,
+      self.previous_ram_data.spin_count, 256) * 15 +
+    mod_difference(self.ram_data.start_turbo_count,
+      self.previous_ram_data.start_turbo_count, 256) * 25 +
+    mod_difference(self.ram_data.drift_turbo_count,
+      self.previous_ram_data.drift_turbo_count, 256) * 15 +
+    mod_difference(self.ram_data.item_box_hit_full,
+      self.previous_ram_data.item_box_hit_full, 256) * 15 -
+    mod_difference(self.ram_data.outside_frames,
+      self.previous_ram_data.outside_frames, 65536) / 4
+  )
 
-  return speed
+  return (0.5 * progress_reward + 0.5 * score_reward) / 14.0
 end
 
 function MarioKartState._get_outside_frames_from_ram()
@@ -329,6 +403,17 @@ function make_json_request(url, method, content_table)
   return result
 end
 
+function copy_file(source, destination)
+  local input_file = assert(io.open(source, "rb"))
+  local output_file = assert(io.open(destination, "wb"))
+
+  local data = input_file:read("*all")
+  output_file:write(data)
+
+  assert(input_file:close())
+  assert(output_file:close())
+end
+
 function renew_game_id()
   local result = make_json_request(base_url .. "game-id", "POST", {})
   return result.id
@@ -342,18 +427,47 @@ end
 
 function create_checkpoint()
   last_checkpoint = state:create_checkpoint()
+  last_checkpoint_stacked_frames = stacked_frames
   savestate.save(checkpoint_state_file)
+
+  -- Copy frames
+  for i=0,frames_to_stack-1 do
+    if i >= stacked_frames then
+      break
+    end
+    local screenshot_index = ((frame_number + frames_to_stack - i) % frames_to_stack)
+
+    local source_screenshot = screenshot_folder .. "screenshot" .. screenshot_index ..  ".png"
+    local destination_screenshot = screenshot_folder .. "checkpoint" .. i ..  ".png"
+    copy_file(source_screenshot, destination_screenshot)
+  end
 end
 
 function restore_checkpoint()
   state = last_checkpoint
+  stacked_frames = last_checkpoint_stacked_frames
   last_checkpoint = state:create_checkpoint()
   savestate.load(checkpoint_state_file)
+
+  for i=0,frames_to_stack-1 do
+    if i >= stacked_frames then
+      break
+    end
+    local screenshot_index = ((frame_number + frames_to_stack - i) % frames_to_stack)
+
+    local source_screenshot = screenshot_folder .. "checkpoint" .. i ..  ".png"
+    local destination_screenshot = screenshot_folder .. "screenshot" .. screenshot_index ..  ".png"
+    copy_file(source_screenshot, destination_screenshot)
+  end
 end
 
 function reset()
   memory.usememorydomain("IWRAM")
   frame_number = 0
+  stacked_frames = 0
+  last_checkpoint_stacked_frames = 0
+  score = 0
+  current_reward = 0
   game_id = renew_game_id()
 
   if use_initial_checkpoint then
@@ -368,8 +482,16 @@ generate_tracks_permutation()
 reset()
 
 while true do
+  client.screenshot(screenshot_folder .. "screenshot" .. (frame_number % frames_to_stack) ..  ".png")
+  stacked_frames = math.min(stacked_frames + 1, frames_to_stack)
+
   state:update_from_ram(track_info)
   local reward = state:get_reward(track_info)
+  score = score + reward
+
+  -- Keep track of the reward for the last update_frequency frames
+  current_reward = current_reward + reward
+
   local race_ended = state:race_ended()
 
   if state:get_overall_progress() >= last_checkpoint:get_overall_progress() + checkpoint_percentage_interval then
@@ -382,14 +504,13 @@ while true do
   gui.text(0, 60, "Overall progress: " .. (state:get_overall_progress()))
   gui.text(0, 80, "Last checkpoint: " .. (last_checkpoint:get_overall_progress()))
   gui.text(0, 100, "Is outside: " .. tostring(state.is_outside))
-
-  client.screenshot(screenshot_folder .. "screenshot" .. (frame_number % frames_to_stack) ..  ".png")
+  gui.text(0, 120, "Score: " .. score)
 
   if not manual_mode then
     if race_ended or (frame_number % update_frequency) == 0 then
       local last_screenshots = {}
       for i=0,frames_to_stack-1 do
-        if i > frame_number then
+        if i >= stacked_frames then
           break
         end
         local screenshot_index = ((frame_number + frames_to_stack - i) % frames_to_stack)
@@ -402,13 +523,14 @@ while true do
 
       local result = make_json_request(base_url .. "request-action", "POST", {
         game_id=game_id,
-        reward=reward,
+        reward=current_reward,
         screenshots=last_screenshots,
         train=train,
         race_ended=race_ended
       })
 
       action = result.action
+      current_reward = 0
     end
 
     joypad.set(action)
