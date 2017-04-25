@@ -13,7 +13,6 @@ socket.try     = try.new()
 local http = require "socket.http"
 http.TIMEOUT = nil -- Wait indefinitely
 
-local frames_to_stack = 4
 local frames_to_stack = 1
 local frame_number = 0
 local stacked_frames = 0
@@ -114,7 +113,7 @@ function advance_track()
     track_info = retrieve_minimap( current.name )
     state_file = base_state_file .. current.state
   end  
-=======
+
 function table_shallow_copy(t)
   copy = {}
   for key, value in pairs(t) do
