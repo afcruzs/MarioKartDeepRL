@@ -64,7 +64,12 @@ local tracks_file_names = {
                             {name = "yoshi_desert", state = "StarCup/YoshiDesert.State"}
                           }
 
+-- A random sequence (without repetition)
+-- of tracks is generated with size 'number_of_tracks'.
+-- After the player successfuly completes these tracks,
+-- a new random sequence is generated and so on.
 local number_of_tracks = 3
+
 local current_track_idx = 1
 local tracks_permutation = {}                          
 
