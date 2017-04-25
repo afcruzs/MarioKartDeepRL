@@ -113,6 +113,7 @@ function advance_track()
     track_info = retrieve_minimap( current.name )
     state_file = base_state_file .. current.state
   end  
+end  
 
 function table_shallow_copy(t)
   copy = {}
