@@ -424,6 +424,7 @@ local track_info = retrieve_minimap('peach_circuit')
 
 initialize_checkpoints_parameters()
 
+
 while true do
   client.screenshot(screenshot_folder .. "screenshot" .. (frame_number % frames_to_stack) ..  ".png")
   stacked_frames = math.min(stacked_frames + 1, frames_to_stack)
@@ -476,6 +477,8 @@ while true do
 
       action = result.action
       current_reward = 0
+      max_time_between_checkpoints = result.max_time_between_checkpoints
+      max_time_between_checkpoints_increase = result.max_time_between_checkpoints_increase
     end
 
     joypad.set(action)
@@ -498,7 +501,4 @@ while true do
   if state:is_timed_out() and use_checkpoint then
     restore_checkpoint()    
   end
-
-  max_time_between_checkpoints = max_time_between_checkpoints + max_time_between_checkpoints_increase
-
 end

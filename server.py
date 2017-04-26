@@ -116,13 +116,12 @@ def request_action():
 
     params = request.get_json()
     
-    game_id, reward, screenshots, train, is_terminal_state, max_time_between_checkpoints, max_time_between_checkpoints_increase = (
+    game_id, reward, screenshots, train, is_terminal_state = (
         params["game_id"], float(params["reward"]), params["screenshots"],
-        params["train"], bool(params["race_ended"]),
-        float(params["max_time_between_checkpoints"]),
-        float(params["max_time_between_checkpoints_increase"]))
+        params["train"], bool(params["race_ended"]))
 
-    agent.set_checkpoints_parameters(max_time_between_checkpoints, max_time_between_checkpoints_increase)
+    max_time_between_checkpoints = agent.parameters.max_time_between_checkpoints
+    max_time_between_checkpoints_increase = agent.parameters.max_time_between_checkpoints_increase
 
     images = []
     for i, screenshot in enumerate(screenshots):
@@ -143,7 +142,13 @@ def request_action():
     last_action_request = None if is_terminal_state else (processed_images, action_index)
     action = possible_actions[action_index]
 
-    return make_response(jsonify({'action': action}))
+    print(max_time_between_checkpoints, max_time_between_checkpoints_increase)
+
+    return make_response(jsonify({
+        'action': action,
+        'max_time_between_checkpoints': max_time_between_checkpoints,
+        'max_time_between_checkpoints_increase' : max_time_between_checkpoints_increase
+    }))
 
 if __name__ == '__main__':
     with session:
