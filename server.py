@@ -86,8 +86,7 @@ app = Flask(__name__)
 @app.route('/get-checkpoint-parameters', methods = ['POST'])
 def get_checkpoints_parameters():
     return make_response(jsonify({
-        'max_time_between_checkpoints': agent.parameters.max_time_between_checkpoints,
-        'max_time_between_checkpoints_increase': agent.parameters.max_time_between_checkpoints_increase
+        'max_time_between_checkpoints': agent.parameters.max_time_between_checkpoints
     }))
 
 @app.route('/get-minimap', methods = ['POST'])
@@ -121,7 +120,6 @@ def request_action():
         params["train"], bool(params["race_ended"]))
 
     max_time_between_checkpoints = agent.parameters.max_time_between_checkpoints
-    max_time_between_checkpoints_increase = agent.parameters.max_time_between_checkpoints_increase
 
     images = []
     for i, screenshot in enumerate(screenshots):
@@ -142,12 +140,10 @@ def request_action():
     last_action_request = None if is_terminal_state else (processed_images, action_index)
     action = possible_actions[action_index]
 
-    print(max_time_between_checkpoints, max_time_between_checkpoints_increase)
-
+    
     return make_response(jsonify({
         'action': action,
         'max_time_between_checkpoints': max_time_between_checkpoints,
-        'max_time_between_checkpoints_increase' : max_time_between_checkpoints_increase
     }))
 
 if __name__ == '__main__':

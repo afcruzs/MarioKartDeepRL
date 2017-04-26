@@ -25,7 +25,6 @@ local minimap_offset_y = 160 - 64
 local end_of_lap_threshold = 0.9
 local start_of_lap_threshold = 0.1
 local max_time_between_checkpoints = nil
-local max_time_between_checkpoints_increase = nil
 local max_frames = 65535
 local max_coins = 255
 local max_entity_hits = 20
@@ -82,7 +81,6 @@ end
 function initialize_checkpoints_parameters()
   local result = make_json_request(base_url .. "get-checkpoint-parameters", "POST", {})
   max_time_between_checkpoints = result.max_time_between_checkpoints
-  max_time_between_checkpoints_increase = result.max_time_between_checkpoints_increase
 end
 
 function MarioKartState.new()
@@ -470,15 +468,12 @@ while true do
         reward=current_reward,
         screenshots=last_screenshots,
         train=train,
-        race_ended=race_ended,
-        max_time_between_checkpoints=max_time_between_checkpoints,
-        max_time_between_checkpoints_increase=max_time_between_checkpoints_increase
+        race_ended=race_ended
       })
 
       action = result.action
       current_reward = 0
       max_time_between_checkpoints = result.max_time_between_checkpoints
-      max_time_between_checkpoints_increase = result.max_time_between_checkpoints_increase
     end
 
     joypad.set(action)
