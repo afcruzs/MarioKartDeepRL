@@ -361,10 +361,9 @@ class QLearning(object):
             action_type = "Best action"
         print(action_type + ':', [possible_actions[i].keys() for i in result])
 
-        if train:
-            if not self.is_initializing_replay_memory():
-                self.parameters.exploration_rate = max(self.parameters.final_exploration,
-                    self.parameters.exploration_rate - self.parameters.exploration_decay)
+        if train and not self.is_initializing_replay_memory():
+            self.parameters.exploration_rate = max(self.parameters.final_exploration,
+                self.parameters.exploration_rate - self.parameters.exploration_decay)
             
             self.parameters.max_time_between_checkpoints += self.parameters.max_time_between_checkpoints_increase
         return result
