@@ -69,7 +69,7 @@ local tracks_file_names = {
 -- a new random sequence is generated and so on.
 local number_of_tracks = 3
 
-local current_track_idx = 1
+local current_track_idx = 0
 local tracks_permutation = {}                          
 
 local state_file = nil
@@ -102,12 +102,12 @@ function get_current_track_data()
 end
 
 function advance_track()
-  if current_track_idx == 1 then
+  if current_track_idx == 0 or current_track_idx == number_of_tracks then
     generate_tracks_permutation()
     current_track_idx = 0
   end  
 
-  current_track_idx = 1 + ((current_track_idx - 1) % number_of_tracks)
+  current_track_idx = current_track_idx + 1
   local current = get_current_track_data()
   track_info = retrieve_minimap( current.name )
   state_file = base_state_file .. current.state
