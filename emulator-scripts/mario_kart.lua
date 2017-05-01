@@ -107,7 +107,7 @@ function advance_track()
     current_track_idx = 0
   end  
 
-  current_track_idx = current_track_idx + 1
+  current_track_idx = 1 + ((current_track_idx - 1) % number_of_tracks)
   local current = get_current_track_data()
   track_info = retrieve_minimap( current.name )
   state_file = base_state_file .. current.state
