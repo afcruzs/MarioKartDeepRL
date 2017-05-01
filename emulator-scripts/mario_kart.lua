@@ -47,7 +47,7 @@ local last_checkpoint = nil
 local MarioKartState = {}
 
 local base_state_file = "../game/"
-local tracks_file_names = { 
+local track_file_name = { 
                             {name = "boo_lake", state = "FlowerCup/BooLake.State"},
                             {name = "bowser_castle_2", state = "FlowerCup/BowserCastle2.State"},
                             {name = "mario_circuit", state = "FlowerCup/MarioCircuit.State"},
@@ -85,7 +85,7 @@ function table_length(T)
 end
 
 function generate_tracks_permutation()
-  local n = table_length(tracks_file_names)
+  local n = table_length(track_file_name)
   for i = 1, n, 1 do
     tracks_permutation[i] = i
   end
@@ -98,7 +98,7 @@ function generate_tracks_permutation()
 end
 
 function get_current_track_data()
-  return tracks_file_names[tracks_permutation[current_track_idx]]
+  return track_file_name[tracks_permutation[current_track_idx]]
 end
 
 function advance_track()
