@@ -36,7 +36,6 @@ local screenshot_folder = "../results/"
 
 local train = true
 local manual_mode = false
-local use_checkpoint = false
 local use_checkpoint = true
 local repeat_forever = true
 local use_initial_checkpoint = true
@@ -91,18 +90,11 @@ function generate_tracks_permutation()
     tracks_permutation[i] = i
   end
 
-  for i = 1, n, 1 do
-    local rand_x = math.random(1, n)
-    local rand_y = math.random(1, n)
-    tracks_permutation[rand_x], tracks_permutation[rand_y] = 
-    tracks_permutation[rand_y], tracks_permutation[rand_x]
+  for i = 1, n - 1, 1 do
+    local j = math.random(i, n)
+    tracks_permutation[i], tracks_permutation[j] = 
+    tracks_permutation[j], tracks_permutation[i]
   end
-
-  current_track_idx = 1
-  local current = get_current_track_data()
-  track_info = retrieve_minimap( current.name )
-  state_file = base_state_file .. current.state
-
 end
 
 function get_current_track_data()
@@ -110,14 +102,15 @@ function get_current_track_data()
 end
 
 function advance_track()
-  if current_track_idx >= number_of_tracks then
+  if current_track_idx == 1 then
     generate_tracks_permutation()
-  else
-    current_track_idx = current_track_idx + 1
-    local current = get_current_track_data()
-    track_info = retrieve_minimap( current.name )
-    state_file = base_state_file .. current.state
+    current_track_idx = 0
   end  
+
+  current_track_idx = current_track_idx + 1
+  local current = get_current_track_data()
+  track_info = retrieve_minimap( current.name )
+  state_file = base_state_file .. current.state
 end  
 
 function table_shallow_copy(t)
@@ -483,7 +476,7 @@ function reset()
   create_checkpoint()
 end
 
-generate_tracks_permutation()
+advance_track()
 reset()
 
 while true do
