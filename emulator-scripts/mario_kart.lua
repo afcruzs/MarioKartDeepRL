@@ -39,6 +39,7 @@ local manual_mode = false
 local use_checkpoint = true
 local repeat_forever = true
 local use_initial_checkpoint = true
+local use_training_tracks = true
 
 local game_id = nil
 local action = {}
@@ -47,21 +48,27 @@ local last_checkpoint = nil
 local MarioKartState = {}
 
 local base_state_file = "../game/"
-local track_file_name = { 
+
+local training_track_file_name = { 
                             {name = "boo_lake", state = "FlowerCup/BooLake.State"},
                             {name = "bowser_castle_2", state = "FlowerCup/BowserCastle2.State"},
-                            {name = "mario_circuit", state = "FlowerCup/MarioCircuit.State"},
-                            {name = "cheep_cheep_island", state = "LighthingCup/CheepCheepIsland.State"},
                             {name = "luigi_circuit", state = "LighthingCup/LuigiCircuit.State"},
                             {name = "sky_garden", state = "LighthingCup/SkyGarden.State"},
-                            {name = "sunset_wilds", state = "LighthingCup/SunsetWilds.State"},
-                            {name = "bowser_castle_1", state = "MushroomCup/BowserCastle1.State"},
                             {name = "peach_circuit", state = "MushroomCup/PeachCircuit.State"},
                             {name = "shy_guy_beach", state = "MushroomCup/ShyGuyBeach.State"},
                             {name = "bowser_castle_3", state = "StarCup/BowserCastle3.State"},
-                            {name = "snow_land", state = "StarCup/SnowLand.State"},
                             {name = "yoshi_desert", state = "StarCup/YoshiDesert.State"}
-                          }
+                          }                                        
+
+local testing_track_file_name = {
+  {name = "mario_circuit", state = "FlowerCup/MarioCircuit.State"},
+  {name = "cheep_cheep_island", state = "LighthingCup/CheepCheepIsland.State"},
+  {name = "sunset_wilds", state = "LighthingCup/SunsetWilds.State"},
+  {name = "bowser_castle_1", state = "MushroomCup/BowserCastle1.State"},
+  {name = "snow_land", state = "StarCup/SnowLand.State"},
+}
+
+local track_file_name = use_training_tracks and training_track_file_name or testing_track_file_name
 
 -- A random sequence (without repetition)
 -- of tracks is generated with size 'number_of_tracks'.
