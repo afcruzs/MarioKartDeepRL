@@ -1,13 +1,14 @@
 from PIL import Image
 from collections import deque
 
-BORDER_COLOR = (132, 132, 132, 255)
-TRACK_COLOR = (255, 255, 255, 255)
-BACKGROUND_COLOR = (255, 0, 255, 255)
-START_LINE_COLOR = (0, 0, 0, 255)
-INIT_COLOR = (255, 0, 0, 255)
+BORDER_COLOR = (132, 132, 132)
+TRACK_COLOR = (255, 255, 255)
+BACKGROUND_COLOR = (255, 0, 255)
+START_LINE_COLOR = (0, 0, 0)
+INIT_COLOR = (255, 0, 0)
 
 def preprocess_map(filepath):
+  print("Processing", filepath)
   offset = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
   img = Image.open(filepath)
   width, height = img.size
